@@ -74,18 +74,14 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y curl ca-certificates gnupg rsync
 
-node_major() {
-  local v
-  v="$(node -v 2>/dev/null || true)"
-  v="${v#v}"
-  echo "${v%%.*}"
-}
-if ! command -v node >/dev/null 2>&1 || [ "$(node_major)" -lt 18 ] 2>/dev/null; then
+# The website's database uses node:sqlite, built into Node.js 22.13 and newer.
+node_ok() { node -e "require('node:sqlite')" >/dev/null 2>&1; }
+if ! command -v node >/dev/null 2>&1 || ! node_ok; then
   say "Installing Node.js 22"
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 fi
-command -v node >/dev/null 2>&1 || die "Node.js installation failed."
+node_ok || die "Node.js 22.13 or newer is needed, but $(node -v 2>/dev/null || echo 'no Node.js') is installed."
 
 if ! command -v caddy >/dev/null 2>&1; then
   say "Installing Caddy (automatic HTTPS)"
@@ -136,9 +132,14 @@ set_env TRUST_PROXY true
 if [ -n "$WEBHOOK" ]; then
   set_env DISCORD_WEBHOOK_URL "$WEBHOOK"
 fi
+random_hex() { head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 if ! grep -q '^IP_HASH_SALT=.' "$ENV_FILE"; then
-  set_env IP_HASH_SALT "$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  set_env IP_HASH_SALT "$(random_hex 16)"
 fi
+if ! grep -q '^PLUGIN_API_KEY=.' "$ENV_FILE"; then
+  set_env PLUGIN_API_KEY "$(random_hex 24)"
+fi
+PLUGIN_API_KEY="$(grep '^PLUGIN_API_KEY=' "$ENV_FILE" | tail -1 | cut -d= -f2-)"
 chown "root:$APP_USER" "$ENV_FILE"
 chmod 640 "$ENV_FILE"
 
@@ -208,9 +209,21 @@ cat <<EOF
   Once DNS updates (usually a few minutes), open https://$DOMAIN
   Caddy gets the HTTPS certificate automatically.
 
-  Settings:    $ENV_FILE  (then: sudo systemctl restart $SERVICE)
-  Submissions: $APP_DIR/data/
+  Settings:    $ENV_FILE  (then: systemctl restart $SERVICE)
+  Data:        $APP_DIR/data/
   Logs:        journalctl -u $SERVICE -f
+
+  Minecraft account linking:
+    1. Put minecraft-plugin/ModdedrealmsLink-1.0.0.jar in your Minecraft server's plugins folder
+       and restart it once.
+    2. In plugins/ModdedrealmsLink/config.yml set:
+         website-url: "https://$DOMAIN"
+         api-key: "$PLUGIN_API_KEY"
+    3. Run /mrlink reload, then /mrlink test in-game or in the console.
+
+  Staff access comes from in-game ranks (STAFF_RANKS in the settings file). To make your own
+  website account an admin right away, sign up on the website, then run:
+      runuser -u $APP_USER -- node $APP_DIR/server/manage.js admin add YOUR_USERNAME
 EOF
 if ! grep -q '^DISCORD_WEBHOOK_URL=.' "$ENV_FILE"; then
   echo

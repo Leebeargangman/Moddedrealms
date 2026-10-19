@@ -1,0 +1,27 @@
+name: ModdedrealmsLink
+version: '${project.version}'
+main: net.moddedrealms.link.ModdedrealmsLink
+api-version: '1.21'
+description: Links Minecraft accounts to the Moddedrealms website and keeps ranks in sync.
+author: Moddedrealms
+website: https://moddedrealms.net
+softdepend: [LuckPerms, Vault]
+
+commands:
+  link:
+    description: Link your Minecraft account to your Moddedrealms website account.
+    usage: /link <code>
+    aliases: [weblink]
+    permission: moddedrealmslink.link
+  mrlink:
+    description: Moddedrealms Link admin commands.
+    usage: /mrlink <test|reload>
+    permission: moddedrealmslink.admin
+
+permissions:
+  moddedrealmslink.link:
+    description: Use /link
+    default: true
+  moddedrealmslink.admin:
+    description: Use /mrlink test and /mrlink reload
+    default: op

@@ -228,6 +228,35 @@
     }
   };
 
+  /* ---------- Signed-in players ---------- */
+  // A linked Minecraft account fills in (and locks) the player's own name; the server enforces this too.
+  if (window.MR && window.MR.me && location.protocol !== "file:") {
+    window.MR.me().then(function (info) {
+      var note = $("[data-account-note]");
+      if (!info.user || !note) {
+        if (note) {
+          note.textContent = "Tip: sign in to follow your reports and read staff replies on your account page.";
+          note.hidden = false;
+        }
+        return;
+      }
+      var mc = info.user.minecraft;
+      if (mc) {
+        ["rp-reporter", "fb-mc"].forEach(function (id) {
+          var input = document.getElementById(id);
+          if (!input) return;
+          input.value = mc.name;
+          input.readOnly = true;
+        });
+        note.textContent = "Signed in as " + info.user.username + " with your verified Minecraft account " + mc.name + ". You can follow everything you send on your account page.";
+        note.classList.add("notice--ok");
+      } else {
+        note.textContent = "Signed in as " + info.user.username + ". Link your Minecraft account on your account page to mark your reports as verified.";
+      }
+      note.hidden = false;
+    });
+  }
+
   /* ---------- Submit ---------- */
   $$("[data-form]").forEach(function (form) {
     var type = form.getAttribute("data-form");
@@ -290,6 +319,8 @@
         .then(function (result) {
           if (result.ok && result.data && result.data.ok) {
             $("[data-ref]", success).textContent = result.data.id || "";
+            var track = $("[data-track]", success);
+            if (track) track.hidden = !result.data.tracked;
             form.hidden = true;
             success.hidden = false;
             success.focus();
@@ -318,7 +349,13 @@
     });
 
     $("[data-reset]", success).addEventListener("click", function () {
+      var locked = $$("input[readonly]", form).map(function (i) {
+        return [i, i.value];
+      });
       form.reset();
+      locked.forEach(function (pair) {
+        pair[0].value = pair[1];
+      });
       clearErrors(form);
       startedAt = Date.now();
       success.hidden = true;

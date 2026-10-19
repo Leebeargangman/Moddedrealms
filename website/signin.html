@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in | Moddedrealms</title>
+  <meta name="description" content="Sign in to your Moddedrealms account, or create one.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0a0c0b">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="image/web/icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="fonts/chakra-petch-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+  <script src="js/auth.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="b-discord" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-login" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" data-header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="Moddedrealms home">
+        <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+        <span class="brand-name">Modded<span>realms</span></span>
+      </a>
+      <nav class="nav-links" id="nav-menu" aria-label="Main" data-nav>
+        <a href="index.html#gamemodes">Gamemodes</a>
+        <a href="index.html#vehicles">Vehicles</a>
+        <a href="index.html#videos">Videos</a>
+        <a href="index.html#join">How to join</a>
+        <a href="support.html">Feedback &amp; Reports</a>
+        <a href="signin.html" data-account-link aria-current="page">Sign in</a>
+        <a class="btn btn-discord btn-sm" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
+          <svg class="icon" aria-hidden="true"><use href="#b-discord"/></svg> Discord
+        </a>
+      </nav>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" data-nav-toggle>
+        <span></span><span></span><span></span>
+        <span class="sr-only">Toggle menu</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero page-hero--compact" aria-labelledby="page-title">
+      <div class="page-hero-bg" aria-hidden="true">
+        <img src="image/web/spawn-960.webp" width="960" height="499" alt="">
+      </div>
+      <div class="container">
+        <p class="eyebrow">Account</p>
+        <h1 id="page-title">Sign in</h1>
+        <p>Optional. Sign in to follow your reports, read replies from staff and link your Minecraft account.</p>
+      </div>
+    </section>
+
+    <section class="app-section">
+      <div class="container auth-layout">
+        <div class="auth-card">
+          <div class="tabs" role="tablist" aria-label="Sign in or create an account">
+            <button class="tab" type="button" role="tab" id="tab-signin" aria-controls="panel-signin" aria-selected="true" data-tab="signin">
+              <svg class="icon" aria-hidden="true"><use href="#i-login"/></svg> Sign in
+            </button>
+            <button class="tab" type="button" role="tab" id="tab-register" aria-controls="panel-register" aria-selected="false" tabindex="-1" data-tab="register">
+              <svg class="icon" aria-hidden="true"><use href="#i-user"/></svg> Create account
+            </button>
+          </div>
+
+          <section role="tabpanel" id="panel-signin" aria-labelledby="tab-signin" data-panel="signin">
+            <form class="form" data-auth-form="login" novalidate>
+              <div class="field">
+                <label for="li-username">Username</label>
+                <input class="input" id="li-username" name="username" type="text" maxlength="24" autocomplete="username" spellcheck="false" required aria-describedby="li-username-error">
+                <p class="field-error" id="li-username-error" data-error-for="username"></p>
+              </div>
+              <div class="field">
+                <label for="li-password">Password</label>
+                <input class="input" id="li-password" name="password" type="password" maxlength="200" autocomplete="current-password" required aria-describedby="li-password-error">
+                <p class="field-error" id="li-password-error" data-error-for="password"></p>
+              </div>
+              <p class="form-status" role="alert" data-form-status hidden></p>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit" data-submit>
+                  <svg class="icon" aria-hidden="true"><use href="#i-login"/></svg> Sign in
+                </button>
+                <p class="form-note" data-email-only hidden>Forgot your password? <button class="text-link" type="button" data-show-forgot>Reset it by email</button></p>
+                <p class="form-note" data-no-email>Forgot your password? Ask a staff member on Discord.</p>
+              </div>
+            </form>
+
+            <form class="form" data-auth-form="forgot" novalidate hidden>
+              <div>
+                <h2>Reset your password</h2>
+                <p class="lead-sm">Enter the email address on your account. If it's been confirmed, we'll email you a reset link.</p>
+              </div>
+              <div class="field">
+                <label for="fg-email">Email</label>
+                <input class="input" id="fg-email" name="email" type="email" maxlength="200" autocomplete="email" required aria-describedby="fg-email-error">
+                <p class="field-error" id="fg-email-error" data-error-for="email"></p>
+              </div>
+              <p class="form-status" role="alert" data-form-status hidden></p>
+              <p class="form-ok" role="status" data-form-ok hidden>If that email belongs to an account, a reset link is on its way. Check your inbox (and spam folder).</p>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit" data-submit>
+                  <svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg> Send reset link
+                </button>
+                <button class="text-link" type="button" data-hide-forgot>Back to sign in</button>
+              </div>
+            </form>
+          </section>
+
+          <section role="tabpanel" id="panel-register" aria-labelledby="tab-register" data-panel="register" hidden>
+            <form class="form" data-auth-form="register" novalidate>
+              <div class="field">
+                <label for="rg-username">Username</label>
+                <input class="input" id="rg-username" name="username" type="text" maxlength="24" autocomplete="username" spellcheck="false" required aria-describedby="rg-username-error rg-username-hint">
+                <div class="field-foot"><span id="rg-username-hint">3-24 letters, numbers, dots, dashes or underscores. Your Minecraft name is added when you link.</span></div>
+                <p class="field-error" id="rg-username-error" data-error-for="username"></p>
+              </div>
+              <div class="field">
+                <label for="rg-password">Password</label>
+                <input class="input" id="rg-password" name="password" type="password" maxlength="200" autocomplete="new-password" required aria-describedby="rg-password-error rg-password-hint">
+                <div class="field-foot"><span id="rg-password-hint">At least 8 characters. Don't reuse your Minecraft or Discord password.</span></div>
+                <p class="field-error" id="rg-password-error" data-error-for="password"></p>
+              </div>
+              <div class="field" data-email-only hidden>
+                <label for="rg-email">Email <span class="opt">optional</span></label>
+                <input class="input" id="rg-email" name="email" type="email" maxlength="200" autocomplete="email" aria-describedby="rg-email-error rg-email-hint">
+                <div class="field-foot"><span id="rg-email-hint">For updates on your reports and password resets. Never shown to anyone.</span></div>
+                <p class="field-error" id="rg-email-error" data-error-for="email"></p>
+              </div>
+              <p class="form-status" role="alert" data-form-status hidden></p>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit" data-submit>
+                  <svg class="icon" aria-hidden="true"><use href="#i-user"/></svg> Create account
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <aside class="app-side" aria-label="About accounts">
+          <div class="card hud aside-card">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg> With an account you can</h3>
+            <ul class="aside-list">
+              <li><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Follow your reports and read staff replies</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg><span>Link your Minecraft account with <code>/link</code> in-game</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>See reports made about you once they're reviewed</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg><span>Get optional email updates</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg><span>Staff: open the staff dashboard</span></li>
+            </ul>
+          </div>
+          <div class="card aside-card">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg> Totally optional</h3>
+            <p>You can still send feedback and report players without an account.</p>
+            <a class="btn btn-ghost btn-sm btn-block" href="support.html">Feedback &amp; Reports</a>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+          <span class="brand-name">Modded<span>realms</span></span>
+        </a>
+        <p>A Minecraft server built for teamwork and strategy. Battles across WW1, WW2 and Modern eras with smart NPCs and realistic vehicles.</p>
+        <button class="footer-ip" type="button" data-copy="moddedrealms.minehut.gg" aria-label="Copy server IP moddedrealms.minehut.gg">
+          <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
+          <span>moddedrealms.minehut.gg</span>
+        </button>
+      </div>
+      <div>
+        <h4>Play</h4>
+        <ul class="footer-links">
+          <li><a href="index.html#gamemodes">Battles</a></li>
+          <li><a href="index.html#vehicles">Vehicles</a></li>
+          <li><a href="index.html#join">How to join</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Community</h4>
+        <ul class="footer-links">
+          <li><a href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">Discord</a></li>
+          <li><a href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">YouTube</a></li>
+          <li><a href="https://modrinth.com/mod/ultimate-vehicle-experience" target="_blank" rel="noopener">Modrinth</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul class="footer-links">
+          <li><a href="support.html#feedback">Send feedback</a></li>
+          <li><a href="support.html#report">Report a player</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; <span data-year>2026</span> Moddedrealms (Modrealms)</p>
+      <p>Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</p>
+    </div>
+  </footer>
+
+  <div class="toast" role="status" aria-live="polite" data-toast></div>
+</body>
+</html>

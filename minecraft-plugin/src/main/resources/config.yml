@@ -1,0 +1,31 @@
+# Moddedrealms Link
+# Lets players connect their Minecraft account to their account on the Moddedrealms website,
+# and keeps their rank in sync so staff get access to the website's staff dashboard.
+
+# Your website's address, starting with https:// (no slash at the end).
+website-url: "https://moddedrealms.net"
+
+# Must be the same as PLUGIN_API_KEY in the website's .env file. Keep it secret!
+api-key: "paste-your-plugin-api-key-here"
+
+# Where to read each player's rank from:
+#   auto        - LuckPerms if installed, otherwise Vault, otherwise the "ranks" list below
+#   luckperms   - the player's LuckPerms primary group
+#   vault       - the player's primary group from Vault
+#   permissions - the first group in "ranks" the player has (checked with the group.<name> permission)
+rank-source: auto
+
+# Used by rank-source "permissions" (and by "auto" when neither LuckPerms nor Vault is installed).
+# Put the highest rank first.
+ranks:
+  - owner
+  - admin
+  - moderator
+  - helper
+  - vip
+
+# Rank sent when none of the above match.
+default-rank: default
+
+# How often to send online players' ranks to the website, in minutes. 0 = only when they join.
+sync-interval-minutes: 5

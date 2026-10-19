@@ -136,6 +136,121 @@
   window.MR = window.MR || {};
   window.MR.toast = toast;
 
+  /* ---------- API + account helpers (used by the account pages) ---------- */
+  var online = location.protocol !== "file:";
+
+  /** Call the website API. Resolves { status, ok, data } and never rejects (network errors give status 0). */
+  function api(path, options) {
+    options = options || {};
+    var init = { method: options.method || "GET", headers: { Accept: "application/json" }, credentials: "same-origin" };
+    if (options.body !== undefined) {
+      init.method = options.method || "POST";
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(options.body);
+    }
+    if (!online) return Promise.resolve({ status: 0, ok: false, data: { error: "Run the website server to use accounts." } });
+    return fetch(path, init).then(
+      function (res) {
+        return res
+          .json()
+          .catch(function () {
+            return {};
+          })
+          .then(function (data) {
+            return { status: res.status, ok: res.ok && data.ok !== false, data: data };
+          });
+      },
+      function () {
+        return { status: 0, ok: false, data: { error: "Couldn't reach the server. Check your connection and try again." } };
+      }
+    );
+  }
+
+  var mePromise = null;
+  /** The signed-in user (or null) and which optional features the server has switched on. */
+  function me(refresh) {
+    if (!mePromise || refresh) {
+      mePromise = api("/api/auth/me").then(function (r) {
+        return { user: (r.data && r.data.user) || null, features: (r.data && r.data.features) || {} };
+      });
+    }
+    return mePromise;
+  }
+
+  function formatDate(iso, withTime) {
+    var d = new Date(iso);
+    if (!iso || isNaN(d.getTime())) return "";
+    var opts = { month: "short", day: "numeric", year: "numeric" };
+    if (withTime) {
+      opts.hour = "numeric";
+      opts.minute = "2-digit";
+    }
+    return d.toLocaleString(undefined, opts);
+  }
+
+  /** Show server-side field errors next to their inputs (elements with data-error-for="name"). */
+  function showErrors(form, fields) {
+    var first = null;
+    Object.keys(fields || {}).forEach(function (name) {
+      var holder = $('[data-error-for="' + name + '"]', form);
+      if (holder) holder.textContent = fields[name];
+      var input = form.elements[name];
+      if (input && input.setAttribute) {
+        input.setAttribute("aria-invalid", "true");
+        if (!first) first = input;
+      }
+    });
+    if (first) first.focus();
+  }
+
+  function clearErrors(form) {
+    $$("[data-error-for]", form).forEach(function (n) {
+      n.textContent = "";
+    });
+    $$('[aria-invalid="true"]', form).forEach(function (n) {
+      n.removeAttribute("aria-invalid");
+    });
+    setStatus(form, "");
+  }
+
+  function setStatus(form, message) {
+    var status = $("[data-form-status]", form);
+    if (!status) return;
+    status.textContent = message || "";
+    status.hidden = !message;
+  }
+
+  function busy(button, isBusy) {
+    if (!button) return;
+    button.disabled = isBusy;
+    button.classList.toggle("is-busy", isBusy);
+  }
+
+  window.MR.api = api;
+  window.MR.me = me;
+  window.MR.formatDate = formatDate;
+  window.MR.showErrors = showErrors;
+  window.MR.clearErrors = clearErrors;
+  window.MR.setStatus = setStatus;
+  window.MR.busy = busy;
+
+  /* ---------- Nav: "Sign in" becomes "Account" (+ "Staff") when signed in ---------- */
+  var accountLink = $("[data-account-link]");
+  if (accountLink && online) {
+    me().then(function (info) {
+      if (!info.user) return;
+      var absolute = (accountLink.getAttribute("href") || "").charAt(0) === "/";
+      accountLink.textContent = "Account";
+      accountLink.setAttribute("href", absolute ? "/account" : "account.html");
+      if (info.user.staff) {
+        var staffLink = el("a", { href: absolute ? "/admin" : "admin.html", text: "Staff" });
+        if (/admin\.html$|\/admin$/.test(location.pathname)) staffLink.setAttribute("aria-current", "page");
+        accountLink.parentNode.insertBefore(staffLink, accountLink);
+      }
+      if (/account(\.html)?$/.test(location.pathname)) accountLink.setAttribute("aria-current", "page");
+    });
+  }
+
   /* ---------- Copy server IP ---------- */
   function fallbackCopy(text) {
     var ta = el("textarea", { readonly: "", class: "sr-only" });
@@ -279,12 +394,6 @@
   });
 
   var videosGrid = $("[data-videos]");
-
-  function formatDate(iso) {
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  }
 
   function videoCard(video, index) {
     var meta = el("span", { class: "video-meta" });

@@ -4,17 +4,24 @@ The official website for **Moddedrealms** (Modrealms for short), the Minecraft s
 
 - **Homepage**: hero with copy-IP button and live server status, Battles gamemodes (WW1, WW2, Modern and more), the Ultimate Vehicle Experience gallery, latest YouTube videos, how to join, and community links.
 - **Feedback & Reports page**: a feedback form and a report-a-player form. Submissions go to a Discord channel through a webhook, and a copy is saved on the server.
-- **Live data**: player count from Minehut, Discord member and online counts, and your latest YouTube uploads. These update automatically.
+- **Optional accounts**: players and staff can sign in. Players link their Minecraft account by typing `/link CODE` in-game (proof they own it), follow their reports and feedback, read staff replies, and see reports made about them once staff have reviewed them. Staff ranks sync from the server and unlock the **staff dashboard** for handling reports and feedback. Optional email notifications and password resets.
+- **Minecraft plugin**: `minecraft-plugin/ModdedrealmsLink-1.0.0.jar` for Paper 1.21.4+ handles `/link` and syncs ranks from LuckPerms or Vault.
+- **Live data**: online players (as shown in the Minecraft server list), Discord member and online counts, and your latest YouTube uploads. These update automatically.
 - **Short links**: `yourdomain.com/discord`, `/youtube`, `/modrinth`, `/feedback`, `/report`.
-- No build step and no npm packages. It's plain HTML, CSS and JS plus a small Node.js server.
+- No build step and no npm packages. It's plain HTML, CSS and JS plus a small Node.js server with a built-in SQLite database.
 
 ```
 website/            The site itself (HTML, CSS, JS, fonts, images)
   index.html        Homepage
   support.html      Feedback & Reports page
+  signin.html       Sign in / create account
+  account.html      Player account page
+  admin.html        Staff dashboard
   image/            Your original images
   image/web/        Web-optimized copies used by the site (WebP)
-server/server.js    Serves the site and handles the forms (Node.js 18+)
+server/             The Node.js server (needs Node.js 22.13+)
+  manage.js         Command-line tools: make admins, reset passwords
+minecraft-plugin/   The ModdedrealmsLink plugin (ready-made .jar + source)
 deploy/             Caddyfile, systemd service and the one-command installer
 docker-compose.yml  Website + Caddy (automatic HTTPS) in Docker
 .env.example        Settings template
@@ -24,13 +31,13 @@ docker-compose.yml  Website + Caddy (automatic HTTPS) in Docker
 
 ## Preview it on your computer
 
-Install [Node.js](https://nodejs.org) 18 or newer, then from this folder run:
+Install [Node.js](https://nodejs.org) 22.13 or newer, then from this folder run:
 
 ```bash
 node server/server.js
 ```
 
-Open http://localhost:3000. Forms and live status work locally too (submissions are saved to `data/`).
+Open http://localhost:3000. Forms, accounts and live status work locally too (everything is saved in `data/`).
 
 You can also double-click `website/index.html` to look at the design, but the forms and live status only work through the server.
 
@@ -140,9 +147,9 @@ Keep the webhook URL private, since anyone who has it can post in that channel. 
 
 ### Where submissions are saved
 
-Every submission is also saved on the server, one JSON object per line, even if Discord is down or no webhook is set:
+Every submission is stored in the website's database (`data/moddedrealms.db`) and shows up in the **staff dashboard** at `yourdomain.com/admin`. A backup copy is also appended to `data/reports.jsonl` and `data/feedback.jsonl`, even if Discord is down or no webhook is set:
 
-- Docker: `sudo docker compose exec web cat data/reports.jsonl` (or `data/feedback.jsonl`)
+- Docker: `sudo docker compose exec web cat data/reports.jsonl`
 - Install script: `/opt/moddedrealms/data/`
 
 Each submission gets a reference code (like `R-7K3F2A`) that the player sees, so staff can match a player's message to their report.
@@ -154,6 +161,55 @@ Each submission gets a reference code (like `R-7K3F2A`) that the player sees, so
 - Submissions sent faster than a person could type are saved with a `flagged` note but not posted to Discord.
 - User text can never ping `@everyone`, `@here`, users or roles.
 - IP addresses are not stored. Only a salted hash is kept to spot repeat spammers.
+
+---
+
+## Accounts, Minecraft linking and the staff dashboard
+
+Signing in is optional. Anyone can still send feedback and reports without an account.
+
+**For players** (`yourdomain.com/signin`):
+
+1. Create an account (username + password, email optional).
+2. On the account page, click **Get link code**, join the Minecraft server and type `/link CODE` (or `/weblink CODE`). This proves they own that Minecraft account. Only someone logged in as that player in-game can run it.
+3. From then on their reports are marked **verified**, their name is filled in automatically, and their account page shows:
+   - **My reports**, with the status and staff replies
+   - **Reports about me**, once staff have resolved or closed them. They never see who reported them, and open reports stay hidden so cheaters aren't tipped off mid-investigation
+   - **My feedback**, with staff replies
+
+**For staff** (`yourdomain.com/admin`): anyone whose synced in-game rank is listed in `STAFF_RANKS` (owner, admin, moderator, helper and so on by default) gets the staff dashboard. There they see every report and feedback item, filter and search them, set a status, reply to the player and keep internal notes. Reports show whether the reporter is verified and how many other reports exist about the same player.
+
+### Step 1: Install the plugin on your Minecraft server
+
+1. Download `minecraft-plugin/ModdedrealmsLink-1.0.0.jar` and put it in your server's `plugins` folder. It works on Paper (and Paper forks) 1.21.4 and newer. On Minehut, upload it with the file manager.
+2. Restart the server once. This creates `plugins/ModdedrealmsLink/config.yml`.
+3. Edit that file:
+   ```yaml
+   website-url: "https://moddedrealms.net"
+   api-key: "the PLUGIN_API_KEY from the website's .env"
+   ```
+4. Run `/mrlink reload`, then `/mrlink test`. You should see **OK: Connected to the Moddedrealms website.**
+
+Ranks are read from **LuckPerms** (the primary group) or **Vault** automatically. Without either, the plugin checks the `ranks` list in its config. They're sent when a player links, every time they join, and every 5 minutes for online players.
+
+The install script creates `PLUGIN_API_KEY` for you and prints it at the end. With Docker, generate one with `openssl rand -hex 24`, put it in `.env` as `PLUGIN_API_KEY=...` and run `sudo docker compose up -d`.
+
+### Step 2: Give yourself staff access
+
+Link your own Minecraft account. If your in-game rank is in `STAFF_RANKS` you're staff automatically. To make a website account an admin straight away (before the plugin is set up), sign up on the website and run this on the VPS:
+
+```bash
+# Install script
+runuser -u moddedrealms -- node /opt/moddedrealms/server/manage.js admin add YOUR_USERNAME
+# Docker
+sudo docker compose exec web node server/manage.js admin add YOUR_USERNAME
+```
+
+`manage.js` can also reset a password (`manage.js password USERNAME`) and list accounts (`manage.js users`).
+
+### Optional: email
+
+Fill in `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` in `.env` with details from any email provider (for example a Gmail address with an [app password](https://myaccount.google.com/apppasswords): host `smtp.gmail.com`, port `587`). Then restart the site. Players can then add an email on their account page. After they confirm it, they get emails when staff update their reports, reply to their feedback, or close a report about them, and they can reset a forgotten password. Without email, players who forget their password can ask staff, who run `manage.js password USERNAME`.
 
 ---
 
@@ -192,10 +248,14 @@ Your `.env` settings and saved submissions are kept.
 | `HOST` | Address to listen on. Use `127.0.0.1` when a proxy runs on the same machine. |
 | `TRUST_PROXY` | `true` when running behind Caddy or nginx, so visitor IPs are read correctly. |
 | `SUBMIT_RATE_LIMIT` | Max submissions per visitor per 15 minutes (default `5`). |
+| `PLUGIN_API_KEY` | Secret shared with the ModdedrealmsLink plugin. Empty turns linking off. |
+| `STAFF_RANKS` | In-game ranks that get the staff dashboard, comma separated. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional email for notifications and password resets. Port 465 uses TLS directly; 587 uses STARTTLS. |
 | `MC_SERVER_ADDRESS` | Minecraft server used for the live player count. |
+| `MC_MAX_PLAYERS` | Optional override for the max players shown (normally read from the server). |
 | `DISCORD_INVITE_CODE` | Invite used for the live member count. |
 | `YOUTUBE_CHANNEL_ID` | Channel used for the latest videos. |
-| `DATA_DIR` | Where submissions are saved (default `data/`). |
+| `DATA_DIR` | Where the database and submission backups are saved (default `data/`). Back this folder up. |
 
 ## Troubleshooting
 
@@ -203,6 +263,8 @@ Your `.env` settings and saved submissions are kept.
   - Docker: `sudo docker compose logs -f`
   - Install script: `journalctl -u moddedrealms -f` and `journalctl -u caddy -f`
 - **Forms say "Couldn't reach the server"**: the site is being served without the Node server (for example as plain files). Run it with one of the options above.
+- **`/mrlink test` fails**: check `website-url` (must start with `https://`) and that `api-key` matches `PLUGIN_API_KEY` exactly, then `/mrlink reload`. If it says it can't connect, your Minecraft host may block outgoing connections.
+- **Players say `/link` does nothing or opens another plugin**: another plugin also uses `/link`. Tell them to use `/weblink CODE`.
 - **Discord messages don't arrive**: check the webhook URL in `.env`, restart, and look for `[discord]` lines in the logs. Submissions are still saved in `data/`.
 
 ---
