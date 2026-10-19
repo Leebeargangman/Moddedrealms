@@ -1,0 +1,12 @@
+# Caddy config used by docker-compose.yml.
+# Caddy requests and renews HTTPS certificates for your domain automatically.
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# Send www.yourdomain.com to yourdomain.com
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}

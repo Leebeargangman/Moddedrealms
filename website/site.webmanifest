@@ -1,0 +1,13 @@
+{
+  "name": "Moddedrealms",
+  "short_name": "Modrealms",
+  "description": "A Minecraft server built for teamwork and strategy.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c0b",
+  "theme_color": "#0a0c0b",
+  "icons": [
+    { "src": "/image/web/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/image/web/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

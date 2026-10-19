@@ -1,0 +1,38 @@
+# Moddedrealms website + Caddy (automatic HTTPS).
+# 1. cp .env.example .env and set DOMAIN (and your Discord webhook)
+# 2. docker compose up -d --build
+
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      TRUST_PROXY: "true"
+      SITE_URL: https://${DOMAIN:?Set DOMAIN in your .env file}
+      DATA_DIR: /app/data
+    volumes:
+      - submissions:/app/data
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in your .env file}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  submissions:
+  caddy_data:
+  caddy_config:

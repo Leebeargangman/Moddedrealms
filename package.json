@@ -1,0 +1,13 @@
+{
+  "name": "moddedrealms-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Website for the Moddedrealms (Modrealms) Minecraft server",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
