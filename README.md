@@ -91,6 +91,12 @@ That's it. Visit `https://yourdomain.com`. [Caddy](https://caddyserver.com) fetc
 sudo bash deploy/install.sh yourdomain.com
 ```
 
+Got more than one domain? List them all, main one first. The others (and every `www.` version) redirect to it:
+
+```bash
+sudo bash deploy/install.sh moddedrealms.net modrealms.org
+```
+
 This installs Node.js and Caddy, runs the site as a background service that starts on boot, and sets up HTTPS. It asks for your Discord webhook (you can skip it and add it later). Settings live in `/opt/moddedrealms/.env`.
 
 #### Option C: You already run nginx or Apache
