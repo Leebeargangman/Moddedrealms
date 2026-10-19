@@ -1,0 +1,28 @@
+# systemd service for the Moddedrealms website (installed by deploy/install.sh).
+# Manual install: copy to /etc/systemd/system/, then
+#   sudo systemctl daemon-reload && sudo systemctl enable --now moddedrealms
+
+[Unit]
+Description=Moddedrealms website
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moddedrealms
+Group=moddedrealms
+WorkingDirectory=/opt/moddedrealms
+ExecStart=/usr/bin/env node server/server.js
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=3
+
+# Hardening: the app can only write to its data folder.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/moddedrealms/data
+
+[Install]
+WantedBy=multi-user.target

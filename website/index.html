@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moddedrealms | Minecraft Server Built for Teamwork &amp; Strategy</title>
+  <meta name="description" content="Moddedrealms (Modrealms) is a Minecraft server built around teamwork and strategy. Fight WW1, WW2 and Modern Battles with smart NPCs and realistic vehicles. No mods needed. Join at moddedrealms.minehut.gg">
+  <meta name="theme-color" content="#0a0c0b">
+  <link rel="canonical" href="__SITE_URL__/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Moddedrealms">
+  <meta property="og:title" content="Moddedrealms | Teamwork wins wars">
+  <meta property="og:description" content="A Minecraft server built for teamwork and strategy. WW1, WW2 and Modern Battles with smart NPCs and realistic vehicles. No mods needed.">
+  <meta property="og:url" content="__SITE_URL__/">
+  <meta property="og:image" content="__SITE_URL__/image/web/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="image/web/icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="fonts/chakra-petch-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></symbol>
+    <symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+    <symbol id="i-wheel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2.5"/><path d="M2.5 10.5c3 0 5.5 0 7 1M21.5 10.5c-3 0-5.5 0-7 1M12 14.5V22"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></symbol>
+    <symbol id="b-discord" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></symbol>
+    <symbol id="b-youtube" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></symbol>
+    <symbol id="b-modrinth" viewBox="0 0 24 24" fill="currentColor"><path d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></symbol>
+    <symbol id="p-helmet" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4h4v1h-4zM4 5h8v1h-8zM3 6h10v1h-10zM3 7h10v1h-10zM2 8h12v1h-12zM1 9h14v1h-14zM0 10h16v1h-16zM1 11h14v1h-14zM4 12h1v1h-1zM11 12h1v1h-1zM5 13h1v1h-1zM10 13h1v1h-1zM6 14h4v1h-4z"/></symbol>
+    <symbol id="p-tank" viewBox="0 0 16 16" fill="currentColor"><path d="M5 4h5v1h-5zM4 5h7v1h-7zM4 6h11v1h-11zM4 7h7v1h-7zM2 8h11v1h-11zM1 9h13v1h-13zM0 10h16v1h-16zM0 11h16v1h-16zM0 12h1v1h-1zM2 12h2v1h-2zM5 12h2v1h-2zM8 12h2v1h-2zM11 12h2v1h-2zM14 12h2v1h-2zM1 13h14v1h-14z"/></symbol>
+    <symbol id="p-crosshair" viewBox="0 0 16 16" fill="currentColor"><path d="M7 0h2v2h-2zM5 2h6v1h-6zM3 3h2v1h-2zM7 3h2v2h-2zM11 3h2v1h-2zM3 4h1v1h-1zM12 4h1v1h-1zM2 5h1v2h-1zM13 5h1v2h-1zM0 7h6v2h-6zM7 7h2v2h-2zM10 7h6v2h-6zM2 9h1v2h-1zM13 9h1v2h-1zM3 11h1v1h-1zM7 11h2v2h-2zM12 11h1v1h-1zM3 12h2v1h-2zM11 12h2v1h-2zM5 13h6v1h-6zM7 14h2v2h-2z"/></symbol>
+    <symbol id="p-plus" viewBox="0 0 16 16" fill="currentColor"><path d="M6 2h4v12h-4zM2 6h12v4h-12z"/></symbol>
+  </svg>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" data-header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="Moddedrealms home">
+        <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+        <span class="brand-name">Modded<span>realms</span></span>
+      </a>
+      <nav class="nav-links" id="nav-menu" aria-label="Main" data-nav>
+        <a href="#gamemodes">Gamemodes</a>
+        <a href="#vehicles">Vehicles</a>
+        <a href="#videos">Videos</a>
+        <a href="#join">How to join</a>
+        <a href="support.html">Feedback &amp; Reports</a>
+        <a class="btn btn-discord btn-sm" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
+          <svg class="icon" aria-hidden="true"><use href="#b-discord"/></svg> Discord
+        </a>
+      </nav>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" data-nav-toggle>
+        <span></span><span></span><span></span>
+        <span class="sr-only">Toggle menu</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ HERO ============ -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-bg" aria-hidden="true">
+        <img src="image/web/spawn-1920.webp" srcset="image/web/spawn-960.webp 960w, image/web/spawn-1920.webp 1920w" sizes="100vw" width="1920" height="998" alt="" fetchpriority="high">
+      </div>
+
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="status-pill" data-status>
+            <span class="dot" aria-hidden="true"></span>
+            <span data-status-text>moddedrealms.minehut.gg</span>
+          </p>
+
+          <h1 id="hero-title">
+            <span class="kicker">Moddedrealms &middot; Modrealms</span>
+            Strategy wins battles.<br>
+            <span class="accent">Teamwork wins wars.</span>
+          </h1>
+
+          <p class="lead">A Minecraft server packed with new features that reward teamwork and strategy. Fight through WW1, WW2 and Modern battlefields alongside smart NPCs, and take the wheel of realistic vehicles. No mods to install. Just join and play.</p>
+
+          <div class="ip-box">
+            <span class="ip-label">Server IP</span>
+            <code>moddedrealms.minehut.gg</code>
+            <button class="btn btn-primary" type="button" data-copy="moddedrealms.minehut.gg">
+              <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
+              <span data-copy-label>Copy IP</span>
+            </button>
+          </div>
+
+          <div class="hero-actions">
+            <a class="btn btn-discord" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
+              <svg class="icon" aria-hidden="true"><use href="#b-discord"/></svg> Join the Discord
+            </a>
+            <a class="btn btn-ghost" href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">
+              <svg class="icon" aria-hidden="true"><use href="#b-youtube"/></svg> Watch on YouTube
+            </a>
+          </div>
+
+          <ul class="hero-tags">
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg> Java Edition</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg> No mods required</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg> PvP &amp; minigames</li>
+          </ul>
+        </div>
+
+        <div class="hero-art" aria-hidden="true">
+          <svg class="hero-ring" viewBox="0 0 200 200"><circle cx="100" cy="100" r="99" fill="none" stroke="currentColor" stroke-width="0.8" stroke-dasharray="1.2 5.3"/><path d="M100 0v8M100 192v8M0 100h8M192 100h8" stroke="currentColor" stroke-width="1.6"/></svg>
+          <svg class="hero-ring hero-ring--inner" viewBox="0 0 200 200"><circle cx="100" cy="100" r="99" fill="none" stroke="currentColor" stroke-width="0.6" stroke-dasharray="40 12 4 12"/></svg>
+          <img src="image/web/logo-512.webp" width="512" height="512" alt="">
+        </div>
+      </div>
+
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span>Teamwork</span><span>Strategy</span><span>WW1</span><span>WW2</span><span>Modern</span><span>Smart NPCs</span><span>Realistic vehicles</span><span>No mods needed</span>
+          <span>Teamwork</span><span>Strategy</span><span>WW1</span><span>WW2</span><span>Modern</span><span>Smart NPCs</span><span>Realistic vehicles</span><span>No mods needed</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ABOUT ============ -->
+    <section class="section" id="about" aria-labelledby="about-title">
+      <div class="container">
+        <div class="split">
+          <div class="reveal">
+            <p class="eyebrow">01 / The server</p>
+            <h2 id="about-title">Minecraft, built for squads</h2>
+            <p class="lead">Moddedrealms (Modrealms for short) adds new features to Minecraft that make teamwork and strategy matter. Lone wolves get picked off. Squads that plan, communicate and cover each other win.</p>
+            <ul class="checklist">
+              <li>
+                <span class="tick"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                <span><strong>Play together, win together</strong> Features designed around cooperation, not solo grinding.</span>
+              </li>
+              <li>
+                <span class="tick"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                <span><strong>Think before you charge</strong> Positioning, timing and tactics beat raw aim.</span>
+              </li>
+              <li>
+                <span class="tick"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                <span><strong>Mod-level features, zero setup</strong> Everything runs on the server, so there's nothing to install.</span>
+              </li>
+            </ul>
+            <a class="link-arrow" href="#gamemodes">Explore the gamemodes <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          </div>
+          <div class="split-media reveal reveal-d1">
+            <div class="framed">
+              <img src="image/web/banner-1600.webp" srcset="image/web/banner-800.webp 800w, image/web/banner-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 50vw" width="1600" height="798" alt="Moddedrealms players fighting with swords and TNT in front of a huge explosion" loading="lazy">
+              <span class="framed-tag">Modrealms</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pillars">
+          <article class="card hud reveal">
+            <div class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg></div>
+            <h3>Teamwork first</h3>
+            <p>Built to reward squads that stick together, coordinate and back each other up.</p>
+          </article>
+          <article class="card hud reveal reveal-d1">
+            <div class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-map"/></svg></div>
+            <h3>Real strategy</h3>
+            <p>Plan the push, hold the line, find the flank. Outthinking the enemy wins fights.</p>
+          </article>
+          <article class="card hud reveal reveal-d2">
+            <div class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-cpu"/></svg></div>
+            <h3>Smart NPCs</h3>
+            <p>AI soldiers bring every battlefield to life, so there's always a fight, even when the server is quiet.</p>
+          </article>
+          <article class="card hud reveal reveal-d3">
+            <div class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-car"/></svg></div>
+            <h3>Realistic vehicles</h3>
+            <p>Engines, fuel, gauges and working interiors. Driving takes skill, not just a right-click.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BATTLES ============ -->
+    <section class="section section--alt" id="gamemodes" aria-labelledby="battles-title">
+      <div class="container">
+        <div class="battles-intro">
+          <div class="section-head reveal">
+            <p class="eyebrow">02 / Gamemodes</p>
+            <h2 id="battles-title">Battles</h2>
+            <p>Our flagship gamemode. Choose an era, pick a side and fight for it with your team. Smart NPCs fill the ranks and realistic vehicles roll onto the field.</p>
+          </div>
+          <div class="battles-badges reveal reveal-d1">
+            <span class="badge"><svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg> Team-based</span>
+            <span class="badge"><svg class="icon" aria-hidden="true"><use href="#i-cpu"/></svg> Smart NPCs</span>
+            <span class="badge"><svg class="icon" aria-hidden="true"><use href="#i-car"/></svg> Realistic vehicles</span>
+          </div>
+        </div>
+
+        <div class="eras">
+          <article class="card hud era era--ww1 reveal">
+            <div class="era-pattern" aria-hidden="true"></div>
+            <div class="era-top">
+              <span class="era-icon"><svg class="pixel" aria-hidden="true"><use href="#p-helmet"/></svg></span>
+              <span class="era-years">1914&ndash;1918</span>
+            </div>
+            <div class="era-big" aria-hidden="true">WW1</div>
+            <h3>The Great War</h3>
+            <p>Trench lines, mud and no-man's-land. Hold your ground, time the push and go over the top together.</p>
+          </article>
+
+          <article class="card hud era era--ww2 reveal reveal-d1">
+            <div class="era-pattern" aria-hidden="true"></div>
+            <div class="era-top">
+              <span class="era-icon"><svg class="pixel" aria-hidden="true"><use href="#p-tank"/></svg></span>
+              <span class="era-years">1939&ndash;1945</span>
+            </div>
+            <div class="era-big" aria-hidden="true">WW2</div>
+            <h3>World War II</h3>
+            <p>Combined-arms warfare across the front. Infantry, vehicles and support have to work as one to break through.</p>
+          </article>
+
+          <article class="card hud era era--modern reveal reveal-d2">
+            <div class="era-pattern" aria-hidden="true"></div>
+            <div class="era-top">
+              <span class="era-icon"><svg class="pixel" aria-hidden="true"><use href="#p-crosshair"/></svg></span>
+              <span class="era-years">Present day</span>
+            </div>
+            <div class="era-big era-big--long" aria-hidden="true">MODERN</div>
+            <h3>Modern Warfare</h3>
+            <p>Fast, tactical and unforgiving. Modern kit, modern vehicles and a battlefield where communication decides every fight.</p>
+          </article>
+
+          <article class="card hud era era--more reveal reveal-d3">
+            <div class="era-pattern" aria-hidden="true"></div>
+            <div class="era-top">
+              <span class="era-icon"><svg class="pixel" aria-hidden="true"><use href="#p-plus"/></svg></span>
+              <span class="era-years">Sub gamemodes</span>
+            </div>
+            <div class="era-big" aria-hidden="true">MORE</div>
+            <h3>And more</h3>
+            <p>More sub gamemodes and minigames, with new ones always in the works. Join the Discord to see what's coming next.</p>
+          </article>
+        </div>
+
+        <div class="spotlight reveal">
+          <div class="video" data-video-wrap>
+            <button class="video-facade" type="button" data-video-id="xWCXNvB8n9g" data-video-title="Trench warfare with custom plugin">
+              <img src="https://i.ytimg.com/vi/xWCXNvB8n9g/maxresdefault.jpg" width="1280" height="720" alt="" loading="lazy" data-thumb-fallback="https://i.ytimg.com/vi/xWCXNvB8n9g/hqdefault.jpg">
+              <span class="play-btn"><svg aria-hidden="true"><use href="#i-play"/></svg></span>
+              <span class="video-meta"><small>Battle footage</small>Trench warfare with custom plugin</span>
+              <span class="sr-only">Play video: Trench warfare with custom plugin</span>
+            </button>
+          </div>
+          <div class="spotlight-copy">
+            <p class="eyebrow">See it in action</p>
+            <h3>Trench warfare, straight from the server</h3>
+            <p>A WW1 trench battle running on our own custom plugin. This is what Battles is all about: no mods, no setup, just squads, strategy and chaos.</p>
+            <a class="btn btn-ghost" href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">
+              <svg class="icon" aria-hidden="true"><use href="#b-youtube"/></svg> More on YouTube
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VEHICLES ============ -->
+    <section class="section" id="vehicles" aria-labelledby="vehicles-title">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">03 / Vehicles</p>
+          <h2 id="vehicles-title">Ultimate Vehicle Experience</h2>
+          <p>Vehicles that behave like the real thing. Start the engine, keep an eye on your gauges, manage your fuel and pop the hood to see what's underneath.</p>
+        </div>
+
+        <div class="vehicles-layout">
+          <div class="reveal">
+            <div class="gallery" data-gallery>
+              <button class="shot shot--main" type="button" data-full="image/web/uve-multiple-cars-1600.webp" data-caption="Classic cars with fully modeled engine bays">
+                <img src="image/web/uve-multiple-cars-1600.webp" srcset="image/web/uve-multiple-cars-800.webp 800w, image/web/uve-multiple-cars-1600.webp 1600w" sizes="(max-width: 1040px) 100vw, 820px" width="1600" height="885" alt="A red car and a yellow car with their hoods open showing detailed engines, parked beside a blue van and a vintage car" loading="lazy">
+                <span class="shot-cap">Classic cars with fully modeled engine bays</span>
+                <span class="shot-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+              <button class="shot" type="button" data-full="image/web/uve-inside-van-1600.webp" data-caption="Live HUD: fuel, water, oil, temperature and battery">
+                <img src="image/web/uve-inside-van-800.webp" width="800" height="417" alt="Driver's view inside a van with a HUD showing fuel, water, oil, temperature and battery levels" loading="lazy">
+                <span class="shot-cap">Live vehicle HUD</span>
+                <span class="shot-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+              <button class="shot" type="button" data-full="image/web/uve-inside-yellow-car-1600.webp" data-caption="Detailed dashboards, pedals and shifters">
+                <img src="image/web/uve-inside-yellow-car-800.webp" width="800" height="404" alt="Dashboard view from inside a yellow car with gauges, pedals and a gear shifter" loading="lazy">
+                <span class="shot-cap">Detailed interiors</span>
+                <span class="shot-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+              <button class="shot" type="button" data-full="image/web/uve-orange-car-1600.webp" data-caption="Pop the hood on a real engine">
+                <img src="image/web/uve-orange-car-800.webp" width="800" height="415" alt="An orange car with its hood open revealing a detailed engine bay" loading="lazy">
+                <span class="shot-cap">Open the hood</span>
+                <span class="shot-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+              <button class="shot" type="button" data-full="image/web/uve-yellow-and-red-car-at-night-1600.webp" data-caption="Parked up for the night">
+                <img src="image/web/uve-yellow-and-red-car-at-night-800.webp" width="800" height="424" alt="A red car and a yellow car parked on a dark street at night" loading="lazy">
+                <span class="shot-cap">After dark</span>
+                <span class="shot-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </div>
+
+            <div class="vehicles-cta">
+              <a class="btn btn-modrinth" href="https://modrinth.com/mod/ultimate-vehicle-experience" target="_blank" rel="noopener">
+                <svg class="icon" aria-hidden="true"><use href="#b-modrinth"/></svg> Get it on Modrinth
+              </a>
+              <a class="btn btn-ghost" href="https://www.youtube.com/watch?v=MgtcqfdO_BU" target="_blank" rel="noopener">
+                <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg> Watch the showcase
+              </a>
+            </div>
+          </div>
+
+          <aside class="vehicles-side">
+            <div class="telemetry reveal" aria-hidden="true" data-telemetry>
+              <div class="tele-head"><span>UVE // TELEMETRY</span><span class="tele-state">ENGINE ON</span></div>
+              <div class="tele-speed"><b>48</b><span>km/h</span><em>D3</em></div>
+              <div class="tele-row"><span>FUEL</span><div class="bar bar--fuel"><i></i></div><span>68.0 L</span></div>
+              <div class="tele-row"><span>WATER</span><div class="bar bar--water"><i></i></div><span>12.0 L</span></div>
+              <div class="tele-row"><span>OIL</span><div class="bar bar--oil"><i></i></div><span>42 psi</span></div>
+              <div class="tele-row"><span>TEMP</span><div class="bar bar--temp"><i></i></div><span>88&deg;C</span></div>
+              <div class="tele-row"><span>BATT</span><div class="bar bar--batt"><i></i></div><span>100%</span></div>
+            </div>
+
+            <ul class="spec-list reveal reveal-d1">
+              <li>
+                <span class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-key"/></svg></span>
+                <div><strong>Real engines</strong><p>Start it up properly with ignition, choke and gears.</p></div>
+              </li>
+              <li>
+                <span class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-gauge"/></svg></span>
+                <div><strong>Live gauges</strong><p>Fuel, coolant, oil pressure, temperature and battery.</p></div>
+              </li>
+              <li>
+                <span class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-wheel"/></svg></span>
+                <div><strong>Detailed interiors</strong><p>Working dashboards, dials, pedals and shifters.</p></div>
+              </li>
+              <li>
+                <span class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-wrench"/></svg></span>
+                <div><strong>Real engine bays</strong><p>Open the hood on fully modeled engines.</p></div>
+              </li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIDEOS ============ -->
+    <section class="section section--alt" id="videos" aria-labelledby="videos-title">
+      <div class="container">
+        <div class="section-head section-head--split reveal">
+          <div>
+            <p class="eyebrow">04 / Watch</p>
+            <h2 id="videos-title">Latest videos</h2>
+            <p>Gameplay, vehicle showcases and new features, straight from the Moddedrealms YouTube channel.</p>
+          </div>
+          <a class="btn btn-ghost" href="https://www.youtube.com/@Moddedrealms?sub_confirmation=1" target="_blank" rel="noopener">
+            <svg class="icon" aria-hidden="true"><use href="#b-youtube"/></svg> Subscribe
+          </a>
+        </div>
+
+        <div class="videos" data-videos data-exclude="xWCXNvB8n9g">
+          <div class="video reveal" data-video-wrap>
+            <button class="video-facade" type="button" data-video-id="lumne9s4LrU" data-video-title="Blowing up a car engine in minecraft">
+              <img src="https://i.ytimg.com/vi/lumne9s4LrU/hqdefault.jpg" width="480" height="360" alt="" loading="lazy">
+              <span class="play-btn"><svg aria-hidden="true"><use href="#i-play"/></svg></span>
+              <span class="video-meta"><small>Oct 18, 2026</small>Blowing up a car engine in minecraft</span>
+              <span class="sr-only">Play video</span>
+            </button>
+          </div>
+          <div class="video reveal reveal-d1" data-video-wrap>
+            <button class="video-facade" type="button" data-video-id="oi5Ipg9hbzs" data-video-title="Driving around the city with cars in minecraft">
+              <img src="https://i.ytimg.com/vi/oi5Ipg9hbzs/hqdefault.jpg" width="480" height="360" alt="" loading="lazy">
+              <span class="play-btn"><svg aria-hidden="true"><use href="#i-play"/></svg></span>
+              <span class="video-meta"><small>Oct 18, 2026</small>Driving around the city with cars in minecraft</span>
+              <span class="sr-only">Play video</span>
+            </button>
+          </div>
+          <div class="video reveal reveal-d2" data-video-wrap>
+            <button class="video-facade" type="button" data-video-id="MgtcqfdO_BU" data-video-title="Ultimate Vehicle Experience minecraft mod">
+              <img src="https://i.ytimg.com/vi/MgtcqfdO_BU/hqdefault.jpg" width="480" height="360" alt="" loading="lazy">
+              <span class="play-btn"><svg aria-hidden="true"><use href="#i-play"/></svg></span>
+              <span class="video-meta"><small>Oct 17, 2026</small>Ultimate Vehicle Experience minecraft mod</span>
+              <span class="sr-only">Play video</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW TO JOIN ============ -->
+    <section class="section" id="join" aria-labelledby="join-title">
+      <div class="container">
+        <div class="section-head section-head--center reveal">
+          <p class="eyebrow">05 / Play</p>
+          <h2 id="join-title">Join in 30 seconds</h2>
+          <p>No launchers, no modpacks, no downloads. If you have Minecraft, you're ready.</p>
+        </div>
+
+        <ol class="steps">
+          <li class="card hud step reveal">
+            <span class="step-num" aria-hidden="true">01</span>
+            <h3>Copy the IP</h3>
+            <p>Our server address is <code>moddedrealms.minehut.gg</code></p>
+            <button class="btn btn-primary btn-sm" type="button" data-copy="moddedrealms.minehut.gg">
+              <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
+              <span data-copy-label>Copy IP</span>
+            </button>
+          </li>
+          <li class="card hud step reveal reveal-d1">
+            <span class="step-num" aria-hidden="true">02</span>
+            <h3>Add the server</h3>
+            <p>Open Minecraft: Java Edition, then go to</p>
+            <p class="kbd-path"><span>Multiplayer</span> &rsaquo; <span>Add Server</span></p>
+            <p>Paste the IP and hit Done.</p>
+          </li>
+          <li class="card hud step reveal reveal-d2">
+            <span class="step-num" aria-hidden="true">03</span>
+            <h3>Jump in</h3>
+            <p>Select Moddedrealms and click <strong>Join Server</strong>. Everything runs server-side, so there's nothing else to install.</p>
+            <a class="link-arrow" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">Find a squad on Discord <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ COMMUNITY ============ -->
+    <section class="section section--alt" id="community" aria-labelledby="community-title">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">06 / Community</p>
+          <h2 id="community-title">Join the community</h2>
+          <p>Find teammates, catch the latest videos and grab our vehicle mod.</p>
+        </div>
+
+        <div class="socials">
+          <a class="card hud social social--discord reveal" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
+            <span class="social-glow" aria-hidden="true"></span>
+            <span class="social-icon"><svg aria-hidden="true"><use href="#b-discord"/></svg></span>
+            <h3>Discord</h3>
+            <p>Find a squad, get update news and talk to staff. The best place to get involved with Modrealms.</p>
+            <p class="social-meta" data-discord-meta></p>
+            <span class="link-arrow">Join the server <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <a class="card hud social social--youtube reveal reveal-d1" href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">
+            <span class="social-glow" aria-hidden="true"></span>
+            <span class="social-icon"><svg aria-hidden="true"><use href="#b-youtube"/></svg></span>
+            <h3>YouTube</h3>
+            <p>Battle footage, vehicle showcases and new features first.</p>
+            <span class="link-arrow">Watch now <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+          <a class="card hud social social--modrinth reveal reveal-d2" href="https://modrinth.com/mod/ultimate-vehicle-experience" target="_blank" rel="noopener">
+            <span class="social-glow" aria-hidden="true"></span>
+            <span class="social-icon"><svg aria-hidden="true"><use href="#b-modrinth"/></svg></span>
+            <h3>Modrinth</h3>
+            <p>Download Ultimate Vehicle Experience and drive in your own worlds.</p>
+            <span class="link-arrow">View the mod <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SUPPORT CTA ============ -->
+    <section class="section section--tight" aria-label="Feedback and reports">
+      <div class="container cta-band">
+        <a class="card hud cta-card reveal" href="support.html#feedback">
+          <span class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-message"/></svg></span>
+          <div>
+            <h3>Share feedback</h3>
+            <p>Ideas, bugs or suggestions? Tell us what to build next.</p>
+          </div>
+          <span class="arrow" aria-hidden="true"><svg class="icon"><use href="#i-arrow"/></svg></span>
+        </a>
+        <a class="card hud cta-card cta-card--report reveal reveal-d1" href="support.html#report">
+          <span class="icon-tile"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg></span>
+          <div>
+            <h3>Report a player</h3>
+            <p>Cheating, griefing or harassment? Let the staff team know.</p>
+          </div>
+          <span class="arrow" aria-hidden="true"><svg class="icon"><use href="#i-arrow"/></svg></span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+          <span class="brand-name">Modded<span>realms</span></span>
+        </a>
+        <p>A Minecraft server built for teamwork and strategy. Battles across WW1, WW2 and Modern eras with smart NPCs and realistic vehicles.</p>
+        <button class="footer-ip" type="button" data-copy="moddedrealms.minehut.gg" aria-label="Copy server IP moddedrealms.minehut.gg">
+          <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
+          <span>moddedrealms.minehut.gg</span>
+        </button>
+      </div>
+      <div>
+        <h4>Play</h4>
+        <ul class="footer-links">
+          <li><a href="#gamemodes">Battles</a></li>
+          <li><a href="#vehicles">Vehicles</a></li>
+          <li><a href="#join">How to join</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Community</h4>
+        <ul class="footer-links">
+          <li><a href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">Discord</a></li>
+          <li><a href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">YouTube</a></li>
+          <li><a href="https://modrinth.com/mod/ultimate-vehicle-experience" target="_blank" rel="noopener">Modrinth</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul class="footer-links">
+          <li><a href="support.html#feedback">Send feedback</a></li>
+          <li><a href="support.html#report">Report a player</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; <span data-year>2026</span> Moddedrealms (Modrealms)</p>
+      <p>Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</p>
+    </div>
+  </footer>
+
+  <dialog class="lightbox" data-lightbox aria-label="Image viewer">
+    <figure>
+      <img src="data:," alt="" data-lb-img>
+      <figcaption><span data-lb-caption></span><span class="lightbox-count" data-lb-count></span></figcaption>
+    </figure>
+    <button class="lb-btn lb-close" type="button" data-lb-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    <button class="lb-btn lb-prev" type="button" data-lb-prev aria-label="Previous image"><svg class="icon" aria-hidden="true"><use href="#i-left"/></svg></button>
+    <button class="lb-btn lb-next" type="button" data-lb-next aria-label="Next image"><svg class="icon" aria-hidden="true"><use href="#i-right"/></svg></button>
+  </dialog>
+
+  <div class="toast" role="status" aria-live="polite" data-toast></div>
+</body>
+</html>
