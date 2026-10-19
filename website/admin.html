@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staff dashboard | Moddedrealms</title>
+  <meta name="description" content="Moddedrealms staff dashboard.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0a0c0b">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="image/web/icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="fonts/chakra-petch-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+  <script src="js/admin.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="b-discord" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" data-header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="Moddedrealms home">
+        <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+        <span class="brand-name">Modded<span>realms</span></span>
+      </a>
+      <nav class="nav-links" id="nav-menu" aria-label="Main" data-nav>
+        <a href="index.html#gamemodes">Gamemodes</a>
+        <a href="index.html#vehicles">Vehicles</a>
+        <a href="index.html#videos">Videos</a>
+        <a href="index.html#join">How to join</a>
+        <a href="support.html">Feedback &amp; Reports</a>
+        <a href="signin.html" data-account-link>Sign in</a>
+        <a class="btn btn-discord btn-sm" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
+          <svg class="icon" aria-hidden="true"><use href="#b-discord"/></svg> Discord
+        </a>
+      </nav>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" data-nav-toggle>
+        <span></span><span></span><span></span>
+        <span class="sr-only">Toggle menu</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero page-hero--compact" aria-labelledby="page-title">
+      <div class="page-hero-bg" aria-hidden="true">
+        <img src="image/web/banner-800.webp" width="800" height="399" alt="">
+      </div>
+      <div class="container">
+        <p class="eyebrow">Staff</p>
+        <h1 id="page-title">Staff dashboard</h1>
+        <p>Review player reports and feedback. Players see your status changes and replies on their account page.</p>
+      </div>
+    </section>
+
+    <section class="app-section">
+      <div class="container">
+        <p class="loading" data-loading>Loading&hellip;</p>
+
+        <div class="app-card" data-denied hidden>
+          <h2>Staff only</h2>
+          <p class="muted">Your account doesn't have staff access. Staff access comes from your in-game rank once your Minecraft account is linked.</p>
+          <a class="btn btn-ghost btn-sm" href="account.html">Go to my account</a>
+        </div>
+
+        <div data-dashboard hidden>
+          <div class="stats">
+            <div class="stat stat--alert"><b data-stat="open">0</b><span>Open reports</span></div>
+            <div class="stat"><b data-stat="investigating">0</b><span>Investigating</span></div>
+            <div class="stat"><b data-stat="newFeedback">0</b><span>New feedback</span></div>
+            <div class="stat"><b data-stat="linked">0</b><span>Linked players</span></div>
+          </div>
+
+          <div class="toolbar">
+            <div class="tabs" role="tablist" aria-label="What to show">
+              <button class="tab tab--report" type="button" role="tab" aria-selected="true" data-view="reports">
+                <svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg> Reports
+              </button>
+              <button class="tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-view="feedback">
+                <svg class="icon" aria-hidden="true"><use href="#i-message"/></svg> Feedback
+              </button>
+              <button class="tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-view="users">
+                <svg class="icon" aria-hidden="true"><use href="#i-users"/></svg> Players
+              </button>
+            </div>
+            <select class="input" data-filter-status aria-label="Filter by status"></select>
+            <input class="input" type="search" maxlength="64" placeholder="Search names, IDs or text" data-filter-q aria-label="Search">
+          </div>
+
+          <div class="rows" data-rows aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="modal" data-modal aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title" data-modal-title></h2>
+      <span data-modal-tag></span>
+      <button class="lb-btn" type="button" data-modal-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body" data-modal-body></div>
+  </dialog>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+          <span class="brand-name">Modded<span>realms</span></span>
+        </a>
+        <p>A Minecraft server built for teamwork and strategy. Battles across WW1, WW2 and Modern eras with smart NPCs and realistic vehicles.</p>
+        <button class="footer-ip" type="button" data-copy="moddedrealms.minehut.gg" aria-label="Copy server IP moddedrealms.minehut.gg">
+          <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
+          <span>moddedrealms.minehut.gg</span>
+        </button>
+      </div>
+      <div>
+        <h4>Play</h4>
+        <ul class="footer-links">
+          <li><a href="index.html#gamemodes">Battles</a></li>
+          <li><a href="index.html#vehicles">Vehicles</a></li>
+          <li><a href="index.html#join">How to join</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Community</h4>
+        <ul class="footer-links">
+          <li><a href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">Discord</a></li>
+          <li><a href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">YouTube</a></li>
+          <li><a href="https://modrinth.com/mod/ultimate-vehicle-experience" target="_blank" rel="noopener">Modrinth</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul class="footer-links">
+          <li><a href="support.html#feedback">Send feedback</a></li>
+          <li><a href="support.html#report">Report a player</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; <span data-year>2026</span> Moddedrealms (Modrealms)</p>
+      <p>Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</p>
+    </div>
+  </footer>
+
+  <div class="toast" role="status" aria-live="polite" data-toast></div>
+</body>
+</html>

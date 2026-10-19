@@ -41,7 +41,7 @@
     <symbol id="i-swords" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
   </svg>
-
+  
   <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="site-header" data-header>
@@ -56,6 +56,7 @@
         <a href="index.html#videos">Videos</a>
         <a href="index.html#join">How to join</a>
         <a href="support.html" aria-current="page">Feedback &amp; Reports</a>
+        <a href="signin.html" data-account-link>Sign in</a>
         <a class="btn btn-discord btn-sm" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
           <svg class="icon" aria-hidden="true"><use href="#b-discord"/></svg> Discord
         </a>
@@ -85,6 +86,8 @@
           <noscript>
             <p class="form-status">These forms need JavaScript turned on. You can also reach staff on our <a href="https://discord.gg/AA3a3H3ECk">Discord server</a>.</p>
           </noscript>
+
+          <p class="notice" role="status" data-account-note hidden></p>
 
           <div class="tabs" role="tablist" aria-label="Choose a form">
             <button class="tab" type="button" role="tab" id="tab-feedback" aria-controls="panel-feedback" aria-selected="true" data-tab="feedback">
@@ -174,6 +177,7 @@
               <h3>Feedback received</h3>
               <p>Thanks for helping make Moddedrealms better. If you left your Discord username, we may reach out.</p>
               <p>Reference <span class="ref-code" data-ref></span></p>
+              <a class="btn btn-primary btn-sm" href="account.html" data-track hidden>Follow it in my account</a>
               <button class="btn btn-ghost btn-sm" type="button" data-reset>Send more feedback</button>
             </div>
           </section>
@@ -286,6 +290,7 @@
               <h3>Report submitted</h3>
               <p>Thanks for looking out for the community. Staff will review your report. Keep your reference in case they need to follow up.</p>
               <p>Reference <span class="ref-code" data-ref></span></p>
+              <a class="btn btn-primary btn-sm" href="account.html" data-track hidden>Follow it in my account</a>
               <button class="btn btn-ghost btn-sm" type="button" data-reset>Submit another report</button>
             </div>
           </section>

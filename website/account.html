@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your account | Moddedrealms</title>
+  <meta name="description" content="Your Moddedrealms account.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0a0c0b">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="image/web/icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="fonts/chakra-petch-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+  <script src="js/account.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="b-discord" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" data-header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="Moddedrealms home">
+        <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+        <span class="brand-name">Modded<span>realms</span></span>
+      </a>
+      <nav class="nav-links" id="nav-menu" aria-label="Main" data-nav>
+        <a href="index.html#gamemodes">Gamemodes</a>
+        <a href="index.html#vehicles">Vehicles</a>
+        <a href="index.html#videos">Videos</a>
+        <a href="index.html#join">How to join</a>
+        <a href="support.html">Feedback &amp; Reports</a>
+        <a href="signin.html" data-account-link aria-current="page">Sign in</a>
+        <a class="btn btn-discord btn-sm" href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">
+          <svg class="icon" aria-hidden="true"><use href="#b-discord"/></svg> Discord
+        </a>
+      </nav>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" data-nav-toggle>
+        <span></span><span></span><span></span>
+        <span class="sr-only">Toggle menu</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero page-hero--compact" aria-labelledby="page-title">
+      <div class="page-hero-bg" aria-hidden="true">
+        <img src="image/web/spawn-960.webp" width="960" height="499" alt="">
+      </div>
+      <div class="container">
+        <p class="eyebrow">Account</p>
+        <h1 id="page-title">Your account</h1>
+        <p>Follow your reports, link your Minecraft account and manage your settings.</p>
+      </div>
+    </section>
+
+    <section class="app-section">
+      <div class="container">
+        <p class="loading" data-loading>Loading your account&hellip;</p>
+
+        <div data-account hidden>
+          <p class="notice" role="status" data-flash hidden></p>
+
+          <div class="app-grid">
+            <div class="app-main">
+              <div class="app-card">
+                <div class="profile">
+                  <img class="avatar" src="image/web/logo-160.webp" width="72" height="72" alt="" data-avatar>
+                  <div>
+                    <h2 class="profile-name" data-username></h2>
+                    <div class="profile-meta" data-profile-tags></div>
+                  </div>
+                  <div class="profile-actions">
+                    <a class="btn btn-primary btn-sm" href="admin.html" data-staff-only hidden>
+                      <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg> Staff dashboard
+                    </a>
+                    <button class="btn btn-ghost btn-sm" type="button" data-logout>
+                      <svg class="icon" aria-hidden="true"><use href="#i-logout"/></svg> Sign out
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="app-card">
+                <div class="app-card-head">
+                  <h2>Minecraft account</h2>
+                  <span data-mc-tag></span>
+                </div>
+
+                <div data-mc-linked hidden>
+                  <dl class="kv">
+                    <dt>Name</dt><dd data-mc-name></dd>
+                    <dt>Rank</dt><dd data-mc-rank></dd>
+                    <dt>UUID</dt><dd data-mc-uuid></dd>
+                    <dt>Linked</dt><dd data-mc-linked-at></dd>
+                  </dl>
+                  <p class="muted">Your rank updates automatically every time you join the server.</p>
+                  <button class="btn btn-ghost btn-sm" type="button" data-unlink>Unlink</button>
+                </div>
+
+                <div data-mc-unlinked hidden>
+                  <p class="muted">Prove this is your Minecraft account. Your reports get marked as verified, you can see reports made about you, and staff ranks unlock the staff dashboard.</p>
+                  <ol class="link-steps">
+                    <li>Click <strong>Get link code</strong> below.</li>
+                    <li>Join <code>moddedrealms.minehut.gg</code> in Minecraft.</li>
+                    <li>Type the command shown in chat. The code works for 10 minutes. If <code>/link</code> doesn't work, use <code>/weblink</code> with the same code.</li>
+                  </ol>
+                  <button class="btn btn-primary" type="button" data-get-code>
+                    <svg class="icon" aria-hidden="true"><use href="#i-link"/></svg> Get link code
+                  </button>
+                  <div class="link-code" data-code-box hidden>
+                    <code data-code-cmd></code>
+                    <button class="btn btn-ghost btn-sm" type="button" data-copy-code>
+                      <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy
+                    </button>
+                    <span class="link-timer" data-code-timer></span>
+                  </div>
+                  <p class="form-status" role="alert" data-link-error hidden></p>
+                </div>
+
+                <p class="muted" data-mc-disabled hidden>Account linking isn't switched on for this server yet.</p>
+              </div>
+
+              <div class="app-card">
+                <div class="app-card-head">
+                  <h2>My reports<span class="count-pill" data-count="reports">0</span></h2>
+                  <a class="btn btn-ghost btn-sm" href="support.html#report">Report a player</a>
+                </div>
+                <ul class="items" data-list="reports"></ul>
+              </div>
+
+              <div class="app-card">
+                <div class="app-card-head">
+                  <h2>Reports about me<span class="count-pill" data-count="aboutMe">0</span></h2>
+                </div>
+                <p class="muted">Reports about your Minecraft account show here once staff have reviewed them. You'll never see who made a report.</p>
+                <ul class="items" data-list="aboutMe"></ul>
+              </div>
+
+              <div class="app-card">
+                <div class="app-card-head">
+                  <h2>My feedback<span class="count-pill" data-count="feedback">0</span></h2>
+                  <a class="btn btn-ghost btn-sm" href="support.html#feedback">Send feedback</a>
+                </div>
+                <ul class="items" data-list="feedback"></ul>
+              </div>
+            </div>
+
+            <aside class="app-side" aria-label="Settings">
+              <div class="app-card" data-email-card hidden>
+                <h2>Email updates</h2>
+                <p class="muted">Optional. Get an email when staff reply to your reports or feedback, and reset your password if you forget it.</p>
+                <form class="form" data-email-form novalidate>
+                  <div class="field">
+                    <label for="ac-email">Email</label>
+                    <input class="input" id="ac-email" name="email" type="email" maxlength="200" autocomplete="email" aria-describedby="ac-email-error">
+                    <p class="field-error" id="ac-email-error" data-error-for="email"></p>
+                  </div>
+                  <p class="notice" data-email-state hidden></p>
+                  <p class="form-status" role="alert" data-form-status hidden></p>
+                  <div class="form-actions">
+                    <button class="btn btn-primary btn-sm" type="submit" data-submit>Save email</button>
+                    <button class="text-link" type="button" data-resend hidden>Resend confirmation</button>
+                  </div>
+                </form>
+                <label class="switch" data-notify-row hidden>
+                  <input type="checkbox" data-notify>
+                  <span>Email me about updates</span>
+                </label>
+              </div>
+
+              <div class="app-card">
+                <h2>Change password</h2>
+                <form class="form" data-password-form novalidate>
+                  <div class="field">
+                    <label for="ac-current">Current password</label>
+                    <input class="input" id="ac-current" name="current" type="password" maxlength="200" autocomplete="current-password" required aria-describedby="ac-current-error">
+                    <p class="field-error" id="ac-current-error" data-error-for="current"></p>
+                  </div>
+                  <div class="field">
+                    <label for="ac-new">New password</label>
+                    <input class="input" id="ac-new" name="password" type="password" maxlength="200" autocomplete="new-password" required aria-describedby="ac-new-error">
+                    <p class="field-error" id="ac-new-error" data-error-for="password"></p>
+                  </div>
+                  <p class="form-status" role="alert" data-form-status hidden></p>
+                  <div class="form-actions">
+                    <button class="btn btn-ghost btn-sm" type="submit" data-submit>Update password</button>
+                  </div>
+                </form>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img src="image/web/logo-160.webp" width="40" height="40" alt="">
+          <span class="brand-name">Modded<span>realms</span></span>
+        </a>
+        <p>A Minecraft server built for teamwork and strategy. Battles across WW1, WW2 and Modern eras with smart NPCs and realistic vehicles.</p>
+        <button class="footer-ip" type="button" data-copy="moddedrealms.minehut.gg" aria-label="Copy server IP moddedrealms.minehut.gg">
+          <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
+          <span>moddedrealms.minehut.gg</span>
+        </button>
+      </div>
+      <div>
+        <h4>Play</h4>
+        <ul class="footer-links">
+          <li><a href="index.html#gamemodes">Battles</a></li>
+          <li><a href="index.html#vehicles">Vehicles</a></li>
+          <li><a href="index.html#join">How to join</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Community</h4>
+        <ul class="footer-links">
+          <li><a href="https://discord.gg/AA3a3H3ECk" target="_blank" rel="noopener">Discord</a></li>
+          <li><a href="https://www.youtube.com/@Moddedrealms" target="_blank" rel="noopener">YouTube</a></li>
+          <li><a href="https://modrinth.com/mod/ultimate-vehicle-experience" target="_blank" rel="noopener">Modrinth</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul class="footer-links">
+          <li><a href="support.html#feedback">Send feedback</a></li>
+          <li><a href="support.html#report">Report a player</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; <span data-year>2026</span> Moddedrealms (Modrealms)</p>
+      <p>Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</p>
+    </div>
+  </footer>
+
+  <div class="toast" role="status" aria-live="polite" data-toast></div>
+</body>
+</html>
