@@ -9,7 +9,7 @@ import { gearScore } from './combat.js'
 import { sleep, withTimeout, isAbort } from '../util.js'
 
 // Things that make sense right where the bot stands, even inside spawn protection.
-const STAY_AT_SPAWN = new Set(['leave_spawn', 'escape_spawn', 'wait', 'eat', 'give', 'come_to', 'follow_player'])
+const STAY_AT_SPAWN = new Set(['leave_spawn', 'escape_spawn', 'wait', 'eat', 'give', 'pick_up', 'come_to', 'follow_player'])
 // Run by the agent itself, not offered to the AI.
 const INTERNAL = { escape_spawn: { maxMs: 6 * 60 * 60e3, run: escapeSpawn } }
 

@@ -405,7 +405,7 @@ async function give (ctx, args, signal) {
   const want = clean(args.item)
   const stacks = body.items().filter(i => i.item === want || i.item.includes(want))
   if (!want || !stacks.length) throw new Error(`I don't have any ${want || 'such item'}`)
-  if (ent.dist > 3) await body.goto(ent.x, ent.z, ent.y, signal, 3 * 60e3).catch(() => {})
+  if (ent.dist > 2.5) await body.goto(ent.x, ent.z, ent.y, signal, 3 * 60e3).catch(() => {})
   await body.b.request('lookAt', { x: ent.x, y: ent.y + 1.5, z: ent.z })
   let left = Math.max(1, Number(args.count) || 64)
   let given = 0
@@ -421,7 +421,30 @@ async function give (ctx, args, signal) {
       left = 0
     }
   }
+  // A teammate gets told to come and pick it up (people do that themselves).
+  ctx.team()?.handedOver(ctx.instance(), ent.name, stacks[0].item)
   return `threw ${given} ${stacks[0].item} to ${ent.name}`
+}
+
+/** Walk over dropped items (one kind, or anything) within 16 blocks until they're picked up. */
+async function pickUp (ctx, args, signal) {
+  const { body } = ctx
+  const want = args.item ? clean(args.item) : null
+  const before = want ? body.count(want) : body.items().reduce((n, i) => n + i.count, 0)
+  // Thrown items can't be picked up for the first 2 seconds.
+  await wait(2000, signal)
+  for (let visits = 0; visits < 12; visits++) {
+    check(signal)
+    const drop = body.entities()
+      .filter(e => e.type === 'item' && e.dist < 16 && (!want || e.item === want))
+      .sort((a, b) => a.dist - b.dist)[0]
+    if (!drop) break
+    await body.goto(drop.x, drop.z, Math.floor(drop.y), signal, 20000).catch(e => { if (isAbort(e)) throw e })
+    await wait(500, signal)
+  }
+  const got = (want ? body.count(want) : body.items().reduce((n, i) => n + i.count, 0)) - before
+  if (got <= 0) throw new Error(`nothing ${want ? `(${want}) ` : ''}to pick up nearby`)
+  return `picked up ${got} ${want ?? 'items'}`
 }
 
 // ---------------------------------------------------------------- building
@@ -629,6 +652,7 @@ export const SKILLS = {
   },
   follow_player: { desc: 'follow your owner/staff around', args: '{"name": string, "seconds": number}', maxMs: 31 * 60e3, run: followPlayer },
   come_to: { desc: 'go to your owner/staff: walk over if visible, else travel to the coordinates they gave', args: '{"name": string, "x": number|null, "y": number|null, "z": number|null}', maxMs: 65 * 60e3, run: comeTo },
+  pick_up: { desc: 'pick up items lying on the ground nearby (e.g. what a teammate threw you)', args: '{"item": string|null}', maxMs: 90e3, run: pickUp },
   give: { desc: 'walk to your owner/staff and throw them items', args: '{"item": string, "count": number, "name": string}', maxMs: 4 * 60e3, run: give },
   leave_spawn: { desc: 'walk out of the protected area around world spawn (you cannot dig or build there)', args: '{}', maxMs: 5 * 60e3, run: leaveSpawn },
   wait: { desc: 'stand still for a while', args: '{"seconds": number}', maxMs: 2 * 60e3, run: async (ctx, a, s) => { await wait(Math.min(Number(a.seconds) || 10, 110) * 1000, s); return 'waited' } }

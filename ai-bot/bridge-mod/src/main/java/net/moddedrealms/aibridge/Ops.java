@@ -251,6 +251,11 @@ final class Ops {
 			o.addProperty("id", e.getId());
 			o.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getPath());
 			if (e instanceof Player pl) o.addProperty("name", pl.getGameProfile().name());
+			// Dropped items: what and how many, so bots can pick up what a teammate threw them.
+			if (e instanceof net.minecraft.world.entity.item.ItemEntity ie) {
+				o.addProperty("item", BuiltInRegistries.ITEM.getKey(ie.getItem().getItem()).getPath());
+				o.addProperty("count", ie.getItem().getCount());
+			}
 			o.addProperty("x", e.getX());
 			o.addProperty("y", e.getY());
 			o.addProperty("z", e.getZ());
