@@ -74,15 +74,27 @@ export async function pingServer (address, timeoutMs = 8000) {
   })
 }
 
+// Last version seen per address: servers throttle quick repeat connections (several bots starting together), so a
+// ping can go unanswered; falling back to our own version then gets the bot kicked as "Outdated server".
+const known = new Map()
+
 /**
- * The version ViaFabricPlus should use for `address`: our own if the server accepts it or can't be reached,
- * else the server's release (from its protocol number, or the version text like "Paper 1.21.11").
+ * The version ViaFabricPlus should use for `address`: our own if the server accepts it, else the server's release
+ * (from its protocol number, or the version text like "Paper 1.21.11"). Unreachable: the last version seen for it.
  */
 export async function detectServerVersion (address) {
-  const status = await pingServer(address)
+  let status = null
+  for (let attempt = 0; attempt < 3 && !status?.version?.protocol; attempt++) {
+    if (attempt) await new Promise(resolve => setTimeout(resolve, 4000))
+    status = await pingServer(address)
+  }
   const protocol = status?.version?.protocol
-  if (!protocol || protocol === NATIVE_PROTOCOL) return NATIVE_VERSION
-  if (RELEASES[protocol]) return RELEASES[protocol]
-  const named = String(status.version.name ?? '').match(/\b(?:1\.\d+(?:\.\d+)?|2\d\.\d+(?:\.\d+)?)\b/g)
-  return named ? named[named.length - 1] : NATIVE_VERSION
+  if (!protocol) return known.get(address) ?? NATIVE_VERSION
+  let version = NATIVE_VERSION
+  if (protocol !== NATIVE_PROTOCOL) {
+    const named = String(status.version.name ?? '').match(/\b(?:1\.\d+(?:\.\d+)?|2\d\.\d+(?:\.\d+)?)\b/g)
+    version = RELEASES[protocol] ?? (named ? named[named.length - 1] : NATIVE_VERSION)
+  }
+  known.set(address, version)
+  return version
 }
