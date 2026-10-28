@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "ai-bridge",
+	"version": "${version}",
+	"name": "Moddedrealms AI Bridge",
+	"description": "Lets the Moddedrealms AI bot manager control this client (Baritone, chat, inventory) over a local socket.",
+	"authors": ["Moddedrealms"],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["net.moddedrealms.aibridge.AiBridge"]
+	},
+	"mixins": ["ai-bridge.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*",
+		"baritone": "*"
+	}
+}

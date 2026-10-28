@@ -1,0 +1,20 @@
+{
+  "name": "drvillager-2b2t-bot",
+  "version": "1.0.0",
+  "description": "Local-LLM Minecraft survival bot for 2b2t",
+  "scripts": {
+    "start": "node src/index.js",
+    "login": "node src/login.js",
+    "status": "node src/status.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "mineflayer": "^4.39.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "prismarine-auth": "^3.1.1",
+    "vec3": "^0.2.0"
+  }
+}

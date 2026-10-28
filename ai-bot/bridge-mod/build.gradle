@@ -1,0 +1,42 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+def baritoneJar = file("libs/baritone-api-fabric-${project.baritone_version}.jar")
+
+// Baritone isn't on a maven repo, so fetch its release jar once.
+tasks.register('downloadBaritone') {
+	outputs.file baritoneJar
+	onlyIf { !baritoneJar.exists() }
+	doLast {
+		baritoneJar.parentFile.mkdirs()
+		new URL("https://github.com/cabaletta/baritone/releases/download/v${project.baritone_version}/baritone-api-fabric-${project.baritone_version}.jar")
+			.withInputStream { i -> baritoneJar.withOutputStream { it << i } }
+	}
+}
+tasks.named('compileJava') { dependsOn 'downloadBaritone' }
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	compileOnly files(baritoneJar)
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}

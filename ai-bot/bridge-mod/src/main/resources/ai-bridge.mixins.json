@@ -1,0 +1,9 @@
+{
+	"required": true,
+	"package": "net.moddedrealms.aibridge.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": ["NoRenderMixin", "DisconnectMixin"],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

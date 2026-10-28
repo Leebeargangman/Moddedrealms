@@ -1,0 +1,53 @@
+{
+  "server": {
+    "host": "connect.2b2t.org",
+    "port": 25565,
+    "version": false
+  },
+  "account": {
+    "username": "TheDrVillager",
+    "auth": "microsoft",
+    "authTitle": "MinecraftJava",
+    "deviceType": "Win32",
+    "flow": "sisu",
+    "profilesFolder": "./auth-cache"
+  },
+  "ai": {
+    "enabled": true,
+    "ollamaUrl": "http://127.0.0.1:11434",
+    "model": "qwen2.5:7b",
+    "timeoutMs": 120000,
+    "temperature": 0.4
+  },
+  "behavior": {
+    "settleDistance": 15000,
+    "friendlyPlayers": [],
+    "fleePlayerRadius": 24,
+    "fightMobsMinHealth": 10,
+    "panicDisconnect": true,
+    "panicHealth": 6,
+    "panicMinGearScore": 30,
+    "carefulRadius": 12,
+    "killCommand": "/kill"
+  },
+  "social": {
+    "owner": "DrLeebear",
+    "ownerSecret": "",
+    "aliases": [
+      "drvillager"
+    ],
+    "whisperCommand": "msg",
+    "nearbyRadius": 32,
+    "greetStrangers": true,
+    "publicCooldownMs": 45000,
+    "maxMessagesPerMinute": 4
+  },
+  "reconnect": {
+    "minDelayMs": 15000,
+    "maxDelayMs": 300000
+  },
+  "notify": {
+    "discordWebhook": "",
+    "queueEvery": 100
+  }
+}
