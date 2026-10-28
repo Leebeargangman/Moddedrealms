@@ -1,4 +1,5 @@
 // Reads a .litematic file (gzipped NBT) and works out which items it takes to build.
+import zlib from 'node:zlib'
 import nbt from 'prismarine-nbt'
 
 const SKIP = new Set(['air', 'cave_air', 'void_air', 'piston_head', 'moving_piston', 'fire', 'soul_fire', 'nether_portal', 'end_portal', 'end_gateway', 'bubble_column'])
@@ -82,6 +83,20 @@ export async function readLitematic (buffer) {
     totalBlocks,
     materials: Object.fromEntries(Object.entries(materials).sort((a, b) => b[1] - a[1]))
   }
+}
+
+/**
+ * Baritone only builds Litematica format 7 (Minecraft 1.21+). Format 6 (1.18-1.20) stores blocks the same
+ * way, so it's re-labelled as 7; anything older is refused with a clear message. Returns a gzipped buffer.
+ */
+export async function normalizeLitematic (buffer) {
+  const { parsed } = await nbt.parse(buffer)
+  if (!parsed.value.Regions) throw new Error('not a Litematica schematic (no Regions)')
+  const version = parsed.value.Version?.value
+  if (version === 7) return buffer
+  if (version != null && version < 6) throw new Error(`this schematic was saved in a very old Litematica (format ${version}, Minecraft 1.17 or older); re-save it in a newer version`)
+  parsed.value.Version = { type: 'int', value: 7 }
+  return zlib.gzipSync(nbt.writeUncompressed(parsed))
 }
 
 /** Compare materials with an inventory {item: count}: what's still missing. */

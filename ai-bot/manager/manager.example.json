@@ -1,0 +1,43 @@
+{
+  "website": {
+    "url": "",
+    "key": ""
+  },
+  "ollamaUrl": "http://127.0.0.1:11434",
+  "maxBots": 4,
+  "minFreeMemMb": 1800,
+  "defaults": {
+    "server": "connect.2b2t.org",
+    "heapMb": 1400,
+    "ai": {
+      "enabled": true,
+      "source": "vps",
+      "model": "qwen2.5:3b",
+      "connector": "",
+      "timeoutMs": 120000,
+      "temperature": 0.4
+    },
+    "behavior": {
+      "settleDistance": 15000,
+      "netherTravelMin": 1000,
+      "friendlyPlayers": [],
+      "fleePlayerRadius": 24,
+      "carefulRadius": 12,
+      "fightMobsMinHealth": 10,
+      "autoLogoffHealth": 4,
+      "rejoinAfterMs": 300000,
+      "killCommand": "/kill"
+    },
+    "social": {
+      "owner": "DrLeebear",
+      "staff": [],
+      "ownerSecret": "",
+      "aliases": [],
+      "whisperCommand": "msg",
+      "nearbyRadius": 32,
+      "greetStrangers": true,
+      "publicCooldownMs": 45000,
+      "maxMessagesPerMinute": 4
+    }
+  }
+}

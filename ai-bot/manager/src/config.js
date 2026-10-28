@@ -4,28 +4,29 @@ import { fileURLToPath } from 'node:url'
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-function merge (base, over) {
+export function merge (base, over) {
   if (Array.isArray(base) || typeof base !== 'object' || base === null) return over ?? base
   const out = { ...base }
   for (const [k, v] of Object.entries(over ?? {})) out[k] = merge(base[k], v)
   return out
 }
 
-export function loadConfig () {
-  const example = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.example.json'), 'utf8'))
-  const file = process.env.BOT_CONFIG || path.join(ROOT, 'config.json')
-  let user = {}
-  if (fs.existsSync(file)) user = JSON.parse(fs.readFileSync(file, 'utf8'))
-  else console.warn(`[config] ${file} not found, using config.example.json defaults`)
+/** Manager settings: manager.json over manager.example.json, then environment overrides. */
+export function loadManagerConfig () {
+  const example = JSON.parse(fs.readFileSync(path.join(ROOT, 'manager.example.json'), 'utf8'))
+  const file = process.env.MANAGER_CONFIG || path.join(ROOT, 'manager.json')
+  const user = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}
   const cfg = merge(example, user)
-  // Env overrides are handy for testing against a local server.
-  if (process.env.MC_HOST) cfg.server.host = process.env.MC_HOST
-  if (process.env.MC_PORT) cfg.server.port = Number(process.env.MC_PORT)
-  if (process.env.MC_VERSION) cfg.server.version = process.env.MC_VERSION
-  if (process.env.MC_AUTH) cfg.account.auth = process.env.MC_AUTH
-  if (process.env.MC_USERNAME) cfg.account.username = process.env.MC_USERNAME
-  if (process.env.OLLAMA_MODEL) cfg.ai.model = process.env.OLLAMA_MODEL
-  if (process.env.SETTLE_DISTANCE) cfg.behavior.settleDistance = Number(process.env.SETTLE_DISTANCE)
-  cfg.account.profilesFolder = path.resolve(ROOT, cfg.account.profilesFolder)
+  if (process.env.WEBSITE_URL) cfg.website.url = process.env.WEBSITE_URL
+  if (process.env.BOT_MANAGER_KEY) cfg.website.key = process.env.BOT_MANAGER_KEY
+  if (process.env.OLLAMA_URL) cfg.ollamaUrl = process.env.OLLAMA_URL
+  cfg.website.url = cfg.website.url.replace(/\/+$/, '')
+  return cfg
+}
+
+/** Full settings for one bot: manager defaults, then the bot's own (account, server, model...). */
+export function botConfig (manager, bot) {
+  const cfg = merge(manager.defaults, bot)
+  cfg.ai.ollamaUrl = manager.ollamaUrl
   return cfg
 }

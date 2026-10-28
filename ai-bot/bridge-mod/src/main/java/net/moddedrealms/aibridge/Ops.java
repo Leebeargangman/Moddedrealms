@@ -38,11 +38,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
-import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.inventory.AbstractCraftingMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
+import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -121,6 +123,24 @@ final class Ops {
 			case "lookAt":
 				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, new Vec3(a.get("x").getAsDouble(), a.get("y").getAsDouble(), a.get("z").getAsDouble()));
 				return JsonNull.INSTANCE;
+			case "key": {
+				// Hold or release a control, e.g. "use" while eating (the game cancels eating when use isn't held).
+				var o = mc.options;
+				var key = switch (str(a, "key")) {
+					case "use" -> o.keyUse;
+					case "attack" -> o.keyAttack;
+					case "jump" -> o.keyJump;
+					case "sneak" -> o.keyShift;
+					case "sprint" -> o.keySprint;
+					case "forward" -> o.keyUp;
+					case "back" -> o.keyDown;
+					case "left" -> o.keyLeft;
+					case "right" -> o.keyRight;
+					default -> throw new IllegalArgumentException("unknown key " + str(a, "key"));
+				};
+				key.setDown(a.get("down").getAsBoolean());
+				return JsonNull.INSTANCE;
+			}
 			case "select":
 				p.getInventory().setSelectedSlot(a.get("slot").getAsInt());
 				return JsonNull.INSTANCE;
@@ -138,8 +158,8 @@ final class Ops {
 				return JsonNull.INSTANCE;
 			case "container":
 				return container(p);
-			case "craft":
-				return craft(mc, p, item(str(a, "item")), a.has("count") ? a.get("count").getAsInt() : 1);
+			case "placeRecipe":
+				return placeRecipe(mc, p, item(str(a, "item")));
 			case "creativeGive": {
 				ItemStack stack = new ItemStack(item(str(a, "item")), a.has("count") ? a.get("count").getAsInt() : 64);
 				int slot = a.has("slot") ? a.get("slot").getAsInt() : p.getInventory().getSelectedSlot();
@@ -150,6 +170,29 @@ final class Ops {
 				return block(mc.level.getBlockState(pos(a)));
 			case "findBlocks":
 				return findBlocks(mc, p, a);
+			case "groundBelow": {
+				// For each {x,z}: y of the first solid block below fromY within depth, or null (air/unloaded).
+				int fromY = a.get("fromY").getAsInt();
+				int depth = a.has("depth") ? a.get("depth").getAsInt() : 32;
+				JsonArray out = new JsonArray();
+				for (JsonElement e : a.getAsJsonArray("points")) {
+					JsonObject pt = e.getAsJsonObject();
+					int x = pt.get("x").getAsInt();
+					int z = pt.get("z").getAsInt();
+					JsonElement found = JsonNull.INSTANCE;
+					for (int y = fromY; y > fromY - depth; y--) {
+						BlockPos bp = new BlockPos(x, y, z);
+						if (!mc.level.isLoaded(bp)) break;
+						BlockState st = mc.level.getBlockState(bp);
+						if (st.isSolid() || !st.getFluidState().isEmpty()) {
+							found = new JsonPrimitive(y);
+							break;
+						}
+					}
+					out.add(found);
+				}
+				return out;
+			}
 			default:
 				throw new IllegalArgumentException("unknown op " + op);
 		}
@@ -294,37 +337,43 @@ final class Ops {
 
 	// ------------------------------------------------------------------ crafting
 
-	/** Craft with the recipe book into the open crafting table, or the 2x2 inventory grid. */
-	private static JsonElement craft(Minecraft mc, LocalPlayer p, Item wanted, int times) {
-		AbstractContainerMenu menu = p.containerMenu instanceof CraftingMenu ? p.containerMenu : p.inventoryMenu;
+	/**
+	 * Ask the server to fill the open crafting grid (crafting table, or the 2x2 inventory grid) with a
+	 * known recipe for the item that fits the grid and can be made from the inventory. The server fills
+	 * the grid a moment later; the caller then takes the result from slot 0.
+	 */
+	private static JsonObject placeRecipe(Minecraft mc, LocalPlayer p, Item wanted) {
+		AbstractCraftingMenu menu = p.containerMenu instanceof AbstractCraftingMenu m ? m : p.inventoryMenu;
+		int gw = menu.getGridWidth();
+		int gh = menu.getGridHeight();
 		var ctx = SlotDisplayContext.fromLevel(mc.level);
-		int crafted = 0;
-		for (int n = 0; n < times; n++) {
-			StackedItemContents contents = new StackedItemContents();
-			p.getInventory().fillStackedContents(contents);
-			RecipeDisplayEntry found = null;
-			outer:
-			for (RecipeCollection col : p.getRecipeBook().getCollections()) {
-				for (RecipeDisplayEntry entry : col.getRecipes()) {
-					if (!entry.canCraft(contents)) continue;
-					for (ItemStack r : entry.resultItems(ctx)) {
-						if (r.is(wanted)) {
-							found = entry;
-							break outer;
-						}
-					}
+		StackedItemContents contents = new StackedItemContents();
+		p.getInventory().fillStackedContents(contents);
+		boolean tooBig = false;
+		for (RecipeCollection col : p.getRecipeBook().getCollections()) {
+			for (RecipeDisplayEntry entry : col.getRecipes()) {
+				if (entry.resultItems(ctx).stream().noneMatch(r -> r.is(wanted))) continue;
+				if (!entry.canCraft(contents)) continue;
+				boolean fits = switch (entry.display()) {
+					case ShapedCraftingRecipeDisplay sh -> sh.width() <= gw && sh.height() <= gh;
+					case ShapelessCraftingRecipeDisplay sl -> sl.ingredients().size() <= gw * gh;
+					default -> false;
+				};
+				if (!fits) {
+					tooBig = true;
+					continue;
 				}
+				mc.gameMode.handlePlaceRecipe(menu.containerId, entry.id(), false);
+				JsonObject o = new JsonObject();
+				o.addProperty("placed", true);
+				o.addProperty("containerId", menu.containerId);
+				return o;
 			}
-			if (found == null) {
-				if (n == 0) throw new IllegalStateException("no known recipe for " + BuiltInRegistries.ITEM.getKey(wanted).getPath() + " that can be made from the inventory" + (menu == p.inventoryMenu ? " (or it needs a crafting table)" : ""));
-				break;
-			}
-			mc.gameMode.handlePlaceRecipe(menu.containerId, found.id(), false);
-			// Result slot is 0 in both menus; shift-click moves it into the inventory.
-			mc.gameMode.handleContainerInput(menu.containerId, 0, 0, ContainerInput.QUICK_MOVE, p);
-			crafted++;
 		}
-		return new JsonPrimitive(crafted);
+		JsonObject o = new JsonObject();
+		o.addProperty("placed", false);
+		o.addProperty("needsTable", tooBig);
+		return o;
 	}
 
 	// ------------------------------------------------------------------ blocks

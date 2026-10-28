@@ -1,8 +1,7 @@
 import { SKILLS } from './skills.js'
-import { log } from './log.js'
-import { chatJSON } from './llm.js'
+import { chatJSON } from '../llm.js'
 
-const SYSTEM = `You are the strategic brain of a Minecraft survival bot on 2b2t, the oldest anarchy server.
+const SYSTEM = `You are the strategic brain of a Minecraft survival bot. Usually it plays on 2b2t-style anarchy servers.
 There are no rules: hacked clients, griefing and spawn-killing are normal. The area within several thousand blocks
 of spawn (0,0) is a barren, griefed wasteland full of hostile players. Highways run along the X/Z axes and the
 diagonals and are patrolled by killers. Bases and stashes near spawn or highways get found and destroyed.
@@ -20,7 +19,9 @@ high-level ACTION. Strategy:
 3. At night in the overworld: sleep if you have a bed, otherwise hide or work underground (strip_mine).
 4. Keep food. Stay away from players unless they are marked trusted/owner. Use exact Minecraft item ids (e.g. "stone_pickaxe", "raw_iron").
 5. Do not repeat an action that just failed with the same arguments; fix the cause or pick something else.
-6. A rule-based suggestion is provided; follow it unless you have a clear reason not to.
+6. Long trips go through the nether automatically (goto/travel_far) when you carry 10 obsidian and flint and steel
+   or know a portal; keep those for long journeys.
+7. A rule-based suggestion is provided; follow it unless you have a clear reason not to.
 
 Reply with ONLY JSON: {"thought": "<one short sentence>", "action": "<action>", "args": {...}}
 
@@ -84,7 +85,7 @@ export function ruleCandidates (o, cfg) {
   const ingots = n('iron_ingot')
   if (pickaxe < 3 && ingots >= 3) add('iron pickaxe', 'craft', { item: 'iron_pickaxe', count: 1 })
   if (sword < 3 && ingots >= 2) add('iron sword', 'craft', { item: 'iron_sword', count: 1 })
-  const pieces = [['chestplate', 'torso', 8], ['leggings', 'legs', 7], ['helmet', 'head', 5], ['boots', 'feet', 4]]
+  const pieces = [['chestplate', 'chest', 8], ['leggings', 'legs', 7], ['helmet', 'head', 5], ['boots', 'feet', 4]]
   for (const mat of [['iron', 3, ingots], ['diamond', 4, n('diamond')]]) {
     for (const [piece, slot, cost] of pieces) {
       const wearing = o.equipment[slot] ?? ''
@@ -117,7 +118,7 @@ export class Brain {
   async decide (obs, history) {
     const candidates = ruleCandidates(obs, this.cfg).filter(c => !this.recentlyFailed(c, history))
     const fallback = candidates[0] ?? { thought: 'nothing else works, explore', action: 'travel_far', args: {} }
-    if (!this.cfg.ai.enabled || Date.now() < this.disabledUntil) return { ...fallback, source: 'rules' }
+    if (!this.agent.ai().enabled || Date.now() < this.disabledUntil) return { ...fallback, source: 'rules' }
     try {
       const d = await this.ask(obs, history, fallback)
       if (!SKILLS[d.action]) throw new Error(`unknown action ${d.action}`)
@@ -125,10 +126,10 @@ export class Brain {
       this.failures = 0
       return { thought: String(d.thought ?? '').slice(0, 200), action: d.action, args: d.args ?? {}, source: 'llm' }
     } catch (e) {
-      log('[brain] LLM error:', e.message)
+      this.agent.log(`[brain] LLM error: ${e.message}`)
       if (++this.failures >= 3) {
         this.disabledUntil = Date.now() + 5 * 60e3
-        log('[brain] LLM disabled for 5 min, using rules')
+        this.agent.log('[brain] LLM disabled for 5 min, using rules')
       }
       return { ...fallback, source: 'rules' }
     }
@@ -145,7 +146,7 @@ export class Brain {
       `RULE-BASED SUGGESTION: ${JSON.stringify({ action: suggestion.action, args: suggestion.args })} (${suggestion.thought})`,
       'Choose the next action.'
     ].filter(Boolean).join('\n\n')
-    return chatJSON(this.cfg.ai, SYSTEM, user, SCHEMA)
+    return chatJSON(this.agent.ai(), SYSTEM, user, SCHEMA)
   }
 }
 

@@ -2,10 +2,14 @@ package net.moddedrealms.aibridge;
 
 import com.google.gson.JsonObject;
 import net.fabricmc.api.ClientModInitializer;
+import baritone.api.BaritoneAPI;
+import java.util.function.Consumer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +49,16 @@ public class AiBridge implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
 			server.event(event("disconnect", "reason", lastDisconnectReason)));
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+
+		// Baritone talks only to the local chat ("Missing materials", "Unable to do it"...); pass that on too.
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			var logger = BaritoneAPI.getSettings().logger;
+			Consumer<Component> original = logger.value;
+			logger.value = msg -> {
+				original.accept(msg);
+				server.event(event("baritone", "text", msg.getString()));
+			};
+		});
 	}
 
 	private void tick(Minecraft mc) {

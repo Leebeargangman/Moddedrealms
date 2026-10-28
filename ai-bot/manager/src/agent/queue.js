@@ -4,27 +4,26 @@ import { EventEmitter } from 'node:events'
 const POSITION_RE = /(?:(?:position|place) in (?:the )?queue|queue position)[^\d]{0,12}(\d+)|you are (?:number |#)?(\d+)(?:st|nd|rd|th)? in (?:the )?(?:queue|line)/i
 const CONNECTED_RE = /connected to the server|you are now playing|joined the server/i
 
-// Tracks whether we are waiting in the 2b2t queue or actually in the game.
-// States: connecting -> unknown -> queue -> game. Emits 'state' and 'position'.
+// Tracks whether we are waiting in a server queue or actually playing, from the bridge's chat feed.
+// States: offline -> unknown -> queue -> game. Emits 'state' and 'position'.
 export class QueueTracker extends EventEmitter {
-  constructor (bot, { unknownTimeoutMs = 25000, queueSilenceMs = 120000 } = {}) {
+  constructor (bridge, { unknownTimeoutMs = 25000, queueSilenceMs = 120000 } = {}) {
     super()
-    this.bot = bot
-    this.state = 'connecting'
+    this.state = 'offline'
     this.position = null
     this.history = [] // [{t, p}]
     this.lastQueueMsg = 0
     this.unknownTimeoutMs = unknownTimeoutMs
     this.queueSilenceMs = queueSilenceMs
 
-    bot.once('spawn', () => { this.spawnedAt = Date.now(); this._set('unknown') })
-    bot.on('messagestr', m => this._scan(m))
-    bot.on('actionBar', j => this._scan(j?.toString?.() ?? ''))
-    bot.on('title', t => this._scan(typeof t === 'string' ? t : JSON.stringify(t)))
-    bot.on('respawn', () => { this.lastRespawn = Date.now() })
+    bridge.on('join', () => { this.joinedAt = Date.now(); this.position = null; this._set('unknown') })
+    bridge.on('disconnect', () => this._set('offline'))
+    bridge.on('closed', () => this._set('offline'))
+    for (const ev of ['system', 'actionbar']) bridge.on(ev, m => this._scan(m.text))
     this.timer = setInterval(() => this._poll(), 3000)
-    bot.once('end', () => clearInterval(this.timer))
   }
+
+  stop () { clearInterval(this.timer) }
 
   _set (state) {
     if (this.state === state) return
@@ -48,20 +47,18 @@ export class QueueTracker extends EventEmitter {
       this._set('queue')
       return
     }
-    if (CONNECTED_RE.test(text) && this.state !== 'game') this._set('game')
+    if (CONNECTED_RE.test(text) && this.state !== 'game' && this.state !== 'offline') this._set('game')
   }
 
   _poll () {
-    const bot = this.bot
-    try { this._scan(bot.tablist?.header?.toString?.()) } catch {}
     const now = Date.now()
-    // Servers without a queue (or a queue we failed to recognise): assume in-game.
-    if (this.state === 'unknown' && now - this.spawnedAt > this.unknownTimeoutMs) this._set('game')
-    // Queue went quiet after a server switch: we got in.
-    if (this.state === 'queue' && now - this.lastQueueMsg > this.queueSilenceMs && this.lastRespawn > this.lastQueueMsg) this._set('game')
+    // Servers without a queue (or one we didn't recognise): assume we're playing.
+    if (this.state === 'unknown' && now - this.joinedAt > this.unknownTimeoutMs) this._set('game')
+    // Queue went quiet (moved to the main server): we got in.
+    if (this.state === 'queue' && now - this.lastQueueMsg > this.queueSilenceMs) this._set('game')
   }
 
-  // Estimated ms left in queue, based on the last ~30 min of movement.
+  // Estimated ms left in the queue, from the last ~30 min of movement.
   eta () {
     const h = this.history.filter(x => Date.now() - x.t < 30 * 60e3)
     if (h.length < 2 || this.position == null) return null
