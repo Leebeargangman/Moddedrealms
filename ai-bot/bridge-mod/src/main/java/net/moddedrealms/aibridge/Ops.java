@@ -162,6 +162,8 @@ final class Ops {
 				return block(mc.level.getBlockState(pos(a)));
 			case "findBlocks":
 				return findBlocks(mc, p, a);
+			case "portalSite":
+				return portalSite(mc, p, a.has("radius") ? a.get("radius").getAsInt() : 10);
 			case "groundBelow": {
 				// For each {x,z}: y of the first solid block below fromY within depth, or null (air/unloaded).
 				int fromY = a.get("fromY").getAsInt();
@@ -293,6 +295,8 @@ final class Ops {
 		JsonObject b = new JsonObject();
 		IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
 		b.addProperty("pathing", baritone.getPathingBehavior().isPathing());
+		// Still working out a path (long trips in the nether take seconds): not idle yet.
+		b.addProperty("calculating", baritone.getPathingBehavior().getInProgress().isPresent());
 		if (baritone.getPathingBehavior().getGoal() != null) b.addProperty("goal", baritone.getPathingBehavior().getGoal().toString());
 		baritone.getPathingControlManager().mostRecentInControl().ifPresent((IBaritoneProcess pr) -> {
 			b.addProperty("process", pr.displayName());
@@ -388,6 +392,63 @@ final class Ops {
 	}
 
 	/** Nearest blocks of the given names within a cube (radius capped at 32). */
+	/**
+	 * Nearest spot for a 4x5 portal frame: the whole frame area clear, solid ground under it, and room in front to
+	 * stand while building. Building right where we stand fails in caves and on slopes. Returns the frame's lower
+	 * corner and the axis it runs along (x or z), or null.
+	 */
+	private static JsonElement portalSite(Minecraft mc, LocalPlayer p, int r) {
+		BlockPos c = p.blockPosition();
+		BlockPos best = null;
+		Direction.Axis bestAxis = null;
+		double bestD = Double.MAX_VALUE;
+		for (int dy = -3; dy <= 3; dy++) {
+			for (int dx = -r; dx <= r; dx++) {
+				for (int dz = -r; dz <= r; dz++) {
+					BlockPos o = c.offset(dx, dy, dz);
+					double d = o.distSqr(c);
+					if (d >= bestD) continue;
+					for (Direction.Axis axis : new Direction.Axis[] {Direction.Axis.X, Direction.Axis.Z}) {
+						if (portalFits(mc, o, axis)) {
+							best = o;
+							bestAxis = axis;
+							bestD = d;
+							break;
+						}
+					}
+				}
+			}
+		}
+		if (best == null) return JsonNull.INSTANCE;
+		JsonObject o = new JsonObject();
+		o.addProperty("x", best.getX());
+		o.addProperty("y", best.getY());
+		o.addProperty("z", best.getZ());
+		o.addProperty("axis", bestAxis == Direction.Axis.X ? "x" : "z");
+		return o;
+	}
+
+	private static boolean portalFits(Minecraft mc, BlockPos o, Direction.Axis axis) {
+		Direction along = axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
+		Direction front = axis == Direction.Axis.X ? Direction.SOUTH : Direction.EAST;
+		for (int i = 0; i < 4; i++) {
+			BlockPos col = o.relative(along, i);
+			BlockPos below = col.below();
+			if (!mc.level.isLoaded(below) || !mc.level.getBlockState(below).isFaceSturdy(mc.level, below, Direction.UP)) return false;
+			for (int j = 0; j < 5; j++) if (!clear(mc, col.above(j))) return false;
+			// Room to stand in front while placing.
+			BlockPos f = col.relative(front);
+			if (!clear(mc, f) || !clear(mc, f.above())) return false;
+		}
+		BlockPos stand = o.relative(along, 1).relative(front).below();
+		return mc.level.getBlockState(stand).isFaceSturdy(mc.level, stand, Direction.UP);
+	}
+
+	private static boolean clear(Minecraft mc, BlockPos pos) {
+		BlockState st = mc.level.getBlockState(pos);
+		return st.getFluidState().isEmpty() && (st.isAir() || st.canBeReplaced());
+	}
+
 	private static JsonArray findBlocks(Minecraft mc, LocalPlayer p, JsonObject a) {
 		Set<String> names = new HashSet<>();
 		for (JsonElement e : a.getAsJsonArray("names")) names.add(e.getAsString());

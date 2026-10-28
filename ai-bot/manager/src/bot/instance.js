@@ -189,7 +189,8 @@ export class BotInstance extends EventEmitter {
     const e = this.memory.data.escape
     if (!e) return 'leaving spawn'
     if (e.done) return `out of spawn, ${Math.round(Math.hypot(e.out.x, e.out.z))} blocks away`
-    if (e.entered) return `in the nether, ${e.netherBlocks ?? 0} blocks along`
+    const p = this.body?.inWorld && this.body.dimension === 'the_nether' ? this.body.pos : null
+    if (e.entered) return `in the nether, ${p ? Math.round(Math.hypot(p.x - e.entered.x, p.z - e.entered.z)) : e.netherBlocks ?? 0} blocks along`
     return 'looking for a nether portal'
   }
 

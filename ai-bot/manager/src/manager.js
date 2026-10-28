@@ -82,8 +82,11 @@ export class Manager extends EventEmitter {
     const bot = this.bots.get(id)
     if (bot) {
       const server = bot.cfg.server
+      const mode = bot.cfg.behavior.mode
       bot.cfg = botConfig(this.cfg, spec)
       if (bot.agent) { bot.agent.cfg = bot.cfg; bot.agent.ctx.cfg = bot.cfg }
+      // Switched to anarchy mode: drop what it's doing so it heads for a portal now.
+      if (bot.cfg.behavior.mode !== mode) bot.agent?.interruptBrain()
       if (changes.server && changes.server !== server) bot.switchServer(changes.server)
     }
     this.emitList()

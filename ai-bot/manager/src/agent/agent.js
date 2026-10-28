@@ -186,6 +186,10 @@ export class Agent extends EventEmitter {
         this.log(`[brain] (${decision.source}, ${Date.now() - t0}ms) ${decision.action} ${JSON.stringify(decision.args)} - ${decision.thought}`)
       }
       if (!this.inGame() || this.task) continue
+      // Switched to anarchy mode while the AI was still deciding: escaping comes first (staff orders excepted).
+      if (this.escaping() && decision.source !== 'owner' && decision.action !== 'escape_spawn') {
+        decision = { action: 'escape_spawn', args: {}, thought: 'anarchy mode: leaving spawn through the nether', source: 'rule', resumes: 0 }
+      }
       if (decision.action !== 'escape_spawn') decision = this.instance.team?.filterOwnDecision(this.instance, decision) ?? decision
 
       // Nothing gets done inside spawn protection: walk out first (staff orders and quick things excepted).

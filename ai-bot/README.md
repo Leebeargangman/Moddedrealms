@@ -29,8 +29,8 @@ What they do:
   team to have them whisper each other about jobs, food and trouble (never coordinates).
 - **Anarchy mode** (per bot, in its settings), for servers like 2b2t and 9b9t: on joining, the bot heads straight for
   the nearest nether portal, travels far through the nether in one direction until it gets hungry (or
-  `behavior.anarchy.maxNetherBlocks`, 15000 by default), then comes back out through a portal it finds or builds and
-  survives normally out there. Teammates take the same direction. It starts over after dying without a bed.
+  `behavior.anarchy.maxNetherBlocks`, 15000 by default), then takes the next portal it finds back to the overworld
+  and survives normally out there. It only uses portals other players left (anarchy worlds are full of them). Teammates take the same direction. It starts over after dying without a bed.
 
 ## How it fits together
 

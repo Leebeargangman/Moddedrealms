@@ -85,7 +85,7 @@ export class Body {
           throw new Error(`Baritone: ${detail.slice(0, 400)}`)
         }
         const b = this.baritoneState
-        idle = (!b.pathing && !b.processActive && !b.building && !b.mining && !b.following) ? idle + 1 : 0
+        idle = (!b.pathing && !b.calculating && !b.processActive && !b.building && !b.mining && !b.following) ? idle + 1 : 0
         if (idle >= 3) return 'idle'
         const p = this.pos
         if (p && lastPos && Math.hypot(p.x - lastPos.x, p.y - lastPos.y, p.z - lastPos.z) > 1) { lastPos = p; lastMove = Date.now() }
