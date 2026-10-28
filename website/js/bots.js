@@ -229,6 +229,7 @@
     if (b.health != null) kvRow(dl, "Health / food", Math.round(b.health) + " / " + b.food);
     kvRow(dl, "Doing", b.task || (b.state === "online" ? (b.autonomous ? "thinking" : "waiting for orders") : ""));
     kvRow(dl, "Thinking", b.thought);
+    if (b.mode === "anarchy") kvRow(dl, "Anarchy mode", b.escape);
     if (b.queue === "queue") kvRow(dl, "Queue", "#" + (b.queuePosition || "?") + (b.queueEtaMin != null ? ", ~" + b.queueEtaMin + " min" : ""));
     kvRow(dl, "Standing order", b.directive);
     kvRow(dl, "Offline", b.offlineReason);
@@ -337,12 +338,13 @@
     var model = String(b.model || "");
     f.elements.source.value = model === "rules only" ? "off" : /on .+'s PC/.test(model) ? "connector" : "vps";
     f.elements.model.value = model.split(" ")[0] === "rules" ? "" : model.split(" ")[0];
+    f.elements.mode.value = b.mode === "anarchy" ? "anarchy" : "survival";
   }
 
   function renderTeams() {
     var box = $("[data-teams]");
     var key = JSON.stringify(onlineHosts().map(function (m) {
-      return m.snapshot.teams.map(function (t) { return [t.id, t.phase, t.members, (t.feed || []).length]; });
+      return m.snapshot.teams.map(function (t) { return [t.id, t.phase, t.members, t.chat, (t.feed || []).length]; });
     }));
     if (box.getAttribute("data-key") === key) return;
     box.setAttribute("data-key", key);
@@ -367,6 +369,9 @@
         var actions = el("div", "bot-actions");
         if (t.phase === "stopped") actions.appendChild(button("Start", "btn-primary", function () { command(m.name, "startTeam", { team: t.id }); }));
         else actions.appendChild(button("Stop", "btn-ghost", function () { command(m.name, "stopTeam", { team: t.id }); }));
+        actions.appendChild(button(t.chat ? "Team chat: on" : "Team chat: off", "btn-ghost", function () {
+          command(m.name, "updateTeam", { team: t.id, changes: { chat: !t.chat } });
+        }));
         actions.appendChild(button("Remove", "btn-ghost", function () {
           if (window.confirm("Remove team " + t.name + "? The bots stay.")) command(m.name, "removeTeam", { team: t.id });
         }));
@@ -546,7 +551,8 @@
     var source = f.elements.source.value;
     var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.elements.model.value.trim() || undefined };
     if (source === "connector") ai.connector = state.me.username;
-    command(selected.manager, "updateBot", { bot: selected.bot, changes: { server: f.elements.server.value.trim(), account: f.elements.account.value, ai: ai } }, function (ev) {
+    var changes = { server: f.elements.server.value.trim(), account: f.elements.account.value, ai: ai, behavior: { mode: f.elements.mode.value } };
+    command(selected.manager, "updateBot", { bot: selected.bot, changes: changes }, function (ev) {
       if (ev.ok) MR.toast("Saved. Account changes apply the next time the bot starts.");
     });
   });
@@ -706,6 +712,13 @@
     form.appendChild(mf);
     form.appendChild(field("Leader", leaderSel));
     form.appendChild(field("Leader's model (smarter is better)", input("leaderModel", "qwen2.5:7b", "qwen2.5:7b")));
+    var chatLabel = el("label", "check");
+    var chatBox = el("input");
+    chatBox.type = "checkbox";
+    chatBox.name = "chat";
+    chatLabel.appendChild(chatBox);
+    chatLabel.appendChild(el("span", null, "Team chat: members whisper each other about jobs, food and trouble (never coordinates)"));
+    form.appendChild(chatLabel);
     var actions = el("div", "form-actions");
     var submit = el("button", "btn btn-primary btn-sm", "Create team");
     submit.type = "submit";
@@ -717,7 +730,7 @@
       var members = $$('input[name="members"]:checked', form).map(function (c) { return c.value; });
       if (members.indexOf(f.leader.value) < 0) members.push(f.leader.value);
       if (members.length < 2 || members.length > 5) return MR.toast("Pick 2 to 5 bots.");
-      command(f.manager.value, "createTeam", { name: f.name.value.trim() || "Team", leader: f.leader.value, members: members, leaderModel: f.leaderModel.value.trim() || null }, function (ev) {
+      command(f.manager.value, "createTeam", { name: f.name.value.trim() || "Team", leader: f.leader.value, members: members, leaderModel: f.leaderModel.value.trim() || null, chat: f.chat.checked }, function (ev) {
         if (ev.ok) {
           modal.close();
           MR.toast("Team created. Press Start.");

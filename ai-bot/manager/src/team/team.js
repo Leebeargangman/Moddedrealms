@@ -43,7 +43,7 @@ const SCHEMA = {
 }
 
 export class Team extends EventEmitter {
-  /** cfg: { id, name, leader: botId, members: [botId], leaderModel?, intervalMs? } */
+  /** cfg: { id, name, leader: botId, members: [botId], leaderModel?, intervalMs?, chat? } */
   constructor ({ cfg, bots, log }) {
     super()
     this.cfg = cfg
@@ -53,6 +53,9 @@ export class Team extends EventEmitter {
     this.phase = 'gathering'
     this.lastPlan = null
     this.feed = [] // recent team events for the website
+    this.hurtSaid = new Map() // bot id -> when it last asked for help
+    // Anarchy mode: everyone leaves spawn through the nether in the same direction, so they end up near each other.
+    this.heading = Math.floor(Math.random() * 8) * Math.PI / 4
   }
 
   members () { return this.cfg.members.map(id => this.bots.get(id)).filter(Boolean) }
@@ -78,8 +81,18 @@ export class Team extends EventEmitter {
     this.log(text)
   }
 
+  /** Members in the game and available to the team (not still escaping spawn in anarchy mode). */
   playing () {
-    return this.members().filter(b => b.state === 'online' && b.agent?.inGame())
+    return this.members().filter(b => b.state === 'online' && b.agent?.inGame() && !b.agent.escaping())
+  }
+
+  /**
+   * Optional team chat (cfg.chat): members whisper each other about jobs, food and trouble, like players would.
+   * Never coordinates, and teammates ignore what they receive, so it can't turn into a conversation loop.
+   */
+  whisper (from, to, text) {
+    if (!this.cfg.chat || !from?.agent?.social || !to) return
+    from.agent.social.say(String(text).replace(/-?\d{3,}/g, '').replace(/\s+/g, ' ').trim(), typeof to === 'string' ? to : to.session?.name)
   }
 
   // ------------------------------------------------------------ the loop
@@ -87,12 +100,15 @@ export class Team extends EventEmitter {
   async tick () {
     const leader = this.leader()
     const online = this.playing()
-    if (!leader?.agent?.inGame() || online.length < 2) return
+    if (!leader?.agent?.inGame() || leader.agent.escaping() || online.length < 2) return
 
     const lp = leader.body.pos
     const far = online.filter(b => b !== leader && (b.body.dimension !== leader.body.dimension || dist(b.body.pos, lp) > TOGETHER_RADIUS))
     if (far.length) {
-      if (this.phase !== 'gathering') this.note(`regrouping: ${far.map(b => b.session.name).join(', ')} ${far.length > 1 ? 'are' : 'is'} away`)
+      if (this.phase !== 'gathering') {
+        this.note(`regrouping: ${far.map(b => b.session.name).join(', ')} ${far.length > 1 ? 'are' : 'is'} away`)
+        for (const b of far) this.whisper(leader, b, 'regroup with me')
+      }
       this.phase = 'gathering'
       // The leader waits; everyone else comes to it (through the nether if it's far).
       if (!isBusy(leader, 'wait')) this.order(leader, 'wait', { seconds: 60 }, 'waiting for the team')
@@ -112,6 +128,11 @@ export class Team extends EventEmitter {
     }
 
     this.shareFood(online)
+    for (const b of online) {
+      if (b === leader || b.body.health >= 8 || Date.now() - (this.hurtSaid.get(b.id) ?? 0) < 2 * 60e3) continue
+      this.hurtSaid.set(b.id, Date.now())
+      this.whisper(b, leader, `need help, ${Math.ceil(b.body.health)} hp${b.body.bestFood() ? '' : ' and no food'}`)
+    }
 
     const interval = this.cfg.intervalMs ?? 90000
     if (this.lastPlan && Date.now() - this.lastPlan < interval) return
@@ -131,6 +152,7 @@ export class Team extends EventEmitter {
       if (!giver) continue
       const food = giver.body.bestFood()
       this.order(giver, 'give', { item: food.item, count: Math.min(4, food.count), name }, `${name} is hurt and has no food`)
+      this.whisper(giver, hungry, `bringing you some ${food.item.replace(/_/g, ' ')}, stay put`)
     }
   }
 
@@ -161,7 +183,9 @@ export class Team extends EventEmitter {
       // Re-planning every 90 s mustn't restart a job that's still running (a hunt or a mine takes minutes).
       if (isBusy(bot, o.action)) continue
       if (o.action === 'give' && !bot.body.count(String(o.args?.item ?? ''))) continue
+      if (o.action === 'eat' && !bot.body.bestFood()) continue
       this.order(bot, o.action, o.args ?? {}, o.why ?? '')
+      if (bot !== leader) this.whisper(leader, bot, `${o.action.replace(/_/g, ' ')}${o.why ? `: ${o.why}` : ''}`)
       if (bot === leader && MOVING.has(o.action)) {
         for (const f of online) if (f !== leader) this.order(f, 'follow_player', { name: leader.session.name, seconds: 300 }, 'following the leader')
       }

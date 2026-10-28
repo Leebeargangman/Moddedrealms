@@ -220,6 +220,8 @@ final class Ops {
 		me.addProperty("gameMode", mc.gameMode == null ? null : mc.gameMode.getPlayerMode().getName());
 		me.addProperty("selectedSlot", p.getInventory().getSelectedSlot());
 		me.addProperty("isUsingItem", p.isUsingItem());
+		// Ops can dig at spawn and run admin commands.
+		me.addProperty("op", p.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER));
 		s.add("player", me);
 
 		JsonArray inv = new JsonArray();

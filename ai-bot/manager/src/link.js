@@ -104,6 +104,7 @@ export function connectWebsite (manager) {
         case 'updateBot': manager.updateBot(args.bot, args.changes ?? {}); return reply(true, 'saved')
         case 'removeBot': await manager.removeBot(args.bot); return reply(true, 'removed')
         case 'createTeam': return reply(true, manager.createTeam(args))
+        case 'updateTeam': manager.updateTeam(args.team, args.changes ?? {}); return reply(true, 'saved')
         case 'startTeam': manager.startTeam(args.team).catch(e => send({ type: 'error', text: e.message })); return reply(true, 'starting the team')
         case 'stopTeam': await manager.stopTeam(args.team); return reply(true, 'stopped')
         case 'removeTeam': manager.removeTeam(args.team); return reply(true, 'removed')

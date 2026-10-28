@@ -182,7 +182,7 @@ export function inSpawnArea (ctx) {
   const { body, cfg } = ctx
   const radius = cfg.behavior?.spawnProtection ?? 16
   const sp = body.s?.worldSpawn
-  if (!radius || !sp || body.dimension !== 'overworld' || body.p?.gameMode === 'creative') return false
+  if (!radius || !sp || body.dimension !== 'overworld' || body.p?.gameMode === 'creative' || body.p?.op) return false
   const p = body.pos
   return Math.max(Math.abs(p.x - sp.x), Math.abs(p.z - sp.z)) <= radius + 3
 }

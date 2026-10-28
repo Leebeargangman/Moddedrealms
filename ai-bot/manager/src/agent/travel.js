@@ -127,4 +127,4 @@ export async function travelTo (ctx, target, signal, { timeoutMs = 60 * 60e3, ne
   return `arrived at ${Math.round(target.x)} ${Math.round(target.z)}`
 }
 
-export { buildPortal, usePortal }
+export { buildPortal, usePortal, nearbyPortal, knownPortal, hasPortalMaterials }

@@ -24,7 +24,13 @@ What they do:
   when staff press **Rejoin**.
 - **Teams** (2-5 bots): they meet at the leader (through the nether if far), then the leader AI hands out jobs every
   90 s (wood, food, mining, guarding, building) from everyone's status. Followers stay with the team, follow the
-  leader when it travels, defend each other from mobs and never fight each other. Staff orders always win.
+  leader when it travels, defend each other from mobs, share food with a hurt teammate and never fight each other.
+  Staff orders always win. They coordinate through the bot manager, not in-game chat; turn on **Team chat** for a
+  team to have them whisper each other about jobs, food and trouble (never coordinates).
+- **Anarchy mode** (per bot, in its settings), for servers like 2b2t and 9b9t: on joining, the bot heads straight for
+  the nearest nether portal, travels far through the nether in one direction until it gets hungry (or
+  `behavior.anarchy.maxNetherBlocks`, 15000 by default), then comes back out through a portal it finds or builds and
+  survives normally out there. Teammates take the same direction. It starts over after dying without a bed.
 
 ## How it fits together
 
