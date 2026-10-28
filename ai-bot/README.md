@@ -24,7 +24,13 @@ What they do:
   when staff press **Rejoin**.
 - **Teams** (2-5 bots): they meet at the leader (through the nether if far), then the leader AI hands out jobs every
   90 s (wood, food, mining, guarding, building) from everyone's status. Followers stay with the team, follow the
-  leader when it travels, defend each other from mobs and never fight each other. Staff orders always win.
+  leader when it travels, defend each other from mobs, share food with a hurt teammate and never fight each other.
+  Staff orders always win. They coordinate through the bot manager, not in-game chat; turn on **Team chat** for a
+  team to have them whisper each other about jobs, food and trouble (never coordinates).
+- **Anarchy mode** (per bot, in its settings), for servers like 2b2t and 9b9t: on joining, the bot heads straight for
+  the nearest nether portal, travels far through the nether in one direction until it gets hungry (or
+  `behavior.anarchy.maxNetherBlocks`, 15000 by default), then takes the next portal it finds back to the overworld
+  and survives normally out there. It only uses portals other players left (anarchy worlds are full of them). Teammates take the same direction. It starts over after dying without a bed.
 
 ## How it fits together
 
@@ -38,7 +44,8 @@ bot manager (ai-bot/manager) runs several bots:
   real client = Minecraft 26.1.2 + Fabric + Baritone + ViaFabricPlus + bridge mod, under Xvfb
 ```
 
-- **ViaFabricPlus** lets the 26.1.2 client join servers on other versions.
+- **ViaFabricPlus** lets the 26.1.2 client join servers on other versions: before joining, the manager pings the
+  server and picks its version (servers that accept 26.1.2, like 9b9t and 2b2t, need no translation).
 - Nothing listens on the internet: managers and connectors connect out to the website.
 - A real client moves like a normal player, so anti-cheats (tested with Grim) don't pull it back.
 
@@ -76,7 +83,8 @@ Edit `manager.json`:
 }
 ```
 
-Start it with `node src/manager.js`. In a container without systemd, use `bash deploy/start-container.sh`, which
+Start it with `node src/manager.js`. Without a website configured it runs the bots and teams marked `autoStart` in
+`data/bots.json` / `data/teams.json`, and writes what each bot is doing to `data/status.json` every 5 seconds. In a container without systemd, use `bash deploy/start-container.sh`, which
 restarts the manager if it crashes. The first bot start downloads Java 25, Minecraft and the mods (about 400 MB).
 
 On the website, set `BOT_MANAGER_KEY` in `.env` (any long random string, e.g. `openssl rand -hex 24`), and the same
@@ -116,5 +124,9 @@ The launcher prefers `build/libs/` over `dist/`.
 - **Baritone** can't place some blocks from a schematic, such as wall torches. Builds stop after a minute without
   progress and report what's left.
 - **Bots don't use elytra or do crystal PvP.** Against skilled players with hacked clients, running is their defence.
+- **Spawn protection:** servers stop non-ops from digging or building near world spawn (16 blocks on Paper). Bots
+  walk out of that area before working; set `behavior.spawnProtection` if the server uses another radius (0 = none).
+- **Anti-cheats:** bots turn towards what they hit or right-click over a few ticks, like a mouse, and vary their
+  click timing. Tested with Grim and Vulcan.
 - **Microsoft tokens last about a day.** A bot that has run longer restarts its client to sign in fresh when it
   rejoins.

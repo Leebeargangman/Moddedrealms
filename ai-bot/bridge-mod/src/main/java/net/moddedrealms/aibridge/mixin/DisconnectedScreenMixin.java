@@ -11,13 +11,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Kicks while logging in (whitelist, ban, wrong version, connection refused) never reach the play-connection
- * DISCONNECT event; they only open this screen. Report them so the manager doesn't wait forever.
+ * Reports why we were disconnected. Kicks while logging in (whitelist, ban, wrong version) never reach the
+ * play-connection DISCONNECT event, and in-game kick messages can arrive after it; both end up on this screen.
  */
 @Mixin(DisconnectedScreen.class)
 public class DisconnectedScreenMixin {
 	@Inject(method = "<init>(Lnet/minecraft/client/gui/screens/Screen;Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/DisconnectionDetails;Lnet/minecraft/network/chat/Component;)V", at = @At("RETURN"))
-	private void aibridge$reportLoginFailure(Screen parent, Component title, DisconnectionDetails details, Component buttonText, CallbackInfo ci) {
-		AiBridge.loginFailed(details.reason().getString());
+	private void aibridge$reportDisconnect(Screen parent, Component title, DisconnectionDetails details, Component buttonText, CallbackInfo ci) {
+		AiBridge.disconnectScreen(details.reason().getString());
 	}
 }

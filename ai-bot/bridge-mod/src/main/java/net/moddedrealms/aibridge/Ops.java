@@ -104,9 +104,7 @@ final class Ops {
 			case "attack": {
 				Entity e = mc.level.getEntity(a.get("entity").getAsInt());
 				if (e == null) throw new IllegalArgumentException("no such entity");
-				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, e.getBoundingBox().getCenter());
-				mc.gameMode.attack(p, e);
-				p.swing(InteractionHand.MAIN_HAND);
+				Aim.attack(e.getId());
 				return JsonNull.INSTANCE;
 			}
 			case "useItem":
@@ -114,14 +112,6 @@ final class Ops {
 			case "releaseUse":
 				mc.gameMode.releaseUsingItem(p);
 				return JsonNull.INSTANCE;
-			case "useOn": {
-				// Right-click a block face: open chests, light portals, place a held block.
-				BlockPos pos = pos(a);
-				Direction face = a.has("face") ? Direction.byName(str(a, "face")) : Direction.UP;
-				Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
-				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, hit);
-				return new JsonPrimitive(mc.gameMode.useItemOn(p, hand(a), new BlockHitResult(hit, face, pos, false)).toString());
-			}
 			case "lookAt":
 				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, new Vec3(a.get("x").getAsDouble(), a.get("y").getAsDouble(), a.get("z").getAsDouble()));
 				return JsonNull.INSTANCE;
@@ -172,6 +162,8 @@ final class Ops {
 				return block(mc.level.getBlockState(pos(a)));
 			case "findBlocks":
 				return findBlocks(mc, p, a);
+			case "portalSite":
+				return portalSite(mc, p, a.has("radius") ? a.get("radius").getAsInt() : 10);
 			case "groundBelow": {
 				// For each {x,z}: y of the first solid block below fromY within depth, or null (air/unloaded).
 				int fromY = a.get("fromY").getAsInt();
@@ -230,6 +222,8 @@ final class Ops {
 		me.addProperty("gameMode", mc.gameMode == null ? null : mc.gameMode.getPlayerMode().getName());
 		me.addProperty("selectedSlot", p.getInventory().getSelectedSlot());
 		me.addProperty("isUsingItem", p.isUsingItem());
+		// Ops can dig at spawn and run admin commands.
+		me.addProperty("op", p.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER));
 		s.add("player", me);
 
 		JsonArray inv = new JsonArray();
@@ -285,6 +279,13 @@ final class Ops {
 
 		s.addProperty("time", mc.level.getOverworldClockTime() % 24000);
 		s.addProperty("raining", mc.level.isRaining());
+		// Servers protect the area around world spawn; the agent walks out before it digs or builds.
+		BlockPos spawn = mc.level.getLevelData().getRespawnData().pos();
+		JsonObject ws = new JsonObject();
+		ws.addProperty("x", spawn.getX());
+		ws.addProperty("y", spawn.getY());
+		ws.addProperty("z", spawn.getZ());
+		s.add("worldSpawn", ws);
 		s.add("baritone", baritoneState());
 		if (mc.screen instanceof AbstractContainerScreen<?>) s.add("container", container(p));
 		return s;
@@ -294,6 +295,8 @@ final class Ops {
 		JsonObject b = new JsonObject();
 		IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
 		b.addProperty("pathing", baritone.getPathingBehavior().isPathing());
+		// Still working out a path (long trips in the nether take seconds): not idle yet.
+		b.addProperty("calculating", baritone.getPathingBehavior().getInProgress().isPresent());
 		if (baritone.getPathingBehavior().getGoal() != null) b.addProperty("goal", baritone.getPathingBehavior().getGoal().toString());
 		baritone.getPathingControlManager().mostRecentInControl().ifPresent((IBaritoneProcess pr) -> {
 			b.addProperty("process", pr.displayName());
@@ -389,6 +392,63 @@ final class Ops {
 	}
 
 	/** Nearest blocks of the given names within a cube (radius capped at 32). */
+	/**
+	 * Nearest spot for a 4x5 portal frame: the whole frame area clear, solid ground under it, and room in front to
+	 * stand while building. Building right where we stand fails in caves and on slopes. Returns the frame's lower
+	 * corner and the axis it runs along (x or z), or null.
+	 */
+	private static JsonElement portalSite(Minecraft mc, LocalPlayer p, int r) {
+		BlockPos c = p.blockPosition();
+		BlockPos best = null;
+		Direction.Axis bestAxis = null;
+		double bestD = Double.MAX_VALUE;
+		for (int dy = -3; dy <= 3; dy++) {
+			for (int dx = -r; dx <= r; dx++) {
+				for (int dz = -r; dz <= r; dz++) {
+					BlockPos o = c.offset(dx, dy, dz);
+					double d = o.distSqr(c);
+					if (d >= bestD) continue;
+					for (Direction.Axis axis : new Direction.Axis[] {Direction.Axis.X, Direction.Axis.Z}) {
+						if (portalFits(mc, o, axis)) {
+							best = o;
+							bestAxis = axis;
+							bestD = d;
+							break;
+						}
+					}
+				}
+			}
+		}
+		if (best == null) return JsonNull.INSTANCE;
+		JsonObject o = new JsonObject();
+		o.addProperty("x", best.getX());
+		o.addProperty("y", best.getY());
+		o.addProperty("z", best.getZ());
+		o.addProperty("axis", bestAxis == Direction.Axis.X ? "x" : "z");
+		return o;
+	}
+
+	private static boolean portalFits(Minecraft mc, BlockPos o, Direction.Axis axis) {
+		Direction along = axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
+		Direction front = axis == Direction.Axis.X ? Direction.SOUTH : Direction.EAST;
+		for (int i = 0; i < 4; i++) {
+			BlockPos col = o.relative(along, i);
+			BlockPos below = col.below();
+			if (!mc.level.isLoaded(below) || !mc.level.getBlockState(below).isFaceSturdy(mc.level, below, Direction.UP)) return false;
+			for (int j = 0; j < 5; j++) if (!clear(mc, col.above(j))) return false;
+			// Room to stand in front while placing.
+			BlockPos f = col.relative(front);
+			if (!clear(mc, f) || !clear(mc, f.above())) return false;
+		}
+		BlockPos stand = o.relative(along, 1).relative(front).below();
+		return mc.level.getBlockState(stand).isFaceSturdy(mc.level, stand, Direction.UP);
+	}
+
+	private static boolean clear(Minecraft mc, BlockPos pos) {
+		BlockState st = mc.level.getBlockState(pos);
+		return st.getFluidState().isEmpty() && (st.isAir() || st.canBeReplaced());
+	}
+
 	private static JsonArray findBlocks(Minecraft mc, LocalPlayer p, JsonObject a) {
 		Set<String> names = new HashSet<>();
 		for (JsonElement e : a.getAsJsonArray("names")) names.add(e.getAsString());
@@ -442,11 +502,11 @@ final class Ops {
 		return a.get(k).getAsString();
 	}
 
-	private static BlockPos pos(JsonObject a) {
+	static BlockPos pos(JsonObject a) {
 		return new BlockPos(a.get("x").getAsInt(), a.get("y").getAsInt(), a.get("z").getAsInt());
 	}
 
-	private static InteractionHand hand(JsonObject a) {
+	static InteractionHand hand(JsonObject a) {
 		return a.has("hand") && "off".equals(a.get("hand").getAsString()) ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
 	}
 

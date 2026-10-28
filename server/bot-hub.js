@@ -26,7 +26,7 @@ const MANAGER_NAME = /^[\w.-]{1,32}$/;
 // Commands staff may send to a manager. Anything else is refused here, before it reaches a bot.
 const COMMANDS = new Set([
   "startBot", "stopBot", "rejoin", "createBot", "updateBot", "removeBot",
-  "createTeam", "startTeam", "stopTeam", "removeTeam",
+  "createTeam", "updateTeam", "startTeam", "stopTeam", "removeTeam",
   "message", "order", "build", "inspectBuild",
   "addOffline", "linkMicrosoft", "removeAccount",
 ]);

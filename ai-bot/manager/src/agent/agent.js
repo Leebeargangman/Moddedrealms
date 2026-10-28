@@ -1,11 +1,17 @@
 import { EventEmitter } from 'node:events'
 import { Reflexes, PRI } from './reflexes.js'
 import { Brain } from './brain.js'
-import { SKILLS } from './skills.js'
+import { SKILLS, inSpawnArea } from './skills.js'
+import { isEscaping, escapeSpawn } from './anarchy.js'
 import { Social } from './social.js'
 import { observe } from './state.js'
 import { gearScore } from './combat.js'
 import { sleep, withTimeout, isAbort } from '../util.js'
+
+// Things that make sense right where the bot stands, even inside spawn protection.
+const STAY_AT_SPAWN = new Set(['leave_spawn', 'escape_spawn', 'wait', 'eat', 'give', 'come_to', 'follow_player'])
+// Run by the agent itself, not offered to the AI.
+const INTERNAL = { escape_spawn: { maxMs: 6 * 60 * 60e3, run: escapeSpawn } }
 
 /**
  * One bot's behaviour while it is in a world: a single running task at a time, which reflexes can
@@ -34,6 +40,8 @@ export class Agent extends EventEmitter {
       gameDir: instance.gameDir,
       emit: (ev, data) => this.emit(ev, data),
       locate: name => instance.team?.locate(name) ?? null,
+      team: () => instance.team ?? null,
+      instance: () => instance,
       allies: () => [cfg.social.owner, ...(cfg.social.staff ?? []), ...cfg.behavior.friendlyPlayers, ...(instance.team?.names() ?? [])].filter(Boolean).map(n => n.toLowerCase())
     }
     this.social = new Social(this)
@@ -161,6 +169,9 @@ export class Agent extends EventEmitter {
         decision = { ...r, resumes: r.resumes + 1 }
       } else if (!this.autonomous) {
         continue
+      } else if (this.escaping()) {
+        this.pendingResume = null
+        decision = { action: 'escape_spawn', args: {}, thought: 'anarchy mode: leaving spawn through the nether', source: 'rule', resumes: 0 }
       } else {
         this.pendingResume = null
         this.thinking = true
@@ -175,9 +186,19 @@ export class Agent extends EventEmitter {
         this.log(`[brain] (${decision.source}, ${Date.now() - t0}ms) ${decision.action} ${JSON.stringify(decision.args)} - ${decision.thought}`)
       }
       if (!this.inGame() || this.task) continue
-      decision = this.instance.team?.filterOwnDecision(this.instance, decision) ?? decision
+      // Switched to anarchy mode while the AI was still deciding: escaping comes first (staff orders excepted).
+      if (this.escaping() && decision.source !== 'owner' && decision.action !== 'escape_spawn') {
+        decision = { action: 'escape_spawn', args: {}, thought: 'anarchy mode: leaving spawn through the nether', source: 'rule', resumes: 0 }
+      }
+      if (decision.action !== 'escape_spawn') decision = this.instance.team?.filterOwnDecision(this.instance, decision) ?? decision
 
-      const skill = SKILLS[decision.action]
+      // Nothing gets done inside spawn protection: walk out first (staff orders and quick things excepted).
+      if (decision.source !== 'owner' && !STAY_AT_SPAWN.has(decision.action) && inSpawnArea(this.ctx)) {
+        this.log(`[brain] in the spawn area, leaving it before ${decision.action}`)
+        this.pendingResume = { ...decision, resumes: 0, at: Date.now() }
+        decision = { action: 'leave_spawn', args: {}, thought: 'spawn is protected', source: decision.source, resumes: 0 }
+      }
+      const skill = SKILLS[decision.action] ?? INTERNAL[decision.action]
       if (!skill) continue
       this.lastDecision = decision
       const fromOwner = decision.source === 'owner' || decision.source === 'team'
@@ -225,8 +246,13 @@ export class Agent extends EventEmitter {
     }
   }
 
+  /** Anarchy mode and not yet out of spawn: the team leaves this bot alone until it is. */
+  escaping () { return isEscaping(this.cfg, this.memory) }
+
   onDeath () {
     const m = this.memory.data
+    // Anarchy mode without a bed: we respawn at spawn, so escape again.
+    if (this.cfg.behavior.mode === 'anarchy' && !m.spawnBed) m.escape = null
     m.stats.deaths++
     const pos = this.body.pos
     const where = pos ? `${Math.round(pos.x)} ${Math.round(pos.y)} ${Math.round(pos.z)}` : 'unknown'

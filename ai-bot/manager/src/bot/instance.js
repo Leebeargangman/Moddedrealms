@@ -184,6 +184,16 @@ export class BotInstance extends EventEmitter {
     await this.bridge?.request('connect', { host: server, version }).catch(e => this.log('connect failed:', e.message))
   }
 
+  /** Anarchy mode progress for the Bots page. */
+  escapeStatus () {
+    const e = this.memory.data.escape
+    if (!e) return 'leaving spawn'
+    if (e.done) return `out of spawn, ${Math.round(Math.hypot(e.out.x, e.out.z))} blocks away`
+    const p = this.body?.inWorld && this.body.dimension === 'the_nether' ? this.body.pos : null
+    if (e.entered) return `in the nether, ${p ? Math.round(Math.hypot(p.x - e.entered.x, p.z - e.entered.z)) : e.netherBlocks ?? 0} blocks along`
+    return 'looking for a nether portal'
+  }
+
   setState (state) {
     if (this.state === state) return
     this.state = state
@@ -224,6 +234,8 @@ export class BotInstance extends EventEmitter {
       state: this.state,
       offlineReason: this.offlineReason,
       model: this.cfg.ai.enabled === false ? 'rules only' : `${this.cfg.ai.model} (${this.cfg.ai.source === 'connector' ? `on ${this.cfg.ai.connector}'s PC` : 'VPS'})`,
+      mode: this.cfg.behavior.mode === 'anarchy' ? 'anarchy' : 'survival',
+      escape: this.cfg.behavior.mode === 'anarchy' ? this.escapeStatus() : null,
       schematics: this.schematics(),
       stats: this.memory.data.stats,
       ...(this.agent ? this.agent.status() : {})

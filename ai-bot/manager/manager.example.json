@@ -25,6 +25,7 @@
       "carefulRadius": 12,
       "fightMobsMinHealth": 10,
       "autoLogoffHealth": 4,
+      "spawnProtection": 16,
       "rejoinAfterMs": 300000,
       "killCommand": "/kill"
     },

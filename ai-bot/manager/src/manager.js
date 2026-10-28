@@ -75,13 +75,18 @@ export class Manager extends EventEmitter {
   updateBot (id, changes) {
     const spec = this.specs.find(s => s.id === id)
     if (!spec) throw new Error(`no bot ${id}`)
-    for (const k of ['name', 'account', 'server', 'ai', 'behavior', 'social', 'heapMb', 'autoStart']) if (changes[k] !== undefined) spec[k] = changes[k]
+    for (const k of ['name', 'account', 'server', 'ai', 'heapMb', 'autoStart']) if (changes[k] !== undefined) spec[k] = changes[k]
+    // The Bots page sends only the settings it shows (e.g. behavior.mode); keep the rest.
+    for (const k of ['behavior', 'social']) if (changes[k]) spec[k] = { ...spec[k], ...changes[k] }
     this.save()
     const bot = this.bots.get(id)
     if (bot) {
       const server = bot.cfg.server
+      const mode = bot.cfg.behavior.mode
       bot.cfg = botConfig(this.cfg, spec)
       if (bot.agent) { bot.agent.cfg = bot.cfg; bot.agent.ctx.cfg = bot.cfg }
+      // Switched to anarchy mode: drop what it's doing so it heads for a portal now.
+      if (bot.cfg.behavior.mode !== mode) bot.agent?.interruptBrain()
       if (changes.server && changes.server !== server) bot.switchServer(changes.server)
     }
     this.emitList()
@@ -116,15 +121,26 @@ export class Manager extends EventEmitter {
 
   // ------------------------------------------------------------ teams
 
-  createTeam ({ name, leader, members, leaderModel }) {
+  createTeam ({ name, leader, members, leaderModel, chat }) {
     if (!members?.length || members.length < 2) throw new Error('a team needs at least 2 bots')
     if (!members.includes(leader)) throw new Error('the leader must be one of the members')
     for (const m of members) if (!this.specs.some(s => s.id === m)) throw new Error(`no bot ${m}`)
-    const spec = { id: `${slug(name)}-${Date.now().toString(36).slice(-4)}`, name, leader, members, leaderModel: leaderModel || null }
+    const spec = { id: `${slug(name)}-${Date.now().toString(36).slice(-4)}`, name, leader, members, leaderModel: leaderModel || null, chat: !!chat }
     this.teamSpecs.push(spec)
     this.save()
     this.emitList()
     return spec
+  }
+
+  /** Change a team's name, leader model or team chat; a running team uses the same spec, so it applies at once. */
+  updateTeam (id, changes) {
+    const spec = this.teamSpecs.find(t => t.id === id)
+    if (!spec) throw new Error(`no team ${id}`)
+    if (changes.name) spec.name = String(changes.name).slice(0, 40)
+    if (changes.leaderModel !== undefined) spec.leaderModel = changes.leaderModel || null
+    if (changes.chat !== undefined) spec.chat = !!changes.chat
+    this.save()
+    this.emitList()
   }
 
   async startTeam (id) {
@@ -198,7 +214,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     const { connectWebsite } = await import('./link.js')
     connectWebsite(manager)
   } else {
-    log('[manager] no website configured: running bots/teams marked autoStart only')
+    log('[manager] no website configured: running bots/teams marked autoStart only; status in data/status.json')
+    // Without the Bots page, this file is the way to see what the bots are doing.
+    setInterval(() => {
+      const snap = manager.snapshot()
+      for (const b of snap.bots) {
+        const body = manager.bots.get(b.id)?.body
+        if (body?.inWorld) b.nearby = body.entities().slice(0, 12).map(e => `${e.type}${e.name ? ' ' + e.name : ''} ${e.dist?.toFixed(0)}m`)
+      }
+      fs.writeFile(path.join(DATA, 'status.json'), JSON.stringify(snap, null, 2), () => {})
+    }, 5000).unref()
   }
   await manager.autoStart()
   for (const sig of ['SIGINT', 'SIGTERM']) {

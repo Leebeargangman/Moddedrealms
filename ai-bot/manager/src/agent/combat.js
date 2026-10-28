@@ -90,6 +90,7 @@ export async function fight (ctx, id, signal, timeoutMs = 25000) {
   await equipBestWeapon(body).catch(() => {})
   const t0 = Date.now()
   let lastHit = 0
+  let jitter = 0
   let lastPath = 0
   try {
     while (Date.now() - t0 < timeoutMs) {
@@ -104,9 +105,11 @@ export async function fight (ctx, id, signal, timeoutMs = 25000) {
         }
       } else {
         if (lastPath) { await body.stop(); lastPath = 0 }
-        if (Date.now() - lastHit >= cooldownMs(body)) {
+        // Clicks at exactly the same interval look like an auto-clicker to anti-cheats.
+        if (Date.now() - lastHit >= cooldownMs(body) + jitter) {
           await body.attack(id).catch(() => {})
           lastHit = Date.now()
+          jitter = 40 + Math.random() * 220
         }
       }
       await wait(100, signal)
