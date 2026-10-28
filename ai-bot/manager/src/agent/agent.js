@@ -33,7 +33,8 @@ export class Agent extends EventEmitter {
       log,
       gameDir: instance.gameDir,
       emit: (ev, data) => this.emit(ev, data),
-      allies: () => [cfg.social.owner, ...(cfg.social.staff ?? []), ...cfg.behavior.friendlyPlayers].filter(Boolean).map(n => n.toLowerCase())
+      locate: name => instance.team?.locate(name) ?? null,
+      allies: () => [cfg.social.owner, ...(cfg.social.staff ?? []), ...cfg.behavior.friendlyPlayers, ...(instance.team?.names() ?? [])].filter(Boolean).map(n => n.toLowerCase())
     }
     this.social = new Social(this)
     this.ctx.social = this.social
@@ -78,8 +79,9 @@ export class Agent extends EventEmitter {
 
   // ------------------------------------------------------------ owner control
 
-  setOrder ({ action, args, reply }) {
-    this.order = { action, args: args ?? {}, reply, at: Date.now() }
+  /** A job from staff (source 'owner') or the team leader (source 'team'). Staff orders win. */
+  setOrder ({ action, args, reply, source = 'owner' }) {
+    this.order = { action, args: args ?? {}, reply, source, at: Date.now() }
     this.pendingResume = null
     this.interruptBrain()
   }
@@ -150,10 +152,10 @@ export class Agent extends EventEmitter {
       let decision
       const r = this.pendingResume
       if (this.order) {
-        decision = { ...this.order, thought: 'owner order', source: 'owner', resumes: 0 }
+        decision = { ...this.order, thought: `${this.order.source} order`, resumes: 0 }
         this.order = null
-        this.log(`[brain] (order) ${decision.action} ${JSON.stringify(decision.args)}`)
-      } else if (r && r.resumes < 2 && Date.now() - r.at < 120000 && (this.autonomous || r.source === 'owner')) {
+        this.log(`[brain] (${decision.source} order) ${decision.action} ${JSON.stringify(decision.args)}`)
+      } else if (r && r.resumes < 2 && Date.now() - r.at < 120000 && (this.autonomous || r.source === 'owner' || r.source === 'team')) {
         // Something interrupted the task (eating, a mob...): pick it up again. Staff orders resume even when stopped.
         this.pendingResume = null
         decision = { ...r, resumes: r.resumes + 1 }
@@ -173,11 +175,12 @@ export class Agent extends EventEmitter {
         this.log(`[brain] (${decision.source}, ${Date.now() - t0}ms) ${decision.action} ${JSON.stringify(decision.args)} - ${decision.thought}`)
       }
       if (!this.inGame() || this.task) continue
+      decision = this.instance.team?.filterOwnDecision(this.instance, decision) ?? decision
 
       const skill = SKILLS[decision.action]
       if (!skill) continue
       this.lastDecision = decision
-      const fromOwner = decision.source === 'owner'
+      const fromOwner = decision.source === 'owner' || decision.source === 'team'
       const res = await this.runTask(decision.action, fromOwner ? PRI.owner : PRI.brain, s => skill.run(this.ctx, decision.args ?? {}, s), {
         timeoutMs: skill.maxMs,
         meta: { action: decision.action, args: decision.args, thought: decision.thought, resumes: decision.resumes, source: decision.source, reply: decision.reply }

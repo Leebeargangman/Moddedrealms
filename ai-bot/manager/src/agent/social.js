@@ -113,6 +113,7 @@ export class Social {
     if (this.isOwner(name)) return 'owner'
     if (this.isStaff(name)) return 'staff'
     const key = name.toLowerCase()
+    if (this.agent.instance.team?.names().some(n => n.toLowerCase() === key)) return 'team'
     if (this.friends.has(key)) return 'friend'
     const p = this.memory.data.players[key]
     if (!p) return 'unknown'
@@ -122,7 +123,7 @@ export class Social {
   }
 
   markHostile (name, why) {
-    if (['owner', 'staff', 'friend'].includes(this.relation(name))) return
+    if (['owner', 'staff', 'friend', 'team'].includes(this.relation(name))) return
     const p = this.record(name)
     if (p.trust > HOSTILE_TRUST) this.memory.event(`${name} is now HOSTILE: ${why}`)
     p.trust = -100
@@ -198,7 +199,7 @@ export class Social {
       }
       return
     }
-    if (rel === 'hostile') return
+    if (rel === 'hostile' || rel === 'team') return
     const nearby = this.playerDistance(user) <= this.cfg.nearbyRadius
     // Strangers' whispers only count when they're actually next to us.
     if (channel === 'whisper' ? !nearby : !(nearby || this.mentionsMe(text))) return

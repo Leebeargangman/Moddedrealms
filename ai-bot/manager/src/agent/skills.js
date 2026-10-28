@@ -318,7 +318,12 @@ function allyEntity (ctx, name) {
 
 async function followPlayer (ctx, args, signal) {
   const { body } = ctx
-  const ent = allyEntity(ctx, args.name)
+  let ent = allyEntity(ctx, args.name)
+  const where = !ent && ctx.locate?.(args.name)
+  if (!ent && where && where.dimension === body.dimension) {
+    await travelTo(ctx, where, signal)
+    ent = allyEntity(ctx, args.name)
+  }
   if (!ent) throw new Error(`can't see ${args.name ?? 'you'}: tell me your coordinates`)
   const seconds = Math.max(10, Math.min(1800, Number(args.seconds) || 300))
   await body.baritone(`follow player ${ent.name}`)
@@ -338,6 +343,8 @@ async function comeTo (ctx, args, signal) {
     await body.goto(ent.x, ent.z, ent.y, signal, 5 * 60e3).catch(e => { if (isAbort(e) || ent.dist > 6) throw e })
     return `next to ${ent.name}`
   }
+  const where = ctx.locate?.(args.name)
+  if ((args.x == null || args.z == null) && where && where.dimension === body.dimension) Object.assign(args, { x: where.x, y: where.y, z: where.z })
   if (args.x == null || args.z == null) throw new Error(`can't see ${args.name ?? 'you'}: send your coordinates`)
   const target = { x: Number(args.x), z: Number(args.z), y: args.y == null ? undefined : Number(args.y) }
   return travelTo(ctx, target, signal)

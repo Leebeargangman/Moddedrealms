@@ -12,6 +12,7 @@ export class Reflexes {
     this.lastArmor = 0
     this.lastSprint = null
     this.fledFrom = new Map() // name -> time
+    this.ignoreMob = new Map() // entity id -> until (mobs we couldn't reach)
   }
 
   async tick () {
@@ -64,8 +65,12 @@ export class Reflexes {
     const hidden = agent.task?.name === 'hide' && Date.now() - (agent.lastHurt ?? 0) > 3000
     if (mob && cur < PRI.mob && !hidden) {
       const canFight = !FLEE_ONLY.has(mob.type) && p.health >= this.cfg.fightMobsMinHealth
-      agent.runTask(canFight ? `fight_${mob.type}` : `flee_${mob.type}`, PRI.mob, s =>
-        canFight ? fight(agent.ctx, mob.id, s) : flee(agent.ctx, mob.id, mob.type === 'creeper' ? 12 : 20, s, 20000))
+      agent.runTask(canFight ? `fight_${mob.type}` : `flee_${mob.type}`, PRI.mob, async s => {
+        if (!canFight) return flee(agent.ctx, mob.id, mob.type === 'creeper' ? 12 : 20, s, 20000)
+        const r = await fight(agent.ctx, mob.id, s, 15000)
+        if (r !== 'killed') this.ignoreMob.set(mob.id, Date.now() + 60000)
+        return r
+      })
       return
     }
 
@@ -88,7 +93,7 @@ export class Reflexes {
     for (const e of this.body.players()) {
       if (!e.name || e.name === this.body.name) continue
       const rel = social?.relation(e.name) ?? 'unknown'
-      if (['owner', 'staff', 'friend', 'trusted'].includes(rel)) continue
+      if (['owner', 'staff', 'friend', 'trusted', 'team'].includes(rel)) continue
       const radius = rel === 'hostile' ? this.cfg.fleePlayerRadius : this.cfg.carefulRadius
       if (e.dist > radius) continue
       const recently = Date.now() - (this.fledFrom.get(e.name) ?? 0) < 20000
@@ -100,11 +105,16 @@ export class Reflexes {
 
   mobThreat () {
     const me = this.body.pos
+    const ents = this.body.entities()
+    // Teammates close to us: we also defend them.
+    const team = new Set((this.agent.instance.team?.names() ?? []).map(n => n.toLowerCase()))
+    const mates = ents.filter(e => e.type === 'player' && team.has(String(e.name).toLowerCase()) && e.dist < 16)
     let best = null
-    for (const e of this.body.entities()) {
-      if (!HOSTILE.has(e.type)) continue
+    for (const e of ents) {
+      if (!HOSTILE.has(e.type) || (this.ignoreMob.get(e.id) ?? 0) > Date.now()) continue
       const range = e.type === 'creeper' ? 7 : RANGED.has(e.type) ? 12 : 8
-      if (e.dist > range || Math.abs(e.y - me.y) > 6) continue
+      const nearMate = !FLEE_ONLY.has(e.type) && mates.some(m => Math.hypot(m.x - e.x, m.y - e.y, m.z - e.z) < 6)
+      if ((e.dist > range && !nearMate) || Math.abs(e.y - me.y) > 6) continue
       if (!best || e.dist < best.dist) best = e
     }
     return best
