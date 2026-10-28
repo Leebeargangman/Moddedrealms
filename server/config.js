@@ -42,6 +42,10 @@ const config = {
   pluginApiKey: (env.PLUGIN_API_KEY || "").trim(),
   staffRanks: listSet(env.STAFF_RANKS || "owner,admin,administrator,manager,moderator,mod,helper,staff"),
 
+  // AI bots (ai-bot/): key the bot managers use to connect; max schematic upload size
+  botManagerKey: (env.BOT_MANAGER_KEY || "").trim(),
+  botUploadMaxMb: toInt(env.BOT_UPLOAD_MAX_MB, 10),
+
   // Email (optional)
   smtp: {
     host: (env.SMTP_HOST || "").trim(),

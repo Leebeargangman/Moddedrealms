@@ -1,20 +1,17 @@
 {
-  "name": "drvillager-2b2t-bot",
+  "name": "moddedrealms-ai-bot-manager",
   "version": "1.0.0",
-  "description": "Local-LLM Minecraft survival bot for 2b2t",
-  "scripts": {
-    "start": "node src/index.js",
-    "login": "node src/login.js",
-    "status": "node src/status.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
+  "description": "Runs Moddedrealms AI bots (real Minecraft clients with Baritone) and links them to the website",
   "type": "module",
+  "scripts": {
+    "start": "node src/manager.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
-    "mineflayer": "^4.39.0",
-    "mineflayer-pathfinder": "^2.4.5",
     "prismarine-auth": "^3.1.1",
-    "vec3": "^0.2.0"
+    "prismarine-nbt": "^2.8.0"
   }
 }

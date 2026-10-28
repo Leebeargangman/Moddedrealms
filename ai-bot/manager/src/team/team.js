@@ -148,8 +148,14 @@ export class Team extends EventEmitter {
    * and the leader doesn't wander off while the others are still on their way.
    */
   filterOwnDecision (bot, decision) {
-    if (decision.source === 'owner' || decision.source === 'team' || !MOVING.has(decision.action)) return decision
+    if (decision.source === 'owner' || decision.source === 'team') return decision
     const leader = this.leader()
+    // Nobody follows or walks to themselves (the leader's brain sometimes tries).
+    const target = String(decision.args?.name ?? '').toLowerCase()
+    if (['follow_player', 'come_to'].includes(decision.action) && target === String(bot.session?.name).toLowerCase()) {
+      return { ...decision, action: 'wait', args: { seconds: 20 }, thought: 'already here' }
+    }
+    if (!MOVING.has(decision.action)) return decision
     if (bot === leader) {
       return this.phase === 'gathering' ? { ...decision, action: 'wait', args: { seconds: 30 }, thought: 'waiting for the team to arrive' } : decision
     }

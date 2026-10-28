@@ -12,7 +12,9 @@ export const MC_VERSION = '26.1.2'
 const FABRIC_LOADER = '0.20.1'
 const JAVA_COMPONENT = 'java-runtime-epsilon'
 const CACHE = path.join(ROOT, 'runtime')
-const BRIDGE_JAR = path.join(ROOT, '..', 'bridge-mod', 'build', 'libs', 'ai-bridge-1.0.0.jar')
+// A fresh local build wins; otherwise the committed copy (so hosts don't need Java 25 + Gradle).
+const BRIDGE_JAR = [path.join(ROOT, '..', 'bridge-mod', 'build', 'libs', 'ai-bridge-1.0.0.jar'), path.join(ROOT, '..', 'bridge-mod', 'dist', 'ai-bridge-1.0.0.jar')]
+  .find(f => fs.existsSync(f)) ?? path.join(ROOT, '..', 'bridge-mod', 'dist', 'ai-bridge-1.0.0.jar')
 
 const MODS = [
   { modrinth: 'fabric-api', version: '0.155.3+26.1.2' },
@@ -146,7 +148,7 @@ async function ensureMods () {
     const f = v.files.find(x => x.primary) ?? v.files[0]
     files.push(await download(f.url, path.join(dir, f.filename), f.hashes.sha1))
   }
-  if (!fs.existsSync(BRIDGE_JAR)) throw new Error(`bridge mod not built: run ./gradlew build in ai-bot/bridge-mod (${BRIDGE_JAR})`)
+  if (!fs.existsSync(BRIDGE_JAR)) throw new Error(`bridge mod missing: run ./gradlew build in ai-bot/bridge-mod (${BRIDGE_JAR})`)
   files.push(BRIDGE_JAR)
   return files
 }

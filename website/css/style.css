@@ -3771,3 +3771,201 @@ button.row:hover {
 .kv + p {
   margin: 14px 0 12px;
 }
+
+/* ---------- AI bots (staff) ---------- */
+
+.bot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.bot-card,
+.team-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+
+.bot-card {
+  cursor: pointer;
+}
+
+.bot-card:hover,
+.bot-card.is-selected {
+  border-color: var(--green);
+}
+
+.bot-card small,
+.team-card small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.bot-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.bot-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+
+.team-card + .team-card {
+  margin-top: 10px;
+}
+
+.team-feed {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.82rem;
+}
+
+.bot-kv {
+  margin: 12px 0;
+}
+
+.bot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bot-chat {
+  margin-top: 18px;
+}
+
+.chat-log {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  height: 340px;
+  padding: 12px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 0.88rem;
+}
+
+.chat-line {
+  display: grid;
+  grid-template-columns: 44px max-content minmax(0, 1fr);
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.chat-line time {
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-line b {
+  color: var(--text);
+}
+
+.chat-line--me b {
+  color: var(--green);
+}
+
+.chat-line--bot b {
+  color: var(--modern);
+}
+
+.chat-line--sys {
+  color: var(--muted);
+}
+
+.chat-line--warn {
+  color: var(--yellow);
+}
+
+.chat-form,
+.inline-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-form .input,
+.inline-form .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bot-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.bot-section summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.bot-section .form {
+  margin-top: 14px;
+}
+
+.build-coords {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.materials {
+  columns: 2;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  font-size: 0.88rem;
+}
+
+.account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-row > span:first-child {
+  flex: 1;
+  font-weight: 600;
+}
+
+.token-cmd {
+  margin: 10px 0 0;
+  padding: 10px;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font: 0.8rem/1.5 var(--font-mono, monospace);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+@media (max-width: 960px) {
+  .app-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

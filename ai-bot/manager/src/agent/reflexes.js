@@ -21,8 +21,10 @@ export class Reflexes {
     if (!p || p.dead) return
     const cur = agent.task?.priority ?? 0
 
-    // Auto log-off: very low health from anything. Rejoins after a few minutes or when staff say so.
-    if (p.health <= (this.cfg.autoLogoffHealth ?? 4) && !agent.killingSelf) {
+    // Auto log-off: very low health while still taking damage. (Low but safe: stay, eat and heal.)
+    // Rejoins after a few minutes or when staff say so.
+    const beingHurt = Date.now() - (agent.lastHurt ?? 0) < 3000
+    if (p.health <= (this.cfg.autoLogoffHealth ?? 4) && beingHurt) {
       agent.instance.autoLogoff(`health ${p.health.toFixed(1)}`)
       return
     }

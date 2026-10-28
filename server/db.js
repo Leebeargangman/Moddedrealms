@@ -110,6 +110,36 @@ const MIGRATIONS = [
   CREATE INDEX feedback_status ON feedback(status, created_at);
   CREATE INDEX feedback_user ON feedback(user_id);
   `,
+  `
+  -- AI bots: what staff and bots said and did (live status isn't stored), uploaded schematics,
+  -- and the tokens staff members' model connectors use.
+  CREATE TABLE bot_events (
+    id       INTEGER PRIMARY KEY,
+    at       TEXT NOT NULL,
+    manager  TEXT,
+    bot      TEXT,
+    type     TEXT NOT NULL,
+    who      TEXT,
+    data     TEXT
+  );
+  CREATE INDEX bot_events_bot ON bot_events(bot, id);
+
+  CREATE TABLE bot_builds (
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL,
+    size         INTEGER NOT NULL,
+    sha256       TEXT NOT NULL,
+    uploaded_by  TEXT,
+    created_at   TEXT NOT NULL
+  );
+
+  CREATE TABLE connector_tokens (
+    token_hash    TEXT PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at    TEXT NOT NULL,
+    last_used_at  TEXT
+  );
+  `,
 ];
 
 fs.mkdirSync(config.dataDir, { recursive: true });
