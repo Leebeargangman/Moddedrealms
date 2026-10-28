@@ -1,11 +1,14 @@
 import { EventEmitter } from 'node:events'
 import { Reflexes, PRI } from './reflexes.js'
 import { Brain } from './brain.js'
-import { SKILLS } from './skills.js'
+import { SKILLS, inSpawnArea } from './skills.js'
 import { Social } from './social.js'
 import { observe } from './state.js'
 import { gearScore } from './combat.js'
 import { sleep, withTimeout, isAbort } from '../util.js'
+
+// Things that make sense right where the bot stands, even inside spawn protection.
+const STAY_AT_SPAWN = new Set(['leave_spawn', 'wait', 'eat', 'give', 'come_to', 'follow_player'])
 
 /**
  * One bot's behaviour while it is in a world: a single running task at a time, which reflexes can
@@ -177,6 +180,12 @@ export class Agent extends EventEmitter {
       if (!this.inGame() || this.task) continue
       decision = this.instance.team?.filterOwnDecision(this.instance, decision) ?? decision
 
+      // Nothing gets done inside spawn protection: walk out first (staff orders and quick things excepted).
+      if (decision.source !== 'owner' && !STAY_AT_SPAWN.has(decision.action) && inSpawnArea(this.ctx)) {
+        this.log(`[brain] in the spawn area, leaving it before ${decision.action}`)
+        this.pendingResume = { ...decision, resumes: 0, at: Date.now() }
+        decision = { action: 'leave_spawn', args: {}, thought: 'spawn is protected', source: decision.source, resumes: 0 }
+      }
       const skill = SKILLS[decision.action]
       if (!skill) continue
       this.lastDecision = decision

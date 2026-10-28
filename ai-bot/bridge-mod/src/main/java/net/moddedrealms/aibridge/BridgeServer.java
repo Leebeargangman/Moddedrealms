@@ -93,7 +93,8 @@ final class BridgeServer extends Thread {
 		// Each request waits for the client thread on its own thread, so a slow one doesn't block the rest.
 		Thread worker = new Thread(() -> {
 			try {
-				JsonElement result = Minecraft.getInstance().submit(() -> {
+				// Right-clicking a block waits a few ticks while Aim turns the view onto it.
+				JsonElement result = op.equals("useOn") ? Aim.useOn(req).get(10, TimeUnit.SECONDS) : Minecraft.getInstance().submit(() -> {
 					try {
 						return Ops.handle(op, req);
 					} catch (RuntimeException e) {

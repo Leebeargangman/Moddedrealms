@@ -24,6 +24,8 @@ public class AiBridge implements ClientModInitializer {
 	public static volatile String lastDisconnectReason;
 	/** True from a connect attempt (or start-up quick play) until we join a world or report why we couldn't. */
 	public static volatile boolean awaitingJoin = true;
+	/** Ticks left to wait for the kick message after leaving a world; -1 when nothing is pending. */
+	private static volatile int disconnectPending = -1;
 	static BridgeServer server;
 
 	private int ticks;
@@ -49,8 +51,9 @@ public class AiBridge implements ClientModInitializer {
 			awaitingJoin = false;
 			server.event(event("join"));
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
-			server.event(event("disconnect", "reason", lastDisconnectReason)));
+		// The kick message ("[Vulcan] Unfair Advantage"...) can arrive after this event; it's reported when the
+		// "Disconnected" screen opens, or after a second without one (we left on our own).
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> disconnectPending = 20);
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 
 		// Baritone talks only to the local chat ("Missing materials", "Unable to do it"...); pass that on too.
@@ -64,14 +67,17 @@ public class AiBridge implements ClientModInitializer {
 		});
 	}
 
-	/** Called when the "Disconnected" screen opens; only reports failures before reaching a world. */
-	public static void loginFailed(String reason) {
-		if (!awaitingJoin || server == null) return;
+	/** Called when the "Disconnected" screen opens: a kick while logging in, or the reason for leaving a world. */
+	public static void disconnectScreen(String reason) {
+		if (server == null || !(awaitingJoin || disconnectPending >= 0)) return;
 		awaitingJoin = false;
+		disconnectPending = -1;
 		server.event(event("disconnect", "reason", reason));
 	}
 
 	private void tick(Minecraft mc) {
+		if (disconnectPending >= 0 && --disconnectPending < 0) server.event(event("disconnect", "reason", lastDisconnectReason));
+		Aim.tick(mc);
 		if (!server.hasClient()) return;
 		boolean dead = mc.player != null && mc.player.isDeadOrDying();
 		if (dead && !wasDead) server.event(event("death"));

@@ -154,17 +154,64 @@ async function hunt (ctx, args, signal) {
   const { body } = ctx
   const want = Math.max(1, Math.min(6, Number(args.count) || 3))
   let killed = 0
+  const failed = new Map() // entity id -> failed attempts; an animal behind a fence or water isn't worth a third try
   while (killed < want) {
     check(signal)
-    const target = body.entities().find(e => FOOD_ANIMALS.has(e.type) && e.dist < 48)
+    const target = body.entities()
+      .filter(e => FOOD_ANIMALS.has(e.type) && e.dist < 64 && (failed.get(e.id) ?? 0) < 2)
+      .sort((a, b) => a.dist - b.dist)[0]
     if (!target) break
+    // fight() gives up on anything over 24 blocks away, so walk over first.
+    if (target.dist > 16) await body.goto(target.x, target.z, null, signal, 45000).catch(() => {})
     if (await fight(ctx, target.id, signal, 30000) === 'killed') killed++
+    else failed.set(target.id, (failed.get(target.id) ?? 0) + 1)
   }
   if (!killed) throw new Error('no animals nearby')
   // Walk over the drops.
   const p = body.pos
   await body.goto(p.x, p.z, null, signal, 10000).catch(() => {})
   return `killed ${killed} animals`
+}
+
+/**
+ * Paper and most servers stop non-ops from breaking or placing blocks near world spawn (16 blocks by default), so a
+ * bot that spawns there can't chop, mine or even climb down a tree. Walk out without touching blocks; a short drop
+ * is fine when healthy.
+ */
+export function inSpawnArea (ctx) {
+  const { body, cfg } = ctx
+  const radius = cfg.behavior?.spawnProtection ?? 16
+  const sp = body.s?.worldSpawn
+  if (!radius || !sp || body.dimension !== 'overworld' || body.p?.gameMode === 'creative') return false
+  const p = body.pos
+  return Math.max(Math.abs(p.x - sp.x), Math.abs(p.z - sp.z)) <= radius + 3
+}
+
+async function leaveSpawn (ctx, args, signal) {
+  const { body, cfg } = ctx
+  if (!inSpawnArea(ctx)) return 'not in the spawn area'
+  const sp = body.s.worldSpawn
+  const out = (cfg.behavior?.spawnProtection ?? 16) + 14
+  const p = body.pos
+  const away = Math.atan2(p.z - sp.z, p.x - sp.x)
+  await body.baritone('set allowBreak false')
+  await body.baritone('set allowPlace false')
+  await body.baritone(`set maxFallHeightNoWater ${body.health > 12 ? 8 : 3}`)
+  try {
+    // Straight away from spawn first, then the other directions.
+    for (const turn of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+      check(signal)
+      const tx = Math.round(sp.x + Math.cos(away + turn) * out)
+      const tz = Math.round(sp.z + Math.sin(away + turn) * out)
+      await body.goto(tx, tz, null, signal, 60000).catch(() => {})
+      if (!inSpawnArea(ctx)) return `left the spawn area (${tx} ${tz})`
+    }
+    throw new Error("can't walk out of the spawn area")
+  } finally {
+    await body.baritone('set allowBreak true').catch(() => {})
+    await body.baritone('set allowPlace true').catch(() => {})
+    await body.baritone('set maxFallHeightNoWater 3').catch(() => {})
+  }
 }
 
 async function sleep (ctx, args, signal) {
@@ -582,7 +629,31 @@ export const SKILLS = {
   follow_player: { desc: 'follow your owner/staff around', args: '{"name": string, "seconds": number}', maxMs: 31 * 60e3, run: followPlayer },
   come_to: { desc: 'go to your owner/staff: walk over if visible, else travel to the coordinates they gave', args: '{"name": string, "x": number|null, "y": number|null, "z": number|null}', maxMs: 65 * 60e3, run: comeTo },
   give: { desc: 'walk to your owner/staff and throw them items', args: '{"item": string, "count": number, "name": string}', maxMs: 4 * 60e3, run: give },
+  leave_spawn: { desc: 'walk out of the protected area around world spawn (you cannot dig or build there)', args: '{}', maxMs: 5 * 60e3, run: leaveSpawn },
   wait: { desc: 'stand still for a while', args: '{"seconds": number}', maxMs: 2 * 60e3, run: async (ctx, a, s) => { await wait(Math.min(Number(a.seconds) || 10, 110) * 1000, s); return 'waited' } }
+}
+
+/**
+ * JSON schema for every skill's args. A free-form object let small models write garbage ("}}}}") until Ollama
+ * gave up; with fixed keys and ranges the answer stays short and valid.
+ */
+const coord = { type: ['integer', 'null'], minimum: -30000000, maximum: 30000000 }
+export const ARGS_SCHEMA = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', maxLength: 32 },
+    item: { type: 'string', maxLength: 40 },
+    block: { type: 'string', maxLength: 40 },
+    file: { type: 'string', maxLength: 64 },
+    count: { type: 'integer', minimum: 1, maximum: 640 },
+    seconds: { type: 'integer', minimum: 1, maximum: 3600 },
+    minutes: { type: 'integer', minimum: 1, maximum: 60 },
+    untilDay: { type: 'boolean' },
+    x: coord,
+    y: coord,
+    z: coord
+  },
+  additionalProperties: false
 }
 
 export { craft, placeNear, tierOf }

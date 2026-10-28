@@ -104,9 +104,7 @@ final class Ops {
 			case "attack": {
 				Entity e = mc.level.getEntity(a.get("entity").getAsInt());
 				if (e == null) throw new IllegalArgumentException("no such entity");
-				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, e.getBoundingBox().getCenter());
-				mc.gameMode.attack(p, e);
-				p.swing(InteractionHand.MAIN_HAND);
+				Aim.attack(e.getId());
 				return JsonNull.INSTANCE;
 			}
 			case "useItem":
@@ -114,14 +112,6 @@ final class Ops {
 			case "releaseUse":
 				mc.gameMode.releaseUsingItem(p);
 				return JsonNull.INSTANCE;
-			case "useOn": {
-				// Right-click a block face: open chests, light portals, place a held block.
-				BlockPos pos = pos(a);
-				Direction face = a.has("face") ? Direction.byName(str(a, "face")) : Direction.UP;
-				Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
-				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, hit);
-				return new JsonPrimitive(mc.gameMode.useItemOn(p, hand(a), new BlockHitResult(hit, face, pos, false)).toString());
-			}
 			case "lookAt":
 				p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, new Vec3(a.get("x").getAsDouble(), a.get("y").getAsDouble(), a.get("z").getAsDouble()));
 				return JsonNull.INSTANCE;
@@ -285,6 +275,13 @@ final class Ops {
 
 		s.addProperty("time", mc.level.getOverworldClockTime() % 24000);
 		s.addProperty("raining", mc.level.isRaining());
+		// Servers protect the area around world spawn; the agent walks out before it digs or builds.
+		BlockPos spawn = mc.level.getLevelData().getRespawnData().pos();
+		JsonObject ws = new JsonObject();
+		ws.addProperty("x", spawn.getX());
+		ws.addProperty("y", spawn.getY());
+		ws.addProperty("z", spawn.getZ());
+		s.add("worldSpawn", ws);
 		s.add("baritone", baritoneState());
 		if (mc.screen instanceof AbstractContainerScreen<?>) s.add("container", container(p));
 		return s;
@@ -442,11 +439,11 @@ final class Ops {
 		return a.get(k).getAsString();
 	}
 
-	private static BlockPos pos(JsonObject a) {
+	static BlockPos pos(JsonObject a) {
 		return new BlockPos(a.get("x").getAsInt(), a.get("y").getAsInt(), a.get("z").getAsInt());
 	}
 
-	private static InteractionHand hand(JsonObject a) {
+	static InteractionHand hand(JsonObject a) {
 		return a.has("hand") && "off".equals(a.get("hand").getAsString()) ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
 	}
 

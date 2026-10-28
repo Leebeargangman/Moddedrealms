@@ -198,7 +198,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     const { connectWebsite } = await import('./link.js')
     connectWebsite(manager)
   } else {
-    log('[manager] no website configured: running bots/teams marked autoStart only')
+    log('[manager] no website configured: running bots/teams marked autoStart only; status in data/status.json')
+    // Without the Bots page, this file is the way to see what the bots are doing.
+    setInterval(() => {
+      const snap = manager.snapshot()
+      for (const b of snap.bots) {
+        const body = manager.bots.get(b.id)?.body
+        if (body?.inWorld) b.nearby = body.entities().slice(0, 12).map(e => `${e.type}${e.name ? ' ' + e.name : ''} ${e.dist?.toFixed(0)}m`)
+      }
+      fs.writeFile(path.join(DATA, 'status.json'), JSON.stringify(snap, null, 2), () => {})
+    }, 5000).unref()
   }
   await manager.autoStart()
   for (const sig of ['SIGINT', 'SIGTERM']) {

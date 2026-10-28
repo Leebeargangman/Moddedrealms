@@ -1,4 +1,4 @@
-import { SKILLS } from './skills.js'
+import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { chatJSON } from '../llm.js'
 
 const SYSTEM = `You are the strategic brain of a Minecraft survival bot. Usually it plays on 2b2t-style anarchy servers.
@@ -31,9 +31,9 @@ ${Object.entries(SKILLS).map(([k, v]) => `- ${k} ${v.args}: ${v.desc}`).join('\n
 const SCHEMA = {
   type: 'object',
   properties: {
-    thought: { type: 'string' },
+    thought: { type: 'string', maxLength: 200 },
     action: { type: 'string', enum: Object.keys(SKILLS) },
-    args: { type: 'object' }
+    args: ARGS_SCHEMA
   },
   required: ['thought', 'action', 'args']
 }

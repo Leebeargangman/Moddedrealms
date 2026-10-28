@@ -1,5 +1,5 @@
 import { chatJSON } from '../llm.js'
-import { SKILLS } from './skills.js'
+import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { HOSTILE, RANGED, gearScore } from './combat.js'
 
 // Private messages as formatted by vanilla and common server plugins. Lines starting with "<"
@@ -31,11 +31,11 @@ ${Object.entries(SKILLS).map(([k, v]) => `- ${k} ${v.args}: ${v.desc}`).join('\n
 const OWNER_SCHEMA = {
   type: 'object',
   properties: {
-    reply: { type: 'string' },
+    reply: { type: 'string', maxLength: 180 },
     kind: { type: 'string', enum: ['action', 'directive', 'answer'] },
     action: { type: 'string', enum: [...Object.keys(SKILLS), 'none'] },
-    args: { type: 'object' },
-    directive: { type: 'string' }
+    args: ARGS_SCHEMA,
+    directive: { type: 'string', maxLength: 200 }
   },
   required: ['reply', 'kind', 'action', 'args', 'directive']
 }
@@ -57,7 +57,7 @@ Reply with JSON {"reply": string, "intent": string, "trustDelta": number}.`
 const STRANGER_SCHEMA = {
   type: 'object',
   properties: {
-    reply: { type: 'string' },
+    reply: { type: 'string', maxLength: 180 },
     intent: { type: 'string', enum: ['friendly', 'neutral', 'suspicious', 'hostile'] },
     trustDelta: { type: 'integer' }
   },
@@ -310,6 +310,8 @@ export class Social {
     if (r.kind === 'action' && SKILLS[r.action]) {
       const args = r.args ?? {}
       if (['come_to', 'follow_player', 'give'].includes(r.action)) args.name ??= user
+      // The model copies coordinates from the status line (its own position); only trust ones the person typed.
+      if (!/-?\d+\s+-?\d+/.test(text)) for (const k of ['x', 'y', 'z']) delete args[k]
       return this.order(r.action, args, r.reply || 'ok', reply)
     }
     reply(r.reply || 'ok')

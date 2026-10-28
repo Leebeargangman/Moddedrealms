@@ -1,7 +1,7 @@
 // A team of bots that meet up and survive together, coordinated by a leader AI.
 import { EventEmitter } from 'node:events'
 import { chatJSON } from '../llm.js'
-import { SKILLS } from '../agent/skills.js'
+import { SKILLS, ARGS_SCHEMA } from '../agent/skills.js'
 import { gearScore } from '../agent/combat.js'
 
 const TOGETHER_RADIUS = 48 // everyone within this of the leader counts as "together"
@@ -15,6 +15,7 @@ Principles:
   beds (respawn point), iron, diamonds. Give the best gear to whoever fights.
 - Keep someone guarding (follow_player the leader) when hostile mobs or strangers are around or at night.
 - Hurt or hungry members should eat, hide or stay near the group. Avoid strange players.
+- A hurt member with no food in its inventory can't eat: a member who has food should "give" it some (item, count, name).
 - The leader may move the whole team (travel_far/goto/explore); the others will follow automatically.
 - Only use members' exact names. Give each member at most one action.
 - Members listed under "offline" are not in the game (they rejoin later): give them no orders and send nobody to them.
@@ -27,13 +28,13 @@ ${Object.entries(SKILLS).map(([k, v]) => `- ${k} ${v.args}: ${v.desc}`).join('\n
 const SCHEMA = {
   type: 'object',
   properties: {
-    thought: { type: 'string' },
-    directive: { type: 'string' },
+    thought: { type: 'string', maxLength: 200 },
+    directive: { type: 'string', maxLength: 200 },
     orders: {
       type: 'array',
       items: {
         type: 'object',
-        properties: { bot: { type: 'string' }, action: { type: 'string', enum: Object.keys(SKILLS) }, args: { type: 'object' }, why: { type: 'string' } },
+        properties: { bot: { type: 'string', maxLength: 16 }, action: { type: 'string', enum: Object.keys(SKILLS) }, args: ARGS_SCHEMA, why: { type: 'string', maxLength: 200 } },
         required: ['bot', 'action', 'args']
       }
     }
@@ -110,10 +111,27 @@ export class Team extends EventEmitter {
       return
     }
 
+    this.shareFood(online)
+
     const interval = this.cfg.intervalMs ?? 90000
     if (this.lastPlan && Date.now() - this.lastPlan < interval) return
     this.lastPlan = Date.now()
     await this.plan(leader, online)
+  }
+
+  /** A hurt member with nothing to eat can't heal; whoever carries the most food hands some over. */
+  shareFood (online) {
+    for (const hungry of online) {
+      if (hungry.body.health >= 12 || hungry.body.bestFood()) continue
+      const name = hungry.session.name
+      if (online.some(b => b.agent?.task?.name === 'give' && b.agent.task.meta?.args?.name === name)) continue
+      const giver = online
+        .filter(b => b !== hungry && !isBusy(b, 'give') && b.body.bestFood())
+        .sort((a, b) => b.body.bestFood().count - a.body.bestFood().count)[0]
+      if (!giver) continue
+      const food = giver.body.bestFood()
+      this.order(giver, 'give', { item: food.item, count: Math.min(4, food.count), name }, `${name} is hurt and has no food`)
+    }
   }
 
   async plan (leader, online) {
@@ -140,6 +158,9 @@ export class Team extends EventEmitter {
       const target = String(o.args?.name ?? '').toLowerCase()
       if (target && this.members().some(m => !online.includes(m) && m.session?.name?.toLowerCase() === target)) continue
       if (['follow_player', 'come_to', 'give'].includes(o.action) && (bot === leader ? (!target || target === bot.session.name.toLowerCase()) : target === bot.session.name.toLowerCase())) continue
+      // Re-planning every 90 s mustn't restart a job that's still running (a hunt or a mine takes minutes).
+      if (isBusy(bot, o.action)) continue
+      if (o.action === 'give' && !bot.body.count(String(o.args?.item ?? ''))) continue
       this.order(bot, o.action, o.args ?? {}, o.why ?? '')
       if (bot === leader && MOVING.has(o.action)) {
         for (const f of online) if (f !== leader) this.order(f, 'follow_player', { name: leader.session.name, seconds: 300 }, 'following the leader')
