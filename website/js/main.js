@@ -246,6 +246,9 @@
         var staffLink = el("a", { href: absolute ? "/admin" : "admin.html", text: "Staff" });
         if (/admin\.html$|\/admin$/.test(location.pathname)) staffLink.setAttribute("aria-current", "page");
         accountLink.parentNode.insertBefore(staffLink, accountLink);
+        var botsLink = el("a", { href: absolute ? "/bots" : "bots.html", text: "Bots" });
+        if (/bots(\.html)?$/.test(location.pathname)) botsLink.setAttribute("aria-current", "page");
+        accountLink.parentNode.insertBefore(botsLink, accountLink);
       }
       if (/account(\.html)?$/.test(location.pathname)) accountLink.setAttribute("aria-current", "page");
     });

@@ -22,6 +22,7 @@ const { config } = require("./config");
 require("./db");
 const { handleSubmission } = require("./forms");
 const { handleAccountApi, verifyEmailLink } = require("./account-routes");
+const { handleBotApi } = require("./bot-hub");
 const { mailEnabled } = require("./mailer");
 const { sendJson, sendText, redirect, methodNotAllowed, siteUrlFor, has } = require("./http");
 
@@ -76,7 +77,7 @@ const CACHE_RULES = {
 const DEFAULT_CACHE = "public, max-age=604800";
 
 // Pages with private, per-user content: never cache them and keep them out of search engines.
-const PRIVATE_PAGES = new Set(["signin.html", "account.html", "admin.html", "reset.html"]);
+const PRIVATE_PAGES = new Set(["signin.html", "account.html", "admin.html", "bots.html", "reset.html"]);
 
 const CSP = [
   "default-src 'self'",
@@ -193,7 +194,7 @@ function notFound(req, res) {
 
 function sendRobots(req, res) {
   const site = siteUrlFor(req);
-  const lines = ["User-agent: *", "Allow: /", "Disallow: /api/", "Disallow: /account", "Disallow: /admin", "Disallow: /reset"];
+  const lines = ["User-agent: *", "Allow: /", "Disallow: /api/", "Disallow: /account", "Disallow: /admin", "Disallow: /bots", "Disallow: /reset"];
   if (site) lines.push(`Sitemap: ${site}/sitemap.xml`);
   res.setHeader("Cache-Control", "public, max-age=3600");
   sendText(res, 200, lines.join("\n") + "\n");
@@ -362,6 +363,7 @@ async function handleApi(req, res, pathname, url) {
   }
 
   if (await handleAccountApi(req, res, pathname, url)) return;
+  if (await handleBotApi(req, res, pathname, url)) return;
 
   return sendJson(res, 404, { ok: false, error: "Not found." });
 }

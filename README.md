@@ -8,6 +8,9 @@ The official website for **Moddedrealms** (Modrealms for short), the Minecraft s
 - **Minecraft plugin**: `minecraft-plugin/ModdedrealmsLink-1.0.0.jar` for Paper 1.21.4+ handles `/link` and syncs ranks from LuckPerms or Vault.
 - **Live data**: online players (as shown in the Minecraft server list), Discord member and online counts, and your latest YouTube uploads. These update automatically.
 - **Short links**: `yourdomain.com/discord`, `/youtube`, `/modrinth`, `/feedback`, `/report`.
+- **AI bots (staff)**: the **Bots** page lets staff chat with AI-driven Minecraft bots, give them orders and
+  Litematica schematics to build, and run teams of bots with a leader AI. The bots run on a VPS or a gaming PC
+  (`ai-bot/`). See [ai-bot/README.md](ai-bot/README.md).
 - No build step and no npm packages. It's plain HTML, CSS and JS plus a small Node.js server with a built-in SQLite database.
 
 ```
@@ -17,11 +20,13 @@ website/            The site itself (HTML, CSS, JS, fonts, images)
   signin.html       Sign in / create account
   account.html      Player account page
   admin.html        Staff dashboard
+  bots.html         AI bots (staff)
   image/            Your original images
   image/web/        Web-optimized copies used by the site (WebP)
 server/             The Node.js server (needs Node.js 22.13+)
   manage.js         Command-line tools: make admins, reset passwords
 minecraft-plugin/   The ModdedrealmsLink plugin (ready-made .jar + source)
+ai-bot/             AI bots: bot manager, Minecraft bridge mod, model connector (see ai-bot/README.md)
 deploy/             Caddyfile, systemd service and the one-command installer
 docker-compose.yml  Website + Caddy (automatic HTTPS) in Docker
 .env.example        Settings template

@@ -1,0 +1,9 @@
+node_modules/
+config.json
+auth-cache/
+data/
+logs/
+bots/
+runtime/
+accounts/
+manager.json
