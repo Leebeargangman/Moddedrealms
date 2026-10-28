@@ -232,7 +232,7 @@ export class Social {
           else await this.handleStranger(ev)
         } catch (e) {
           this.agent.log(`[social] error: ${e.message}`)
-          if (ev.kind === 'owner') ev.reply(`error: ${e.message}`.slice(0, 150))
+          if (ev.kind === 'owner') ev.reply(/timeout|abort/i.test(e.message) ? "sorry, my head's busy right now, ask me again in a bit" : `something went wrong: ${e.message}`.slice(0, 150))
         }
       }
     } finally { this.busy = false }

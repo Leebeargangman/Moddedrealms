@@ -6,7 +6,9 @@ export async function chatJSON (ai, system, user, schema, { temperature = ai.tem
     stream: false,
     format: schema,
     keep_alive: '30m',
-    options: { temperature, num_ctx: 6144 },
+    // Answers are a few lines of JSON. Small models sometimes never close the object and keep emitting
+    // whitespace; without a cap that one request holds the GPU and every other bot waits behind it.
+    options: { temperature, num_ctx: 6144, num_predict: 400 },
     messages: [{ role: 'system', content: system }, { role: 'user', content: user }]
   }
   let body

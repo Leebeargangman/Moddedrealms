@@ -22,6 +22,8 @@ public class AiBridge implements ClientModInitializer {
 	/** Skip drawing the world: a bot has no one looking at the screen. */
 	public static final boolean NO_RENDER = Boolean.getBoolean("aibridge.norender");
 	public static volatile String lastDisconnectReason;
+	/** True from a connect attempt (or start-up quick play) until we join a world or report why we couldn't. */
+	public static volatile boolean awaitingJoin = true;
 	static BridgeServer server;
 
 	private int ticks;
@@ -44,6 +46,7 @@ public class AiBridge implements ClientModInitializer {
 			server.event(event("chat", "text", message.getString(), "sender", sender == null ? null : sender.name())));
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			lastDisconnectReason = null;
+			awaitingJoin = false;
 			server.event(event("join"));
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
@@ -59,6 +62,13 @@ public class AiBridge implements ClientModInitializer {
 				server.event(event("baritone", "text", msg.getString()));
 			};
 		});
+	}
+
+	/** Called when the "Disconnected" screen opens; only reports failures before reaching a world. */
+	public static void loginFailed(String reason) {
+		if (!awaitingJoin || server == null) return;
+		awaitingJoin = false;
+		server.event(event("disconnect", "reason", reason));
 	}
 
 	private void tick(Minecraft mc) {

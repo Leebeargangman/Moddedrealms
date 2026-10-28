@@ -66,6 +66,8 @@ final class Ops {
 			case "connect": {
 				String host = str(a, "host");
 				if (mc.level != null) mc.disconnectFromWorld(Component.literal("Switching server"));
+				AiBridge.awaitingJoin = true;
+				if (a.has("version")) setProtocolVersion(str(a, "version"));
 				ConnectScreen.startConnecting(new TitleScreen(), mc, ServerAddress.parseString(host), new ServerData("AI bot", host, ServerData.Type.OTHER), false, null);
 				return JsonNull.INSTANCE;
 			}
@@ -419,6 +421,21 @@ final class Ops {
 	}
 
 	// ------------------------------------------------------------------ args
+
+	/** ViaFabricPlus's target version, set by reflection so the mod also works without ViaFabricPlus. */
+	private static void setProtocolVersion(String name) {
+		try {
+			Class<?> pv = Class.forName("com.viaversion.viaversion.api.protocol.version.ProtocolVersion");
+			Object version = pv.getMethod("getClosest", String.class).invoke(null, name);
+			if (version == null) throw new IllegalArgumentException("unknown version " + name);
+			Object impl = Class.forName("com.viaversion.viafabricplus.ViaFabricPlus").getMethod("getImpl").invoke(null);
+			impl.getClass().getMethod("setTargetVersion", pv).invoke(impl, version);
+		} catch (ClassNotFoundException e) {
+			// no ViaFabricPlus: only the client's own version works
+		} catch (ReflectiveOperationException e) {
+			throw new IllegalStateException("can't select version " + name + ": " + e);
+		}
+	}
 
 	private static String str(JsonObject a, String k) {
 		if (!a.has(k)) throw new IllegalArgumentException("missing " + k);

@@ -7,6 +7,7 @@ import { ROOT } from '../config.js'
 import { log as baseLog } from '../log.js'
 import { Memory } from '../memory.js'
 import { launchClient } from '../client/launcher.js'
+import { detectServerVersion } from '../client/serverVersion.js'
 import { Bridge } from '../client/bridge.js'
 import { Body } from '../agent/body.js'
 import { QueueTracker } from '../agent/queue.js'
@@ -100,6 +101,8 @@ export class BotInstance extends EventEmitter {
     const delay = this.backoff
     this.backoff = Math.min(this.backoff * 2, 5 * 60e3)
     if (/already (connected|online)|another location|logged in from/i.test(reason ?? '')) this.backoff = Math.max(this.backoff, 60e3)
+    // Retrying fast won't help until staff fix the whitelist/ban; keep trying every 5 minutes.
+    if (/whitelist|white-listed|banned/i.test(reason ?? '')) this.backoff = 5 * 60e3
     this.log(`disconnected (${reason ?? 'no reason'}), rejoining in ${Math.round(delay / 1000)}s`)
     this.rejoinTimer = setTimeout(() => this.rejoin('reconnect'), delay)
   }
@@ -177,7 +180,8 @@ export class BotInstance extends EventEmitter {
   async switchServer (server) {
     this.cfg.server = server
     if (this.state === 'stopped') return
-    await this.bridge?.request('connect', { host: server }).catch(e => this.log('connect failed:', e.message))
+    const version = await detectServerVersion(server)
+    await this.bridge?.request('connect', { host: server, version }).catch(e => this.log('connect failed:', e.message))
   }
 
   setState (state) {

@@ -7,6 +7,7 @@ import crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { ROOT } from '../config.js'
 import { log } from '../log.js'
+import { detectServerVersion } from './serverVersion.js'
 
 export const MC_VERSION = '26.1.2'
 const FABRIC_LOADER = '0.20.1'
@@ -190,6 +191,17 @@ async function prepareGameDir (gameDir, modFiles) {
   await fsp.writeFile(optFile, Object.entries(current).map(([k, v]) => `${k}:${v}`).join('\n') + '\n')
 }
 
+/** Tells ViaFabricPlus which version to speak, before the client starts and quick-plays into the server. */
+async function selectProtocolVersion (gameDir, version) {
+  const dir = path.join(gameDir, 'config', 'viafabricplus')
+  const file = path.join(dir, 'settings.json')
+  let settings = {}
+  try { settings = JSON.parse(await fsp.readFile(file, 'utf8')) } catch {}
+  settings['selected-protocol-version'] = version
+  await fsp.mkdir(dir, { recursive: true })
+  await fsp.writeFile(file, JSON.stringify(settings, null, 2))
+}
+
 export function offlineUuid (name) {
   const h = crypto.createHash('md5').update(`OfflinePlayer:${name}`).digest()
   h[6] = (h[6] & 0x0f) | 0x30
@@ -207,6 +219,11 @@ export async function launchClient ({ gameDir, account, server, bridgePort, brid
   const java = await ensureJava()
   const { vjson, fabric, classpath } = await ensureVersion()
   await prepareGameDir(gameDir, await ensureMods())
+  if (server) {
+    const version = await detectServerVersion(server)
+    await selectProtocolVersion(gameDir, version)
+    log(`[launcher] ${server} runs ${version}`)
+  }
   const natives = path.join(gameDir, 'natives')
   await fsp.mkdir(natives, { recursive: true })
 

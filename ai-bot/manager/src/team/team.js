@@ -17,6 +17,7 @@ Principles:
 - Hurt or hungry members should eat, hide or stay near the group. Avoid strange players.
 - The leader may move the whole team (travel_far/goto/explore); the others will follow automatically.
 - Only use members' exact names. Give each member at most one action.
+- Members listed under "offline" are not in the game (they rejoin later): give them no orders and send nobody to them.
 Reply with ONLY JSON:
 {"thought": "<one short sentence>", "directive": "<one sentence everyone should keep in mind>",
  "orders": [{"bot": "<name>", "action": "<action>", "args": {...}, "why": "<few words>"}]}
@@ -121,7 +122,9 @@ export class Team extends EventEmitter {
     try {
       const ai = { ...leader.ai(), ...(this.cfg.leaderModel ? { model: this.cfg.leaderModel } : {}) }
       if (ai.enabled === false) throw new Error('AI off')
-      plan = await chatJSON(ai, SYSTEM, JSON.stringify({ team: state, base: leader.memory.data.stash ?? null, recent: this.feed.slice(-6).map(f => f.text) }), SCHEMA, { temperature: 0.3 })
+      // Members who logged off (low health, kicked...) are listed so the leader stops planning around them.
+      const away = this.members().filter(b => !online.includes(b)).map(b => `${b.session?.name ?? b.cfg.name}: ${b.offlineReason ?? b.state}`)
+      plan = await chatJSON(ai, SYSTEM, JSON.stringify({ team: state, offline: away, base: leader.memory.data.stash ?? null, recent: this.feed.slice(-6).map(f => f.text) }), SCHEMA, { temperature: 0.3 })
     } catch (e) {
       this.log('leader AI unavailable, using rules:', e.message)
       plan = rulePlan(online, leader)
@@ -135,6 +138,7 @@ export class Team extends EventEmitter {
       const bot = online.find(b => b.session.name.toLowerCase() === String(o.bot).toLowerCase())
       if (!bot || !SKILLS[o.action]) continue
       const target = String(o.args?.name ?? '').toLowerCase()
+      if (target && this.members().some(m => !online.includes(m) && m.session?.name?.toLowerCase() === target)) continue
       if (['follow_player', 'come_to', 'give'].includes(o.action) && (bot === leader ? (!target || target === bot.session.name.toLowerCase()) : target === bot.session.name.toLowerCase())) continue
       this.order(bot, o.action, o.args ?? {}, o.why ?? '')
       if (bot === leader && MOVING.has(o.action)) {
@@ -166,7 +170,7 @@ export class Team extends EventEmitter {
   /** Where a member is, from its own client (works when they can't see each other). */
   locate (name) {
     const b = this.members().find(m => m.session?.name?.toLowerCase() === String(name).toLowerCase())
-    if (!b?.body?.inWorld) return null
+    if (b?.state !== 'online' || !b.body?.inWorld) return null
     const p = b.body.pos
     return { x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z), dimension: b.body.dimension }
   }
