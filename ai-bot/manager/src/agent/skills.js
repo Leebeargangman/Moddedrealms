@@ -410,9 +410,36 @@ async function build (ctx, args, signal) {
       for (let s = 0; s < batch.length; s++) await body.b.request('creativeGive', { item: batch[s], count: 64, slot: s }).catch(() => {})
       await body.baritone('resume').catch(() => {})
     }
+    // Survival: watch materials get used up; a minute without any placed means Baritone is stuck on something.
+    const start = body.inventory()
+    let used = -1
+    let lastChange = Date.now()
+    let stalled = false
+    const placedSoFar = () => Object.keys(info.materials).reduce((n, k) => n + Math.max(0, (start[k] ?? 0) - (body.inventory()[k] ?? 0)), 0)
     try {
-      await body.waitBaritone(signal, { timeoutMs: 60 * 60e3, stuckMs: 0 })
+      await body.waitBaritone(signal, {
+        timeoutMs: 4 * 60 * 60e3,
+        stuckMs: 0,
+        until: () => {
+          if (creative) return false
+          const now = placedSoFar()
+          if (now !== used) { used = now; lastChange = Date.now() }
+          stalled = Date.now() - lastChange > 60000
+          return stalled
+        }
+      })
+      if (stalled) {
+        await body.baritone('cancel').catch(() => {})
+        const inv = body.inventory()
+        const left = Object.entries(info.materials)
+          .map(([k, need]) => [k, need - Math.max(0, (start[k] ?? 0) - (inv[k] ?? 0))])
+          .filter(([, n]) => n > 0)
+        const text = left.slice(0, 8).map(([k, n]) => `${n} ${k.replace(/_/g, ' ')}`).join(', ')
+        ctx.emit?.('build', { file, status: 'stuck', remaining: Object.fromEntries(left) })
+        throw new Error(`build stuck: nothing placed for a minute. Materials not used this run (some may already be in place from an earlier run): ${text}`)
+      }
     } catch (e) {
+      if (/^build stuck/.test(e.message)) throw e
       if (isAbort(e)) throw e
       // Survival and Baritone ran out of something it can't place: report what's left and stop.
       if (!creative) {
