@@ -18,6 +18,11 @@ const BASE_PORT = 25700
 
 const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return fallback } }
 const writeJson = (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file + '.tmp', JSON.stringify(data, null, 2)); fs.renameSync(file + '.tmp', file) }
+/**
+ * A bot's goal: set by staff on the Bots page and kept in data/bots.json with the bot's other settings, not in
+ * its memory, so nothing the bot does (dying, a memory reset, the AI's own output) can change or lose it.
+ */
+const cleanGoal = (text, by) => ({ text: String(text).replace(/\s+/g, ' ').trim().slice(0, 500), by: by ? String(by).slice(0, 40) : null, at: new Date().toISOString() })
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'bot'
 
 export { availableMemMb }
@@ -60,6 +65,7 @@ export class Manager extends EventEmitter {
     if (this.specs.some(s => s.id === id)) throw new Error(`bot ${id} already exists`)
     const clean = { id, name: spec.name ?? accounts.getAccount(spec.account).name, account: spec.account, server: spec.server ?? this.cfg.defaults.server }
     for (const k of ['ai', 'behavior', 'social', 'heapMb', 'autoStart', 'owner']) if (spec[k] != null) clean[k] = spec[k]
+    if (spec.goal) clean.goal = cleanGoal(spec.goal, spec.owner)
     this.specs.push(clean)
     this.save()
     this.emitList()
@@ -70,6 +76,10 @@ export class Manager extends EventEmitter {
     const spec = this.specs.find(s => s.id === id)
     if (!spec) throw new Error(`no bot ${id}`)
     for (const k of ['name', 'account', 'server', 'ai', 'heapMb', 'autoStart']) if (changes[k] !== undefined) spec[k] = changes[k]
+    if (changes.goal !== undefined) {
+      if (changes.goal) spec.goal = cleanGoal(changes.goal, changes.goalBy)
+      else delete spec.goal
+    }
     // The Bots page sends only the settings it shows (e.g. behavior.mode); keep the rest.
     for (const k of ['behavior', 'social']) if (changes[k]) spec[k] = { ...spec[k], ...changes[k] }
     this.save()
@@ -80,7 +90,7 @@ export class Manager extends EventEmitter {
       bot.cfg = botConfig(this.cfg, spec)
       if (bot.agent) { bot.agent.cfg = bot.cfg; bot.agent.ctx.cfg = bot.cfg }
       // Switched to anarchy mode: drop what it's doing so it heads for a portal now.
-      if (bot.cfg.behavior.mode !== mode) bot.agent?.interruptBrain()
+      if (bot.cfg.behavior.mode !== mode || changes.goal !== undefined) bot.agent?.interruptBrain()
       if (changes.server && changes.server !== server) bot.switchServer(changes.server)
       const ai = bot.cfg.ai
       if (changes.ai && bot.state !== 'stopped' && ai.enabled !== false && ai.source !== 'connector' && hostInfo().ollama.up) {

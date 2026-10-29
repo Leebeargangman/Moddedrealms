@@ -3982,3 +3982,29 @@ button.row:hover {
 .field .input + .input {
   margin-top: 0.4rem;
 }
+
+.bot-goal {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.bot-goal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bot-goal h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.bot-goal .form {
+  margin-top: 10px;
+}
+
+.bot-goal-step {
+  margin: 6px 0 0;
+}

@@ -238,6 +238,7 @@ export class BotInstance extends EventEmitter {
       model: this.cfg.ai.enabled === false ? 'rules only' : `${this.cfg.ai.model} (${this.cfg.ai.source === 'connector' ? `on ${this.cfg.ai.connector}'s PC` : 'VPS'})`,
       mode: this.cfg.behavior.mode === 'anarchy' ? 'anarchy' : 'survival',
       escape: this.cfg.behavior.mode === 'anarchy' ? this.escapeStatus() : null,
+      goal: this.cfg.goal ?? null,
       schematics: this.schematics(),
       stats: this.memory.data.stats,
       ...(this.agent ? this.agent.status() : {})

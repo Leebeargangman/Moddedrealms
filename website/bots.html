@@ -97,6 +97,22 @@
                 <div class="kv bot-kv" data-detail-kv></div>
                 <div class="bot-actions" data-detail-actions></div>
 
+                <section class="bot-goal" aria-labelledby="goal-title">
+                  <div class="bot-goal-head">
+                    <h3 id="goal-title">Goal</h3>
+                    <span data-goal-tag></span>
+                  </div>
+                  <p class="muted small">What this bot works toward, always. It's saved with the bot's settings and goes into every decision its AI makes. Only staff can change it here: dying, restarting or anything said in game can't.</p>
+                  <form class="form" data-goal-form>
+                    <textarea class="input" name="goal" rows="3" maxlength="500" placeholder="e.g. Get full enchanted diamond armor, then build a hidden base 20,000 blocks out" aria-label="Goal"></textarea>
+                    <p class="muted small" data-goal-meta></p>
+                    <div class="form-actions">
+                      <button class="btn btn-ghost btn-sm" type="button" data-goal-clear>Clear goal</button>
+                      <button class="btn btn-primary btn-sm" type="submit">Save goal</button>
+                    </div>
+                  </form>
+                </section>
+
                 <div class="bot-chat">
                   <div class="chat-log" data-chat-log aria-live="polite"></div>
                   <form class="chat-form" data-chat-form>

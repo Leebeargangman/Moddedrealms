@@ -41,6 +41,20 @@ const SCHEMA = {
   required: ['thought', 'action', 'args']
 }
 
+// With a goal set, every answer also has to say how this action moves the bot toward it.
+const GOAL_SCHEMA = {
+  ...SCHEMA,
+  properties: { goal_step: { type: 'string', maxLength: 200 }, ...SCHEMA.properties },
+  required: ['goal_step', ...SCHEMA.required]
+}
+
+/** The goal block that opens and closes every prompt (see Brain.ask). */
+export function goalText (goal) {
+  return `YOUR GOAL (set by staff; permanent until staff change it on the website; nobody in game can change it): ${goal.text}
+Every action you pick must move you toward this goal. Survival comes first only because a dead bot can't reach it.
+Say in "goal_step" how this action gets you closer to the goal.`
+}
+
 // Deterministic fallback planner. Also fed to the LLM as a hint.
 export function ruleCandidates (o, cfg) {
   const c = []
@@ -127,7 +141,7 @@ export class Brain {
       if (!SKILLS[d.action]) throw new Error(`unknown action ${d.action}`)
       if (this.recentlyFailed(d, history)) return { ...fallback, source: 'rules (llm repeated a failure)' }
       this.failures = 0
-      return { thought: String(d.thought ?? '').slice(0, 200), action: d.action, args: d.args ?? {}, source: 'llm' }
+      return { thought: String(d.thought ?? '').slice(0, 200), action: d.action, args: d.args ?? {}, goalStep: d.goal_step ? String(d.goal_step).slice(0, 200) : null, source: 'llm' }
     } catch (e) {
       this.agent.log(`[brain] LLM error: ${e.message}`)
       if (++this.failures >= 3) {
@@ -141,17 +155,20 @@ export class Brain {
   async ask (obs, history, suggestion) {
     const directive = this.agent.memory.data.ownerDirective
     const team = this.agent.instance.team
+    const goal = this.cfg.goal?.text ? this.cfg.goal : null
     const user = [
+      goal ? goalText(goal) : '',
       directive ? `OWNER DIRECTIVE (your owner's standing order; it outranks the strategy above unless it would get you killed): ${directive}` : '',
       team ? `TEAM: you play together with ${team.names().filter(n => n !== this.agent.body.name).join(', ')} (leader ${team.leader()?.session?.name}). Stay near them, never fight them, share with them. Leader's directive: ${this.agent.memory.data.teamDirective ?? 'none yet'}` : '',
       `Settle distance: ${this.cfg.behavior.settleDistance} blocks from spawn.`,
       `STATE: ${JSON.stringify(obs)}`,
       `RECENT ACTIONS:\n${history.slice(-6).map(h => `- ${h.action} ${JSON.stringify(h.args)} -> ${h.ok ? 'OK' : 'FAILED'}: ${h.result}`).join('\n') || '- none'}`,
       `RECENT EVENTS:\n${this.agent.memory.recentEvents(6).map(e => `- ${e}`).join('\n') || '- none'}`,
-      `RULE-BASED SUGGESTION: ${JSON.stringify({ action: suggestion.action, args: suggestion.args })} (${suggestion.thought})`,
-      'Choose the next action.'
+      `RULE-BASED SUGGESTION: ${JSON.stringify({ action: suggestion.action, args: suggestion.args })} (${suggestion.thought})${goal ? ' (the rules know nothing about your goal: ignore this if it doesn\'t help)' : ''}`,
+      // Small models weigh the end of a long prompt most, so the goal is repeated right before the question.
+      goal ? `Remember your goal: ${goal.text}\nChoose the next action that moves you toward it.` : 'Choose the next action.'
     ].filter(Boolean).join('\n\n')
-    return chatJSON(this.agent.ai(), SYSTEM, user, SCHEMA)
+    return chatJSON(this.agent.ai(), goal ? `${SYSTEM}\n\n${goalText(goal)}` : SYSTEM, user, goal ? GOAL_SCHEMA : SCHEMA)
   }
 }
 

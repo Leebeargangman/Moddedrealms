@@ -99,9 +99,14 @@ export function connectWebsite (manager) {
         case 'createBot': {
           const ai = args.ai ?? {}
           if (ai.source === 'connector' && !ai.connector) ai.connector = staff?.name
-          return reply(true, manager.createBot({ ...args, ai, owner: staff?.name }))
+          return reply(true, manager.createBot({ ...args, ai, owner: staff?.name, goal: args.goal ? String(args.goal) : undefined }))
         }
-        case 'updateBot': manager.updateBot(args.bot, args.changes ?? {}); return reply(true, 'saved')
+        case 'updateBot': {
+          const changes = { ...(args.changes ?? {}) }
+          if (changes.goal !== undefined) changes.goalBy = staff?.name
+          manager.updateBot(args.bot, changes)
+          return reply(true, 'saved')
+        }
         case 'removeBot': await manager.removeBot(args.bot); return reply(true, 'removed')
         case 'createTeam': return reply(true, manager.createTeam(args))
         case 'updateTeam': manager.updateTeam(args.team, args.changes ?? {}); return reply(true, 'saved')
