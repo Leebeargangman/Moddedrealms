@@ -92,7 +92,25 @@ export class BotInstance extends EventEmitter {
     })
     this.queue.on('position', p => this.emit('event', { type: 'queue', position: p, etaMin: this.queue.eta() != null ? Math.round(this.queue.eta() / 60000) : null }))
     this.bridge.on('disconnect', m => this.onDisconnect(m.reason))
+    this.bridge.on('closed', () => this.relink())
     this.log(`client up for ${this.session.name}`)
+  }
+
+  // The bridge mod serves one connection, so anything else connecting to it drops ours while the game keeps
+  // running: connect again, or the bot stands in the world with nobody steering it until it's kicked.
+  async relink () {
+    const { bridge, child } = this
+    if (!this.wanted || !bridge || !child || child.exitCode != null) return
+    this.log('lost the link to the game client, reconnecting')
+    try {
+      await bridge.connect(60000)
+    } catch (e) {
+      if (this.bridge !== bridge || child.exitCode != null) return
+      this.log(`could not reconnect to the game client (${e.message}), restarting it`)
+      try { process.kill(-child.pid, 'SIGKILL') } catch {}
+      return
+    }
+    if (this.bridge === bridge) this.queue.resume()
   }
 
   onDisconnect (reason) {

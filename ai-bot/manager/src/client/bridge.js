@@ -19,6 +19,7 @@ export class Bridge extends EventEmitter {
   async connect (timeoutMs = 180000) {
     const t0 = Date.now()
     while (Date.now() - t0 < timeoutMs) {
+      if (this.closing) throw new Error('bridge closed')
       try {
         await this.#open()
         await this.request('auth', { token: this.token })
@@ -97,6 +98,7 @@ export class Bridge extends EventEmitter {
   chat (text) { return this.request('chat', { text }) }
 
   close () {
+    this.closing = true
     this.connected = false
     this.socket?.destroy()
   }

@@ -1,7 +1,7 @@
 // Everything the AI can choose to do, built on Baritone and the bridge mod.
 import fs from 'node:fs'
 import path from 'node:path'
-import { check, wait, isAbort, hdist, tierOf, isNightTime, pickBearing } from '../util.js'
+import { check, wait, isAbort, hdist, tierOf, isNightTime, pickBearing, offHighway, settleDistance } from '../util.js'
 import { travelTo } from './travel.js'
 import { fight, gearScore } from './combat.js'
 import { readLitematic, missingMaterials, normalizeLitematic } from '../build/litematic.js'
@@ -306,7 +306,7 @@ async function openStash (ctx, signal, create) {
   }
   if (!create) throw new Error('no stash nearby')
   const p = body.pos
-  if (Math.hypot(p.x, p.z) < cfg.behavior.settleDistance * 0.8) throw new Error('too close to spawn to make a stash')
+  if (Math.hypot(p.x, p.z) < settleDistance(cfg.behavior) * 0.8) throw new Error('too close to spawn to make a stash')
   if (!body.count('chest')) await craft(ctx, 'chest', 1, signal)
   const at = await placeNear(ctx, 'chest', signal)
   memory.data.stash = { ...at, dimension: body.dimension }
@@ -535,20 +535,49 @@ async function build (ctx, args, signal) {
 
 // ---------------------------------------------------------------- travel
 
-// Stranded far above everything (sky platform, griefed tower) with nothing to lose: respawn with /kill.
-async function escapeIfStranded (ctx, signal) {
+// Stuck somewhere with no way out and nothing to lose: respawn with /kill. With gear worth keeping, don't.
+async function respawnIfNoGear (ctx, why, signal) {
   const { body, cfg, memory } = ctx
+  if (gearScore(body) >= 10) throw new Error(`${why} with valuable gear; not respawning`)
+  if (!cfg.behavior.killCommand) throw new Error(why)
   const p = body.pos
-  const points = Array.from({ length: 8 }, (_, i) => ({ x: Math.floor(p.x + Math.cos(i * Math.PI / 4) * 10), z: Math.floor(p.z + Math.sin(i * Math.PI / 4) * 10) }))
-  const ground = await body.b.request('groundBelow', { points, fromY: Math.floor(p.y) - 3, depth: 22 })
-  if (ground.filter(g => g == null).length < 5) return null
-  if (gearScore(body) >= 10) throw new Error('stranded high above the ground with valuable gear; not respawning')
-  if (!cfg.behavior.killCommand) throw new Error('stranded high above the ground')
-  memory.event(`stranded at ${Math.round(p.x)} ${Math.round(p.y)} ${Math.round(p.z)} with no gear: using ${cfg.behavior.killCommand}`)
+  memory.event(`${why} at ${Math.round(p.x)} ${Math.round(p.y)} ${Math.round(p.z)} with no gear: using ${cfg.behavior.killCommand}`)
   const died = new Promise(resolve => body.b.once('death', () => resolve(true)))
   await body.chat(cfg.behavior.killCommand)
   if (await Promise.race([died, wait(6000, signal).then(() => false)])) return `used ${cfg.behavior.killCommand} to respawn`
   return null
+}
+
+// Stranded far above everything (sky platform, griefed tower).
+async function escapeIfStranded (ctx, signal) {
+  const { body } = ctx
+  const p = body.pos
+  const points = Array.from({ length: 8 }, (_, i) => ({ x: Math.floor(p.x + Math.cos(i * Math.PI / 4) * 10), z: Math.floor(p.z + Math.sin(i * Math.PI / 4) * 10) }))
+  const ground = await body.b.request('groundBelow', { points, fromY: Math.floor(p.y) - 3, depth: 22 })
+  if (ground.filter(g => g == null).length < 5) return null
+  return respawnIfNoGear(ctx, 'stranded high above the ground', signal)
+}
+
+// Boxed in where Baritone can't even start a path (a pit dug down to bedrock near an anarchy spawn, a sealed
+// cave) and no blocks to climb with: try to reach the surface, and after a few tries respawn if there's nothing to lose.
+async function getUnstuck (ctx, from, signal) {
+  const { body, memory, log } = ctx
+  log?.('[travel] not moving at all, trying to climb to the surface')
+  try {
+    await body.baritone('surface')
+    await body.waitBaritone(signal, { timeoutMs: 4 * 60e3 })
+  } catch (e) {
+    if (isAbort(e)) throw e
+  }
+  const m = memory.data
+  if (body.dist(from.x, from.y, from.z) >= 4) {
+    m.trapped = 0
+    return `was boxed in, climbed out to y ${Math.round(body.pos.y)}`
+  }
+  m.trapped = (m.trapped ?? 0) + 1
+  if (m.trapped < 3) return null
+  m.trapped = 0
+  return respawnIfNoGear(ctx, 'boxed in with no way out', signal)
 }
 
 async function travelFar (ctx, args, signal) {
@@ -556,12 +585,13 @@ async function travelFar (ctx, args, signal) {
   const escaped = await escapeIfStranded(ctx, signal)
   if (escaped) return escaped
   const m = memory.data
-  const distance = cfg.behavior.settleDistance
+  const distance = settleDistance(cfg.behavior)
+  const p = body.pos
   if (!m.travel || m.travel.distance !== distance) {
-    m.travel = { angle: pickBearing(), distance }
+    // Already some way out: keep going outward from here, not off past spawn on a new bearing.
+    m.travel = { angle: Math.hypot(p.x, p.z) > 200 ? offHighway(Math.atan2(p.z, p.x)) : pickBearing(), distance }
     memory.save()
   }
-  const p = body.pos
   let target
   if (!m.travel.done) {
     target = { x: Math.cos(m.travel.angle) * distance, z: Math.sin(m.travel.angle) * distance }
@@ -571,9 +601,10 @@ async function travelFar (ctx, args, signal) {
     }
   }
   if (m.travel.done) {
-    // Settled: keep exploring in 300-block off-highway hops.
+    // Settled: keep exploring in 300-block off-highway hops. On anarchy servers further out is safer, so the
+    // hops keep going outward (a new random bearing each hop wanders back and forth near spawn).
     if (!m.explore || hdist(m.explore, p) < 48) {
-      const a = pickBearing()
+      const a = cfg.behavior.mode === 'anarchy' ? offHighway(m.travel.angle + (Math.random() - 0.5) * 0.8) : pickBearing()
       m.explore = { x: Math.round(p.x + Math.cos(a) * 300), z: Math.round(p.z + Math.sin(a) * 300) }
       memory.save()
     }
@@ -594,10 +625,15 @@ async function travelFar (ctx, args, signal) {
     await body.goto(p.x + Math.cos(a) * leg, p.z + Math.sin(a) * leg, null, signal, 6 * 60e3)
   } catch (e) {
     if (isAbort(e)) throw e
+    if (hdist(p, body.pos) < 4) {
+      const out = await getUnstuck(ctx, p, signal)
+      if (out) return out
+    } else m.trapped = 0
     // Blocked (ocean, ravine...): swing the bearing a little for next time.
     if (!m.travel.done) { m.travel.angle += (Math.random() < 0.5 ? -1 : 1) * 0.3; memory.save() } else m.explore = null
     throw e
   }
+  m.trapped = 0
   const now = body.pos
   return `moved ${Math.round(hdist(p, now))} blocks, now ${Math.round(Math.hypot(now.x, now.z))} from spawn`
 }

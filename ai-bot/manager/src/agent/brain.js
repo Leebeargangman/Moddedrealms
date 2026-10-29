@@ -1,5 +1,6 @@
 import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { chatJSON } from '../llm.js'
+import { settleDistance } from '../util.js'
 
 const SYSTEM = `You are the strategic brain of a Minecraft survival bot. Usually it plays on 2b2t-style anarchy servers.
 There are no rules: hacked clients, griefing and spawn-killing are normal. The area within several thousand blocks
@@ -68,7 +69,7 @@ export function ruleCandidates (o, cfg) {
   const animals = Object.values(o.nearby.animals).reduce((a, b) => a + b, 0)
   const { pickaxe, sword } = o.tools
   const overworld = o.dimension === 'overworld'
-  const settled = o.distFromSpawn >= cfg.behavior.settleDistance * 0.8 || o.memory.travelTarget?.reached
+  const settled = o.distFromSpawn >= settleDistance(cfg.behavior) * 0.8 || o.memory.travelTarget?.reached
 
   if (o.isNight && overworld && hasBed) add('night: sleep and set respawn point', 'sleep')
   if (o.foodPoints < 12 && animals > 0) add('low on food and animals are close', 'hunt', { count: 3 })
@@ -160,7 +161,7 @@ export class Brain {
       goal ? goalText(goal) : '',
       directive ? `OWNER DIRECTIVE (your owner's standing order; it outranks the strategy above unless it would get you killed): ${directive}` : '',
       team ? `TEAM: you play together with ${team.names().filter(n => n !== this.agent.body.name).join(', ')} (leader ${team.leader()?.session?.name}). Stay near them, never fight them, share with them. Leader's directive: ${this.agent.memory.data.teamDirective ?? 'none yet'}` : '',
-      `Settle distance: ${this.cfg.behavior.settleDistance} blocks from spawn.`,
+      `Settle distance: ${settleDistance(this.cfg.behavior)} blocks from spawn.`,
       `STATE: ${JSON.stringify(obs)}`,
       `RECENT ACTIONS:\n${history.slice(-6).map(h => `- ${h.action} ${JSON.stringify(h.args)} -> ${h.ok ? 'OK' : 'FAILED'}: ${h.result}`).join('\n') || '- none'}`,
       `RECENT EVENTS:\n${this.agent.memory.recentEvents(6).map(e => `- ${e}`).join('\n') || '- none'}`,

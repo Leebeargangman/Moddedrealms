@@ -25,6 +25,12 @@ export class QueueTracker extends EventEmitter {
 
   stop () { clearInterval(this.timer) }
 
+  /** The bridge reconnected to a client that may already be playing: find out again, as after a join. */
+  resume () {
+    this.joinedAt = Date.now()
+    this._set('unknown')
+  }
+
   _set (state) {
     if (this.state === state) return
     const prev = this.state
