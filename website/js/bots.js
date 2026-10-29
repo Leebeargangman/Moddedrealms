@@ -253,6 +253,7 @@
     kvRow(dl, "Standing order", b.directive);
     kvRow(dl, "Offline", b.offlineReason);
     if (b.stats) kvRow(dl, "Deaths", b.stats.deaths);
+    if (b.stats && b.stats.blocksMoved != null) kvRow(dl, "Walked", b.stats.blocksMoved + " blocks");
     $("[data-detail-kv]").replaceChildren(dl);
     renderGoal(b, false); // never refill the box here: it would wipe what someone is typing
 
@@ -645,6 +646,16 @@
     });
   }
 
+  /** A Minecraft server running the test players plugin (minecraft-test-players), not a bot manager. */
+  function isTestHost(m) {
+    return !!(m && m.snapshot && m.snapshot.kind === "testplayers");
+  }
+
+  /** A real bot host on the VPS (not a test server whose name happens to contain "server"). */
+  function hasVpsHost() {
+    return hosts().some(function (m) { return !isTestHost(m) && /vps|server/i.test(m.name); });
+  }
+
   function renderHosts() {
     var box = $("[data-hosts]");
     box.replaceChildren();
@@ -652,9 +663,18 @@
       var row = el("div", "account-row");
       row.appendChild(el("span", null, m.name));
       row.appendChild(tag(m.online ? "online" : "offline", m.online ? "green" : "grey"));
+      if (isTestHost(m)) row.appendChild(tag("test players", "blue"));
       box.appendChild(row);
       var s = m.snapshot;
       if (!s) return;
+      if (isTestHost(m)) {
+        var p = s.perf || {};
+        var tb = [s.server, "TPS " + p.tps + ", " + p.mspt + " ms/tick", p.testPlayers + " test players (max " + s.maxBots + "), " + p.players + " real players",
+          p.chunksHeld + " chunks held by test players, " + p.loadedChunks + " loaded", "heap " + p.heapUsedMb + " / " + p.heapMaxMb + " MB"];
+        if (s.ollama) tb.push(s.ollama.up === false ? "Ollama not reachable" : "models: " + (s.ollama.models.map(function (x) { return x.name; }).join(", ") || "none"));
+        box.appendChild(el("p", "muted small host-info", tb.join(" · ")));
+        return;
+      }
       var bits = [gb(s.freeMemMb) + " free" + (s.totalMemMb ? " of " + gb(s.totalMemMb) : ""), gb(s.reserveMemMb || RESERVE_MB) + " kept for the system", "max " + s.maxBots + " bots"];
       bits.push(s.gpu ? "GPU: " + gb(s.gpu.freeMb) + " of " + gb(s.gpu.totalMb) + " free" : "no GPU (AI runs on the CPU)");
       if (s.ollama) bits.push(s.ollama.up === false ? "Ollama not running" : "models: " + (s.ollama.models.map(function (x) { return x.name; }).join(", ") || "none"));
@@ -662,7 +682,7 @@
     });
     if (!hosts().length) box.appendChild(el("p", "muted small", "Start the bot manager (ai-bot/manager) with this website's address and BOT_MANAGER_KEY."));
     box.appendChild(el("p", "muted small", "A bot runs on the host it was created on: its Minecraft client and (unless it uses a connector) its AI." +
-      (hosts().some(function (m) { return /vps|server/i.test(m.name); }) ? "" : " No VPS host yet: install the bot manager on the VPS to run bots there.")));
+      (hasVpsHost() ? "" : " No VPS host yet: install the bot manager on the VPS to run bots there.")));
   }
 
   function showLinkCode(ev) {
@@ -892,7 +912,7 @@
     var s = select("manager", []);
     hosts().forEach(function (m) {
       var snap = m.snapshot;
-      var o = option(m.name, m.online ? m.name + " (" + gb(snap.freeMemMb) + " free" + (snap.gpu ? ", GPU" : ", no GPU") + ")" : m.name + " (offline)");
+      var o = option(m.name, !m.online ? m.name + " (offline)" : isTestHost(m) ? m.name + " (test players on " + snap.server + ")" : m.name + " (" + gb(snap.freeMemMb) + " free" + (snap.gpu ? ", GPU" : ", no GPU") + ")");
       o.disabled = !m.online;
       s.appendChild(o);
     });
@@ -903,7 +923,7 @@
 
   function hostHelp() {
     var p = el("p", "muted small", "Only computers running the bot manager are listed. ");
-    if (!hosts().some(function (m) { return /vps|server/i.test(m.name); })) {
+    if (!hasVpsHost()) {
       p.appendChild(document.createTextNode("The VPS isn't one yet, so bots can't run there: install the bot manager on it first (see ai-bot/README.md, \"Running a bot host\")."));
     }
     return p;
@@ -937,9 +957,21 @@
     fillAccounts();
     form.appendChild(field("Runs on (the computer that plays Minecraft)", hostSel));
     form.appendChild(hostHelp());
-    form.appendChild(field("Minecraft account", accSel));
+    var accField = field("Minecraft account", accSel);
+    form.appendChild(accField);
     form.appendChild(field("Name (shown here)", input("name", "e.g. Builder")));
-    form.appendChild(field("Server", input("server", "host:port", "152.53.114.44:25576")));
+    var serverField = field("Server", input("server", "host:port", "152.53.114.44:25576"));
+    form.appendChild(serverField);
+    var testNote = el("p", "muted small", "A test player: a simulated player on that server for performance testing. It needs no Minecraft account and appears at the server's spawn (website.spawn-at in the plugin's config).");
+    form.appendChild(testNote);
+    // Test player servers spawn their own test players: no account or server address to pick.
+    function showTestFields() {
+      var test = isTestHost(state.managers[hostSel.value]);
+      accField.hidden = serverField.hidden = test;
+      testNote.hidden = !test;
+    }
+    hostSel.addEventListener("change", showTestFields);
+    showTestFields();
     var sourceSel = select("source", [["vps", ""], ["connector", ""], ["off", "No AI (rules only)"]]);
     form.appendChild(field("AI runs on", sourceSel));
     var goalBox = el("textarea", "input");
@@ -950,7 +982,7 @@
     form.appendChild(field("Goal", goalBox));
     var pick = modelField(form, function () {
       var place = sourceSel.value === "off" ? { missing: "No AI: the bot plays with its built-in rules only." } : aiPlace(sourceSel.value, hostSel.value);
-      return { place: place, newClient: sourceSel.value === "vps" };
+      return { place: place, newClient: sourceSel.value === "vps" && !isTestHost(state.managers[hostSel.value]) };
     });
     function refreshAi() {
       sourceLabels(sourceSel, hostSel.value);
@@ -967,7 +999,7 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var f = form.elements;
-      if (!f.account.value) return MR.toast("Add a Minecraft account first.");
+      if (!f.account.value && !isTestHost(state.managers[f.manager.value])) return MR.toast("Add a Minecraft account first.");
       var source = f.source.value;
       var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.model.value.trim() || "qwen2.5:7b" };
       if (source === "connector") ai.connector = state.me.username;
@@ -976,7 +1008,7 @@
         if (ev.ok) {
           modal.close();
           selected = { manager: f.manager.value, bot: ev.result.id };
-          MR.toast("Created " + ev.result.name + ". Press Start.");
+          MR.toast("Created " + ev.result.name + (isTestHost(state.managers[f.manager.value]) ? ", it's on its way into the world." : ". Press Start."));
         }
       });
     });

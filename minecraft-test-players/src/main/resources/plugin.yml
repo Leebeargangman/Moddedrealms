@@ -1,0 +1,19 @@
+name: ModdedrealmsTestPlayers
+version: '${project.version}'
+main: net.moddedrealms.testplayers.TestPlayersPlugin
+api-version: '1.21'
+description: Spawns simulated test players (server-side mannequins) for performance testing, controllable from the Moddedrealms Bots page.
+author: Moddedrealms
+website: https://moddedrealms.net
+
+commands:
+  testplayer:
+    description: Spawn, move and manage simulated test players.
+    usage: /testplayer help
+    aliases: [tplayer]
+    permission: moddedrealms.testplayers.admin
+
+permissions:
+  moddedrealms.testplayers.admin:
+    description: Use /testplayer
+    default: op

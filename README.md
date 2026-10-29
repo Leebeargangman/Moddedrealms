@@ -6,6 +6,7 @@ The official website for **Moddedrealms** (Modrealms for short), the Minecraft s
 - **Feedback & Reports page**: a feedback form and a report-a-player form. Submissions go to a Discord channel through a webhook, and a copy is saved on the server.
 - **Optional accounts**: players and staff can sign in. Players link their Minecraft account by typing `/link CODE` in-game (proof they own it), follow their reports and feedback, read staff replies, and see reports made about them once staff have reviewed them. Staff ranks sync from the server and unlock the **staff dashboard** for handling reports and feedback. Optional email notifications and password resets.
 - **Minecraft plugin**: `minecraft-plugin/ModdedrealmsLink-1.0.0.jar` for Paper 1.21.4+ handles `/link` and syncs ranks from LuckPerms or Vault.
+- **Test players plugin**: `minecraft-test-players/ModdedrealmsTestPlayers-1.0.0.jar` for Paper 1.21.11 spawns simulated players for performance testing, controllable from the Bots page (see `minecraft-test-players/README.md`).
 - **Live data**: online players (as shown in the Minecraft server list), Discord member and online counts, and your latest YouTube uploads. These update automatically.
 - **Short links**: `yourdomain.com/discord`, `/youtube`, `/modrinth`, `/feedback`, `/report`.
 - **AI bots (staff)**: the **Bots** page lets staff chat with AI-driven Minecraft bots, give them orders and
@@ -26,6 +27,7 @@ website/            The site itself (HTML, CSS, JS, fonts, images)
 server/             The Node.js server (needs Node.js 22.13+)
   manage.js         Command-line tools: make admins, reset passwords
 minecraft-plugin/   The ModdedrealmsLink plugin (ready-made .jar + source)
+minecraft-test-players/  The test players plugin (ready-made .jar + source)
 ai-bot/             AI bots: bot manager, Minecraft bridge mod, model connector (see ai-bot/README.md)
 deploy/             Caddyfile, systemd service and the one-command installer
 docker-compose.yml  Website + Caddy (automatic HTTPS) in Docker
