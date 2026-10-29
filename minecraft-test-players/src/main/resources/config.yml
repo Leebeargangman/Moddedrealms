@@ -1,0 +1,51 @@
+# Moddedrealms Test Players
+# Simulated players for performance testing: each one is a player-shaped mannequin that walks around,
+# keeps the chunks around it loaded like a real player would, and can be driven by an AI model.
+# They exist only on this server. They don't log in, have no Minecraft account and can't join other servers.
+
+# Most test players allowed at once.
+max-players: 200
+
+# Chunks kept loaded (and ticking) around each test player, as a radius (1-16): 3 = a 7x7 square (49 chunks).
+# A real player keeps roughly simulation-distance chunks ticking, so match your simulation-distance for
+# realistic numbers. Overlapping test players share chunks.
+chunk-radius: 3
+
+# Movement speed in blocks per tick (a real player walks at about 0.22 and sprints at about 0.28).
+walk-speed: 0.22
+sprint-speed: 0.28
+
+# Mobs, lava and players can't hurt test players. Set to false to test combat or deaths
+# (a test player that dies comes back at its home spot after a few seconds).
+invulnerable: true
+
+# Look up the skin of the Minecraft account with the same name as the test player.
+# Off by default: spawning 100 test players would mean 100 lookups at Mojang.
+skin-from-name: false
+
+# Put test players back where they were when the server restarts.
+respawn-on-start: true
+
+# Shown in front of everything a test player says in chat, so nobody mistakes it for a real player.
+chat-prefix: "[Test] "
+
+ai:
+  # Ollama for test players whose AI runs on this machine ("Bot host" on the Bots page).
+  ollama-url: "http://127.0.0.1:11434"
+  # Seconds between decisions for each test player with a model.
+  interval-seconds: 20
+  # Most model requests at once, across all test players, so the AI doesn't slow down the test itself.
+  max-concurrent: 2
+  timeout-seconds: 90
+
+# Shows the test players on the Bots page of the website and lets staff control them from there,
+# like the AI bot hosts (PC, VPS).
+website:
+  enabled: false
+  url: "https://moddedrealms.net"
+  # Same as BOT_MANAGER_KEY in the website's .env. Keep it secret!
+  manager-key: ""
+  # How this server is listed under "Hosts" on the Bots page (letters, numbers, . _ -).
+  host-name: "testserver"
+  # Where test players created on the Bots page appear: "world,x,y,z". Empty = the first world's spawn.
+  spawn-at: ""
