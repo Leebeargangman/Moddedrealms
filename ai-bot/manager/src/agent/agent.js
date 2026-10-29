@@ -185,7 +185,7 @@ export class Agent extends EventEmitter {
           continue
         } finally { this.thinking = false }
         decision.resumes = 0
-        this.log(`[brain] (${decision.source}, ${Date.now() - t0}ms) ${decision.action} ${JSON.stringify(decision.args)} - ${decision.thought}`)
+        this.log(`[brain] (${decision.source}, ${Date.now() - t0}ms) ${decision.action} ${JSON.stringify(decision.args)} - ${decision.thought}${decision.goalStep ? ` [goal: ${decision.goalStep}]` : ''}`)
       }
       if (!this.inGame() || this.task) continue
       // Switched to anarchy mode while the AI was still deciding: escaping comes first (staff orders excepted).
@@ -241,6 +241,7 @@ export class Agent extends EventEmitter {
       task: this.task?.name ?? null,
       autonomous: this.autonomous,
       thought: this.lastDecision?.thought ?? null,
+      goalStep: this.lastDecision?.goalStep ?? null,
       baritone: b.baritoneState,
       inventory: b.inventory(),
       directive: this.memory.data.ownerDirective ?? null,

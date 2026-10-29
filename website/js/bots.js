@@ -249,10 +249,12 @@
     kvRow(dl, "Thinking", b.thought);
     if (b.mode === "anarchy") kvRow(dl, "Anarchy mode", b.escape);
     if (b.queue === "queue") kvRow(dl, "Queue", "#" + (b.queuePosition || "?") + (b.queueEtaMin != null ? ", ~" + b.queueEtaMin + " min" : ""));
+    if (b.goal && b.goalStep) kvRow(dl, "Toward goal", b.goalStep);
     kvRow(dl, "Standing order", b.directive);
     kvRow(dl, "Offline", b.offlineReason);
     if (b.stats) kvRow(dl, "Deaths", b.stats.deaths);
     $("[data-detail-kv]").replaceChildren(dl);
+    renderGoal(b, false); // never refill the box here: it would wipe what someone is typing
 
     var actions = $("[data-detail-actions]");
     var key = selected.bot + "|" + b.state;
@@ -507,7 +509,22 @@
     return refresh;
   }
 
+  /** Goal box: the saved goal, who set it, and the AI's latest step toward it. */
+  function renderGoal(b, refill) {
+    var f = $("[data-goal-form]");
+    var g = b.goal;
+    if (refill) f.elements.goal.value = g ? g.text : "";
+    $("[data-goal-tag]").replaceChildren(g ? tag("set", "green") : tag("none", "grey"));
+    var meta = $("[data-goal-meta]");
+    meta.replaceChildren();
+    if (g) meta.appendChild(document.createTextNode("Set" + (g.by ? " by " + g.by : "") + (g.at ? " on " + new Date(g.at).toLocaleString() : "") + "."));
+    if (g && b.goalStep) meta.appendChild(el("span", "bot-goal-step", " Latest step toward it: " + b.goalStep));
+    if (g && b.model === "rules only") meta.appendChild(document.createTextNode(" This bot has no AI, so its built-in rules can't follow a goal: turn the AI on in Settings."));
+    $("[data-goal-clear]").hidden = !g;
+  }
+
   function fillSettings(b, manager) {
+    renderGoal(b, true);
     var f = $("[data-settings-form]");
     f.elements.server.value = b.server || "";
     var acc = f.elements.account;
@@ -770,6 +787,25 @@
     });
   });
 
+  function saveGoal(text) {
+    command(selected.manager, "updateBot", { bot: selected.bot, changes: { goal: text || null } }, function (ev) {
+      if (ev.ok) MR.toast(text ? "Goal saved. The bot rethinks what it's doing now." : "Goal cleared.");
+    });
+  }
+
+  $("[data-goal-form]").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var text = e.target.elements.goal.value.replace(/\s+/g, " ").trim();
+    if (!text) return MR.toast("Type a goal first, or press Clear goal.");
+    saveGoal(text);
+  });
+
+  $("[data-goal-clear]").addEventListener("click", function () {
+    if (!window.confirm("Clear this bot's goal? It goes back to its normal survival plan.")) return;
+    $("[data-goal-form]").elements.goal.value = "";
+    saveGoal("");
+  });
+
   $("[data-remove-bot]").addEventListener("click", function () {
     var b = findBot(selected);
     if (!b || !window.confirm("Remove " + b.name + "? Its memory stays on the bot host.")) return;
@@ -906,6 +942,12 @@
     form.appendChild(field("Server", input("server", "host:port", "152.53.114.44:25576")));
     var sourceSel = select("source", [["vps", ""], ["connector", ""], ["off", "No AI (rules only)"]]);
     form.appendChild(field("AI runs on", sourceSel));
+    var goalBox = el("textarea", "input");
+    goalBox.name = "goal";
+    goalBox.rows = 2;
+    goalBox.maxLength = 500;
+    goalBox.placeholder = "Optional: what it should always work toward";
+    form.appendChild(field("Goal", goalBox));
     var pick = modelField(form, function () {
       var place = sourceSel.value === "off" ? { missing: "No AI: the bot plays with its built-in rules only." } : aiPlace(sourceSel.value, hostSel.value);
       return { place: place, newClient: sourceSel.value === "vps" };
@@ -929,7 +971,8 @@
       var source = f.source.value;
       var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.model.value.trim() || "qwen2.5:7b" };
       if (source === "connector") ai.connector = state.me.username;
-      command(f.manager.value, "createBot", { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai }, function (ev) {
+      var goal = f.goal.value.replace(/\s+/g, " ").trim();
+      command(f.manager.value, "createBot", { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai, goal: goal || undefined }, function (ev) {
         if (ev.ok) {
           modal.close();
           selected = { manager: f.manager.value, bot: ev.result.id };

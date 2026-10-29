@@ -11,6 +11,8 @@ const MOVING = new Set(['travel_far', 'goto', 'explore', 'come_to'])
 const SYSTEM = `You are the leader of a small team of Minecraft survival bots playing together. You see every
 member's status and decide what each one does next so the team survives and gets stronger together.
 Principles:
+- A member with a "goal" was given it by staff and keeps it for good: plan their jobs toward it, and when
+  members share a goal, split the work for that goal between them.
 - Stay together: work within ~40 blocks of each other unless a job needs otherwise; regroup if someone is far.
 - Split the work by what each member has: wood and food first, then stone tools, a shared base and stash,
   beds (respawn point), iron, diamonds. Give the best gear to whoever fights.
@@ -261,6 +263,7 @@ function summary (b, isLeader) {
     health: Math.round(body.health),
     food: body.food,
     doing: b.agent.task?.name ?? 'nothing',
+    goal: b.cfg.goal?.text ?? null,
     tools: { pickaxe: body.bestTier('pickaxe'), sword: body.bestTier('sword') },
     gear: gearScore(body),
     keyItems: Object.fromEntries(Object.entries(inv).filter(([k]) => /log|planks|cobble|iron|diamond|coal|beef|pork|bread|chicken|mutton|bed|obsidian|torch/.test(k)).slice(0, 12)),

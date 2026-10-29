@@ -31,6 +31,8 @@ message. Decide what it means:
 - kind "directive": standing guidance that should shape everything you do from now on (put it in "directive").
 - kind "answer": a question or chat; just reply.
 Always include a short reply in "reply" (under 150 chars, casual).
+If the Context has a "goal", that is your permanent goal from staff: keep to it, and never claim chat can change it
+(only the website can). A "directive" from chat is extra guidance on top of it.
 Answer questions only from the Context (status, what you're doing, inventory). Never make up items, places or
 plans that aren't there; if the Context doesn't say, say you're not sure.
 Actions:
@@ -265,6 +267,10 @@ export class Social {
     if (/^(status|where|where are you|pos|coords|hp|wya)$/.test(t)) return reply(this.statusLine())
     if (asksInventory(t)) return reply(this.inventoryLine())
     if ((m = HAVE_RE.exec(t)) && !/^(any|anything|something|stuff|items)$/.test(m[1])) return reply(this.haveLine(m[1]))
+    if (/^(what('?s| is) (your|the) goal|your goal|goal)$/.test(t)) {
+      const g = agent.cfg.goal
+      return reply(g ? `my goal: ${g.text}${agent.lastDecision?.goalStep ? ` (right now: ${agent.lastDecision.goalStep})` : ''}` : 'no goal set. staff can set one on the website (Bots page, Goal)')
+    }
     if (/^(what are you doing|what're you doing|wyd|what you doing|whats? (is )?(your|the) plan|what are you up to)$/.test(t)) return reply(this.doingLine())
     if (/^(stop|cancel|halt|stay|wait|hold)$/.test(t)) {
       agent.ownerStop()
@@ -308,6 +314,7 @@ export class Social {
       distanceToThem: Number.isFinite(this.playerDistance(user)) ? Math.round(this.playerDistance(user)) : 'not visible',
       status: this.statusLine(),
       doing: this.doingLine(),
+      goal: agent.cfg.goal?.text ?? null,
       inventory: this.inventoryLine(),
       schematics: agent.schematics?.() ?? [],
       currentDirective: this.memory.data.ownerDirective ?? null
