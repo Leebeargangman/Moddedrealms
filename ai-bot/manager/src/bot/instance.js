@@ -174,7 +174,9 @@ export class BotInstance extends EventEmitter {
       return this.start()
     }
     this.setState('starting')
-    await this.bridge.request('connect', { host: this.cfg.server }).catch(e => this.log('connect failed:', e.message))
+    // Check the version again: the server may have updated, or the first check got no answer.
+    const version = await detectServerVersion(this.cfg.server)
+    await this.bridge.request('connect', { host: this.cfg.server, version }).catch(e => this.log('connect failed:', e.message))
   }
 
   async switchServer (server) {

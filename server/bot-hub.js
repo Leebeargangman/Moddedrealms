@@ -53,6 +53,30 @@ const connectors = new Map(); // user id -> { userId, name, models, lastSeen, qu
 const llmJobs = new Map(); // job id -> { userId, resolve, reject, timer }
 const streams = new Set(); // staff SSE responses
 
+// Each host's last snapshot, kept on disk: while a host is off (PC shut down, website restarted) the Bot tab
+// still lists its bots as offline instead of showing nothing.
+const HOSTS_FILE = path.join(config.dataDir, "bot-hosts.json");
+try {
+  for (const [name, h] of Object.entries(JSON.parse(fs.readFileSync(HOSTS_FILE, "utf8")))) {
+    if (MANAGER_NAME.test(name) && h && h.snapshot) {
+      managers.set(name, { name, lastSeen: Number(h.lastSeen) || 0, snapshot: h.snapshot, queue: [], waiters: new Set(), reportedOffline: true });
+    }
+  }
+} catch {
+  // first run, or an unreadable file: start empty
+}
+let saveTimer = null;
+function saveHosts() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    const out = {};
+    for (const m of managers.values()) if (m.snapshot) out[m.name] = { lastSeen: m.lastSeen, snapshot: m.snapshot };
+    fs.writeFile(HOSTS_FILE, JSON.stringify(out), () => {});
+  }, 30_000);
+  saveTimer.unref();
+}
+
 const sha256 = (s) => crypto.createHash("sha256").update(s).digest("hex");
 const newId = () => crypto.randomBytes(6).toString("hex");
 
@@ -152,7 +176,10 @@ async function handleBotlink(req, res, pathname) {
     if (req.method !== "POST") return methodNotAllowed(res, "POST");
     const body = await jsonBodyOrError(req, res, 2 * 1024 * 1024);
     if (!body) return;
-    if (body.snapshot && typeof body.snapshot === "object") m.snapshot = body.snapshot;
+    if (body.snapshot && typeof body.snapshot === "object") {
+      m.snapshot = body.snapshot;
+      saveHosts();
+    }
     for (const ev of (Array.isArray(body.events) ? body.events : []).slice(0, 500)) {
       if (ev && typeof ev.type === "string") publish({ ...ev, manager: m.name });
     }

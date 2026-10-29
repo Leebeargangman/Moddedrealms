@@ -41,7 +41,7 @@
     return o;
   }
 
-  var STATE_TAGS = { online: "green", starting: "yellow", offline: "red", stopped: "grey" };
+  var STATE_TAGS = { online: "green", starting: "yellow", offline: "red", stopped: "grey", "host offline": "grey" };
 
   /* ---------- Talking to the hub ---------- */
 
@@ -155,9 +155,10 @@
 
   function render() {
     var all = [];
-    onlineHosts().forEach(function (m) {
+    // Bots on a host that's offline (PC shut down) stay listed, greyed out, so they don't seem to vanish.
+    hosts().forEach(function (m) {
       m.snapshot.bots.forEach(function (b) {
-        all.push({ manager: m.name, bot: b });
+        all.push({ manager: m.name, bot: m.online ? b : Object.assign({}, b, { state: "host offline", offlineReason: m.name + " is offline" }) });
       });
     });
     $('[data-stat="hosts"]').textContent = onlineHosts().length;
@@ -175,7 +176,8 @@
 
     var list = $("[data-bots]");
     list.replaceChildren();
-    if (!all.length) list.appendChild(el("p", "empty", onlineHosts().length ? "No bots yet. Add a Minecraft account, then press New bot." : "No bot host is connected. Start the bot manager on the VPS or your PC."));
+    if (!onlineHosts().length) list.appendChild(offlineNotice());
+    else if (!all.length) list.appendChild(el("p", "empty", "No bots yet. Add a Minecraft account, then press New bot."));
     all.forEach(function (x) {
       list.appendChild(botCard(x.manager, x.bot));
     });
@@ -184,6 +186,19 @@
     renderAccounts();
     renderConnectors();
     renderHosts();
+  }
+
+  /** No host connected: say which ones are off and how to start one. */
+  function offlineNotice() {
+    var box = el("div", "notice");
+    var names = hosts().map(function (m) {
+      return m.name + (m.lastSeen ? " (last seen " + new Date(m.lastSeen).toLocaleString() + ")" : "");
+    });
+    box.appendChild(el("p", null, names.length ? "Bot host offline: " + names.join(", ") + ". Bots can't be started or added until it's back." : "No bot host has connected yet."));
+    var how = el("p", "muted small", "On that computer, open the ai-bot/manager folder and run ");
+    how.appendChild(el("code", null, "node src/manager.js"));
+    box.appendChild(how);
+    return box;
   }
 
   function botCard(manager, b) {
@@ -568,7 +583,7 @@
     e.preventDefault();
     var f = e.target;
     var host = f.elements.manager.value || (onlineHosts()[0] && onlineHosts()[0].name);
-    if (!host) return MR.toast("No bot host is connected.");
+    if (!host) return MR.toast("No bot host is connected. Start the bot manager on your PC or the VPS.");
     command(host, "addOffline", { name: f.elements.name.value.trim() }, function (ev) {
       if (ev.ok) {
         f.elements.name.value = "";
@@ -579,7 +594,7 @@
 
   $("[data-link-ms]").addEventListener("click", function () {
     var host = $("[data-host-select]").value || (onlineHosts()[0] && onlineHosts()[0].name);
-    if (!host) return MR.toast("No bot host is connected.");
+    if (!host) return MR.toast("No bot host is connected. Start the bot manager on your PC or the VPS.");
     command(host, "linkMicrosoft", {}, function (ev) {
       if (ev.result && ev.result !== "starting Microsoft sign-in") {
         $("[data-link-code]").hidden = true;
@@ -640,7 +655,7 @@
 
   $("[data-new-bot]").addEventListener("click", function () {
     var host = onlineHosts()[0];
-    if (!host) return MR.toast("No bot host is connected.");
+    if (!host) return MR.toast("No bot host is connected. Start the bot manager on your PC or the VPS.");
     var form = el("form", "form");
     var hostSel = select("manager", onlineHosts().map(function (m) { return [m.name, m.name + " (" + m.snapshot.freeMemMb + " MB free)"]; }));
     var accSel = select("account", []);
@@ -682,7 +697,7 @@
 
   $("[data-new-team]").addEventListener("click", function () {
     var host = onlineHosts()[0];
-    if (!host) return MR.toast("No bot host is connected.");
+    if (!host) return MR.toast("No bot host is connected. Start the bot manager on your PC or the VPS.");
     var form = el("form", "form");
     var hostSel = select("manager", onlineHosts().map(function (m) { return [m.name, m.name]; }));
     var membersBox = el("div", "chips");

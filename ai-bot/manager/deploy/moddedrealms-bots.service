@@ -1,0 +1,23 @@
+# Starts the bot manager when you log in to a desktop PC, and restarts it if it crashes.
+# Install (as your normal user, not root), from the project folder:
+#   mkdir -p ~/.config/systemd/user
+#   cp ai-bot/manager/deploy/moddedrealms-bots.service ~/.config/systemd/user/
+#   systemctl --user enable --now moddedrealms-bots
+# Edit WorkingDirectory first if the project isn't in ~/Moddedrealms.
+# Logs: journalctl --user -u moddedrealms-bots -f    Stop for good: systemctl --user disable --now moddedrealms-bots
+
+[Unit]
+Description=Moddedrealms AI bot manager
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/Moddedrealms/ai-bot/manager
+ExecStart=/usr/bin/env node src/manager.js
+Restart=on-failure
+RestartSec=20
+# The manager stops its Minecraft clients itself on SIGTERM.
+KillMode=mixed
+TimeoutStopSec=40
+
+[Install]
+WantedBy=default.target

@@ -145,15 +145,25 @@ export class Team extends EventEmitter {
     for (const hungry of online) {
       if (hungry.body.health >= 12 || hungry.body.bestFood()) continue
       const name = hungry.session.name
-      if (online.some(b => b.agent?.task?.name === 'give' && b.agent.task.meta?.args?.name === name)) continue
+      const givingTo = b => (b.agent?.task?.name === 'give' && b.agent.task.meta?.args?.name === name) ||
+        (b.agent?.order?.action === 'give' && b.agent.order.args?.name === name)
+      if (online.some(givingTo)) continue
       const giver = online
         .filter(b => b !== hungry && !isBusy(b, 'give') && b.body.bestFood())
         .sort((a, b) => b.body.bestFood().count - a.body.bestFood().count)[0]
       if (!giver) continue
       const food = giver.body.bestFood()
       this.order(giver, 'give', { item: food.item, count: Math.min(4, food.count), name }, `${name} is hurt and has no food`)
+      this.order(hungry, 'wait', { seconds: 30 }, 'waiting for food')
       this.whisper(giver, hungry, `bringing you some ${food.item.replace(/_/g, ' ')}, stay put`)
     }
+  }
+
+  /** `from` threw `item` at a member: that member goes and picks it up. */
+  handedOver (from, toName, item) {
+    const to = this.members().find(b => b.session?.name?.toLowerCase() === String(toName).toLowerCase())
+    if (!to?.agent || to === from) return
+    this.order(to, 'pick_up', { item }, `${from.session.name} threw it ${item.replace(/_/g, ' ')}`)
   }
 
   async plan (leader, online) {
