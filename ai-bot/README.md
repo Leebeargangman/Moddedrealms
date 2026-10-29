@@ -83,7 +83,8 @@ Edit `manager.json`:
 }
 ```
 
-Start it with `node src/manager.js`. Without a website configured it runs the bots and teams marked `autoStart` in
+Start it with `node src/manager.js`. On a desktop PC you can have it start whenever you log in (and restart if
+it crashes) with the user service in `deploy/moddedrealms-bots.service`; the file explains the two commands. Without a website configured it runs the bots and teams marked `autoStart` in
 `data/bots.json` / `data/teams.json`, and writes what each bot is doing to `data/status.json` every 5 seconds. In a container without systemd, use `bash deploy/start-container.sh`, which
 restarts the manager if it crashes. The first bot start downloads Java 25, Minecraft and the mods (about 400 MB).
 
