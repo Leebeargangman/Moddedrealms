@@ -254,6 +254,8 @@
     kvRow(dl, "Offline", b.offlineReason);
     if (b.stats) kvRow(dl, "Deaths", b.stats.deaths);
     if (b.stats && b.stats.blocksMoved != null) kvRow(dl, "Walked", b.stats.blocksMoved + " blocks");
+    if (b.stats && b.stats.builds) kvRow(dl, "Built", b.stats.builds + (b.stats.builds === 1 ? " thing" : " things"));
+    if (b.personality) kvRow(dl, "Personality", b.personality);
     $("[data-detail-kv]").replaceChildren(dl);
     renderGoal(b, false); // never refill the box here: it would wipe what someone is typing
 
@@ -537,6 +539,11 @@
       return a.name === b.account;
     })[0];
     if (match) acc.value = match.id;
+    // Test players have no account, server or mode to change, but do have a personality.
+    var test = isTestHost(state.managers[manager]);
+    [f.elements.server, f.elements.account, f.elements.mode].forEach(function (x) { x.closest(".field").hidden = test; });
+    $("[data-personality-field]", f).hidden = !test;
+    f.elements.personality.value = b.personality || "";
     var model = String(b.model || "");
     f.elements.source.value = model === "rules only" ? "off" : /on .+'s PC/.test(model) ? "connector" : "vps";
     f.elements.model.value = model.split(" ")[0] === "rules" ? "" : model.split(" ")[0];
@@ -670,7 +677,8 @@
       if (isTestHost(m)) {
         var p = s.perf || {};
         var tb = [s.server, "TPS " + p.tps + ", " + p.mspt + " ms/tick", p.testPlayers + " test players (max " + s.maxBots + "), " + p.players + " real players",
-          p.chunksHeld + " chunks held by test players, " + p.loadedChunks + " loaded", "heap " + p.heapUsedMb + " / " + p.heapMaxMb + " MB"];
+          p.chunksHeld + " chunks held by test players, " + p.loadedChunks + " loaded", "heap " + p.heapUsedMb + " / " + p.heapMaxMb + " MB",
+          p.buildZones ? p.builds + " builds in " + p.buildZones + " build zone" + (p.buildZones === 1 ? "" : "s") : "no build zones"];
         if (s.ollama) tb.push(s.ollama.up === false ? "Ollama not reachable" : "models: " + (s.ollama.models.map(function (x) { return x.name; }).join(", ") || "none"));
         box.appendChild(el("p", "muted small host-info", tb.join(" · ")));
         return;
@@ -801,9 +809,12 @@
     var source = f.elements.source.value;
     var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.elements.model.value.trim() || undefined };
     if (source === "connector") ai.connector = state.me.username;
-    var changes = { server: f.elements.server.value.trim(), account: f.elements.account.value, ai: ai, behavior: { mode: f.elements.mode.value } };
+    var test = isTestHost(state.managers[selected.manager]);
+    var changes = test
+      ? { ai: ai, personality: f.elements.personality.value.trim() || null }
+      : { server: f.elements.server.value.trim(), account: f.elements.account.value, ai: ai, behavior: { mode: f.elements.mode.value } };
     command(selected.manager, "updateBot", { bot: selected.bot, changes: changes }, function (ev) {
-      if (ev.ok) MR.toast("Saved. Account changes apply the next time the bot starts.");
+      if (ev.ok) MR.toast(test ? "Saved." : "Saved. Account changes apply the next time the bot starts.");
     });
   });
 
@@ -962,13 +973,15 @@
     form.appendChild(field("Name (shown here)", input("name", "e.g. Builder")));
     var serverField = field("Server", input("server", "host:port", "152.53.114.44:25576"));
     form.appendChild(serverField);
-    var testNote = el("p", "muted small", "A test player: a simulated player on that server for performance testing. It needs no Minecraft account and appears at the server's spawn (website.spawn-at in the plugin's config).");
+    var testNote = el("p", "muted small", "A test player: a simulated player on that server. It needs no Minecraft account and appears at the server's spawn (website.spawn-at in the plugin's config).");
     form.appendChild(testNote);
+    var personalityField = field("Personality", input("personality", "builder, explorer, leader, joker, nervous, grumpy, friendly, random, or your own words"));
+    form.appendChild(personalityField);
     // Test player servers spawn their own test players: no account or server address to pick.
     function showTestFields() {
       var test = isTestHost(state.managers[hostSel.value]);
       accField.hidden = serverField.hidden = test;
-      testNote.hidden = !test;
+      testNote.hidden = personalityField.hidden = !test;
     }
     hostSel.addEventListener("change", showTestFields);
     showTestFields();
@@ -1004,7 +1017,9 @@
       var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.model.value.trim() || "qwen2.5:7b" };
       if (source === "connector") ai.connector = state.me.username;
       var goal = f.goal.value.replace(/\s+/g, " ").trim();
-      command(f.manager.value, "createBot", { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai, goal: goal || undefined }, function (ev) {
+      var args = { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai, goal: goal || undefined };
+      if (isTestHost(state.managers[f.manager.value])) args.personality = f.personality.value.trim() || undefined;
+      command(f.manager.value, "createBot", args, function (ev) {
         if (ev.ok) {
           modal.close();
           selected = { manager: f.manager.value, bot: ev.result.id };

@@ -29,6 +29,17 @@ respawn-on-start: true
 # Shown in front of everything a test player says in chat, so nobody mistakes it for a real player.
 chat-prefix: "[Test] "
 
+building:
+  # Test players only build inside these zones, and never over blocks that are already there.
+  # Add them in game with /testplayer zone add <name> <radius> (a square around you), or here as
+  # name: "world,x1,z1,x2,z2". No zones = no building.
+  zones: {}
+  blocks-per-second: 3
+  # Most structures one test player keeps (/testplayer undo <name> removes them).
+  max-builds-per-player: 6
+  # How long an AI test player waits after finishing a build before it may start another.
+  cooldown-seconds: 120
+
 ai:
   # Ollama for test players whose AI runs on this machine ("Bot host" on the Bots page).
   ollama-url: "http://127.0.0.1:11434"
