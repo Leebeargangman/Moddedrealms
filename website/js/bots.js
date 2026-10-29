@@ -437,8 +437,19 @@
       return { ok: true, text: "✓ Fits on " + where + "'s GPU, but only by swapping out " + others.map(function (x) { return x.name; }).join(", ") + ": slow while other bots use that one." + dl };
     }
     if (spare == null) return { ok: null, text: "Can't tell how much memory " + where + " has." + dl };
+    // Too big for the free VRAM: Ollama puts what fits on the GPU and the rest in RAM (same as the manager).
+    // If other models fill the GPU, Ollama unloads them first (when idle), so count their VRAM too.
+    var room = gpu ? gpu.freeMb + swappable - 512 : 0;
+    if (room >= 1024 && need - room + 500 <= spare) {
+      var share = Math.round((room / need) * 100);
+      return {
+        ok: true,
+        text: "✓ Splits across " + where + "'s GPU and RAM: " + gb(room) + " in VRAM (" + share + "%), " + gb(need - room + 500) + " in RAM. Works, but slower than all on the GPU" + (share < 50 ? " (mostly CPU, expect 10 s+ per decision)." : ".") +
+          (others.length && gpu.freeMb - 512 < room ? " Ollama unloads " + others.map(function (x) { return x.name; }).join(", ") + " to make room, so bots using that one wait while they swap." : "") + dl,
+      };
+    }
     if (need <= spare) {
-      var slow = !gpu && size > 3000 ? " Slow without a GPU (expect 20 s+ per decision)." : gpu ? " Too big for the GPU, so it runs on the CPU: slow." : "";
+      var slow = !gpu && size > 3000 ? " Slow without a GPU (expect 20 s+ per decision)." : gpu ? " The GPU is full, so it runs on the CPU: slow." : "";
       return { ok: true, text: "✓ Fits in " + where + "'s RAM (" + gb(need) + " of " + gb(spare) + " spare)." + slow + dl };
     }
     return {
