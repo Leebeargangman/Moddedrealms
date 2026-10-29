@@ -60,11 +60,19 @@ export function removeAccount (id) {
   fs.rmSync(cacheDir(id), { recursive: true, force: true })
 }
 
-/** Credentials to launch the client with: { name, uuid, accessToken } or { name, offline: true }. */
-export async function session (id) {
+/**
+ * Credentials to launch the client with: { name, uuid, accessToken } or { name, offline: true }.
+ * fresh: drop the cached Minecraft token first. It's reused until its expiry time, but Mojang can turn it down
+ * earlier ("Invalid session", e.g. after the account signs in somewhere else). The Microsoft and Xbox sign-ins
+ * stay, so no new code is needed.
+ */
+export async function session (id, { fresh = false } = {}) {
   const acc = getAccount(id)
   if (!acc) throw new Error(`unknown account ${id}`)
   if (acc.type === 'offline') return { name: acc.name, uuid: acc.uuid, offline: true }
+  if (fresh && fs.existsSync(cacheDir(id))) {
+    for (const f of fs.readdirSync(cacheDir(id)).filter(f => f.endsWith('_mca-cache.json'))) fs.rmSync(path.join(cacheDir(id), f), { force: true })
+  }
   const flow = new Authflow(id, cacheDir(id), FLOW, () => {
     throw new Error(`the Microsoft sign-in for ${acc.name} expired: link the account again in the Bot tab`)
   })
