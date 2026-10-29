@@ -61,18 +61,31 @@ export function watchHost (ollamaUrl) {
 
 export const hostInfo = () => cache
 
+// VRAM Ollama leaves for the CUDA runtime, and the smallest share of a model worth putting on the GPU.
+const GPU_OVERHEAD_MB = 512
+const MIN_GPU_SHARE_MB = 1024
+
+/**
+ * How a model of `needMb` would sit on this machine: Ollama puts as many layers as fit in free VRAM on the
+ * GPU and the rest in RAM. Returns { gpuMb, ramMb } (ramMb includes ~500 MB of runtime either way).
+ */
+export function splitModel (needMb, gpu) {
+  const room = gpu ? gpu.freeMb - GPU_OVERHEAD_MB : 0
+  if (room >= needMb) return { gpuMb: needMb, ramMb: 500 }
+  if (room >= MIN_GPU_SHARE_MB) return { gpuMb: room, ramMb: needMb - room + 500 }
+  return { gpuMb: 0, ramMb: needMb }
+}
+
 /**
  * Extra RAM a bot's AI would take on this machine when it starts: 0 if the model is already loaded or
- * the AI isn't local, a little if it fits on the GPU, else the whole model.
+ * the AI isn't local, else the part of the model that doesn't fit in free VRAM.
  */
 export function modelRamMb (ai) {
   if (!ai || ai.enabled === false || ai.source === 'connector' || !ai.model) return 0
   const { gpu, ollama } = cache
   if (ollama.loaded.some(m => m.name === ai.model)) return 0
   const size = ollama.models.find(m => m.name === ai.model)?.sizeMb ?? guessModelMb(ai.model) ?? 4700
-  const need = modelNeedMb(size)
-  if (gpu && gpu.freeMb >= need) return 500
-  return need
+  return splitModel(modelNeedMb(size), gpu).ramMb
 }
 
 /** Pull a model this machine doesn't have yet, in the background. Resolves when it's ready (or failed). */
