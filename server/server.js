@@ -385,7 +385,8 @@ async function handle(req, res) {
   if (req.method !== "GET" && req.method !== "HEAD") return methodNotAllowed(res, "GET, HEAD");
 
   if (pathname.length > 1 && pathname.endsWith("/")) {
-    return redirect(res, 301, pathname.replace(/\/+$/, "") + url.search);
+    // Collapse leading slashes too: "//evil.com" would be a redirect to another site.
+    return redirect(res, 301, "/" + pathname.replace(/^\/+|\/+$/g, "") + url.search);
   }
   if (pathname === "/index.html") return redirect(res, 301, "/");
   if (pathname === "/robots.txt") return sendRobots(req, res);
@@ -430,7 +431,7 @@ server.listen(config.port, config.host, () => {
   console.log(`  Data folder:     ${config.dataDir}`);
   console.log(`  Discord webhook: feedback=${config.feedbackWebhook ? "on" : "off"}, reports=${config.reportWebhook ? "on" : "off"}`);
   console.log(`  Account linking: ${config.pluginApiKey ? "on" : "off (set PLUGIN_API_KEY)"}`);
-  console.log(`  Email:           ${mailEnabled() ? `on (${config.smtp.host})` : "off (set SMTP_HOST and SMTP_FROM)"}`);
+  console.log(`  Email:           ${mailEnabled() ? `on (${config.smtp.host})` : "off (set SMTP_HOST, SMTP_FROM and SITE_URL)"}`);
 });
 
 function shutdown(signal) {

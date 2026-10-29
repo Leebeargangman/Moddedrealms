@@ -110,6 +110,9 @@ function clientIp(req) {
 }
 
 function sameOrigin(req) {
+  // Browsers send Sec-Fetch-Site even when they leave out Origin; only our own pages (or the user typing a URL) pass.
+  const fetchSite = firstHeader(req.headers["sec-fetch-site"]).toLowerCase();
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") return false;
   const origin = req.headers.origin;
   if (!origin) return true;
   let originHost;

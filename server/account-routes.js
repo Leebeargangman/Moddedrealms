@@ -13,7 +13,7 @@ const { config } = require("./config");
 const { db, nowIso, transaction } = require("./db");
 const accounts = require("./accounts");
 const { sendMail, mailEnabled } = require("./mailer");
-const { sendJson, methodNotAllowed, jsonBodyOrError, clientIp, sameOrigin, isSecureRequest, siteUrlFor, cleanText, has } = require("./http");
+const { sendJson, methodNotAllowed, jsonBodyOrError, clientIp, sameOrigin, isSecureRequest, cleanText, has } = require("./http");
 const { REPORT_REASONS, REPORT_LOCATIONS, REPORT_STATUSES, FEEDBACK_CATEGORIES, FEEDBACK_STATUSES, MC_NAME } = require("./forms");
 
 const LINK_CODE_TTL = 10 * 60 * 1000;
@@ -90,14 +90,14 @@ function canEmail(user) {
   return Boolean(mailEnabled() && user && user.email && user.email_verified && user.email_notify);
 }
 
-function emailFooter(req) {
-  const site = siteUrlFor(req);
+function emailFooter() {
+  const site = config.siteUrl;
   return `\n\n-- \nModdedrealms${site ? `\n${site}/account` : ""}\nYou can turn these emails off on your account page.`;
 }
 
 async function sendVerification(req, user, email) {
   const { token } = accounts.createToken("verify", user.id, VERIFY_TTL, email);
-  const link = `${siteUrlFor(req)}/verify-email?token=${token}`;
+  const link = `${config.siteUrl}/verify-email?token=${token}`;
   return sendMail({
     to: email,
     subject: "Confirm your email for Moddedrealms",
@@ -183,7 +183,7 @@ async function forgot(req, res) {
     sendMail({
       to: user.email,
       subject: "Reset your Moddedrealms password",
-      text: `Hi ${user.username},\n\nSomeone (hopefully you) asked to reset the password for your Moddedrealms account. Choose a new password here:\n\n${siteUrlFor(req)}/reset?token=${token}\n\nThe link works for 1 hour. If you didn't ask for this, you can ignore this email and your password stays the same.`,
+      text: `Hi ${user.username},\n\nSomeone (hopefully you) asked to reset the password for your Moddedrealms account. Choose a new password here:\n\n${config.siteUrl}/reset?token=${token}\n\nThe link works for 1 hour. If you didn't ask for this, you can ignore this email and your password stays the same.`,
     });
   }
   // Same answer either way, so this can't be used to find out who has an account.
@@ -233,6 +233,7 @@ async function changePassword(req, res, user) {
   if (problem) return sendJson(res, 422, { ok: false, fields: { password: problem } });
   q.setPassword.run(await accounts.hashPassword(body.password), user.id);
   accounts.endOtherSessions(req, user);
+  accounts.dropTokens(user.id, "reset");
   sendJson(res, 200, { ok: true });
 }
 
@@ -245,6 +246,8 @@ async function changeEmail(req, res, user) {
   if (email && q.emailTaken.get(email, user.id)) return sendJson(res, 422, { ok: false, fields: { email: "That email is already used by another account." } });
   accounts.hit(`email:${user.id}`);
   q.setEmail.run(email || null, user.id);
+  // Reset links already sent to the old address stop working.
+  accounts.dropTokens(user.id, "reset");
   const fresh = accounts.getUser(user.id);
   const sent = email && mailEnabled() ? await sendVerification(req, fresh, email) : false;
   sendJson(res, 200, { ok: true, user: accounts.publicUser(fresh), verificationSent: sent });
@@ -462,7 +465,7 @@ async function updateReport(req, res, staff, id) {
       sendMail({
         to: reporter.email,
         subject: `Update on your report ${id}`,
-        text: `Hi ${reporter.username},\n\nYour report about ${report.reported_name} (${REPORT_REASONS[report.reason] || report.reason}) has been updated.\n\nStatus: ${REPORT_STATUSES[status]}${response ? `\n\nMessage from staff:\n${response}` : ""}${emailFooter(req)}`,
+        text: `Hi ${reporter.username},\n\nYour report about ${report.reported_name} (${REPORT_REASONS[report.reason] || report.reason}) has been updated.\n\nStatus: ${REPORT_STATUSES[status]}${response ? `\n\nMessage from staff:\n${response}` : ""}${emailFooter()}`,
       });
     }
   }
@@ -474,7 +477,7 @@ async function updateReport(req, res, staff, id) {
       sendMail({
         to: reported.email,
         subject: "A report about you was reviewed",
-        text: `Hi ${reported.username},\n\nA report about your Minecraft account ${reported.mc_name} on Moddedrealms has been reviewed by staff.\n\nReason: ${REPORT_REASONS[report.reason] || report.reason}\nWhere: ${REPORT_LOCATIONS[report.location] || "Not specified"}\nOutcome: ${REPORT_STATUSES[status]}\n\nYou can see this on your account page. If you have questions, contact staff on our Discord.${emailFooter(req)}`,
+        text: `Hi ${reported.username},\n\nA report about your Minecraft account ${reported.mc_name} on Moddedrealms has been reviewed by staff.\n\nReason: ${REPORT_REASONS[report.reason] || report.reason}\nWhere: ${REPORT_LOCATIONS[report.location] || "Not specified"}\nOutcome: ${REPORT_STATUSES[status]}\n\nYou can see this on your account page. If you have questions, contact staff on our Discord.${emailFooter()}`,
       });
     }
   }
@@ -498,7 +501,7 @@ async function updateFeedback(req, res, staff, id) {
       sendMail({
         to: author.email,
         subject: `Staff replied to your feedback ${id}`,
-        text: `Hi ${author.username},\n\nThanks for your feedback! Staff replied:\n\n${reply}\n\nStatus: ${FEEDBACK_STATUSES[status]}${emailFooter(req)}`,
+        text: `Hi ${author.username},\n\nThanks for your feedback! Staff replied:\n\n${reply}\n\nStatus: ${FEEDBACK_STATUSES[status]}${emailFooter()}`,
       });
     }
   }
@@ -537,8 +540,14 @@ async function pluginLink(req, res) {
   const code = String(body.code || "").trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) return sendJson(res, 400, { ok: false, message: "That code doesn't look right. It's 6 letters and numbers from the website." });
 
+  // Codes are short enough to type in-game, so stop a player from guessing other people's codes.
+  const tryKey = `link-try:${player.uuid}`;
+  if (accounts.limited(tryKey, 10, 15 * 60 * 1000)) return sendJson(res, 429, { ok: false, message: "Too many wrong codes. Wait a few minutes and try again." });
   const token = accounts.useToken("link", code);
-  if (!token) return sendJson(res, 404, { ok: false, message: "That code is wrong or has expired. Get a new one on the website." });
+  if (!token) {
+    accounts.hit(tryKey);
+    return sendJson(res, 404, { ok: false, message: "That code is wrong or has expired. Get a new one on the website." });
+  }
 
   const user = accounts.getUser(token.user_id);
   const now = nowIso();

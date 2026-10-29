@@ -230,6 +230,11 @@ function escapeMd(value) {
   return String(value).replace(/([\\*_`~|<>[\]()#@:-])/g, "\\$1");
 }
 
+/** Percent-encode the characters Discord reads as markdown, so a link can't pose as a masked link to another site. */
+function escapeUrl(url) {
+  return String(url).replace(/[[\]()<>*_~`|]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
+}
+
 function truncate(value, max) {
   const s = String(value);
   return s.length > max ? s.slice(0, max - 1) + "…" : s;
@@ -267,7 +272,7 @@ function buildEmbed(type, r) {
       embedField("Reported by", escapeMd(r.reporterName) + (r.reporterVerified ? " ✅ verified" : "")),
       embedField("Reporter's Discord", r.discordName ? escapeMd(r.discordName) : "Not given"),
       embedField("When", escapeMd(when)),
-      embedField("Evidence", r.evidence.length ? r.evidence.join("\n") : "None provided", false),
+      embedField("Evidence", r.evidence.length ? r.evidence.map(escapeUrl).join("\n") : "None provided", false),
     ],
     footer: { text: "Moddedrealms website · player report" },
     timestamp: r.createdAt,

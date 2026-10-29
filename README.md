@@ -113,7 +113,7 @@ This installs Node.js and Caddy, runs the site as a background service that star
 
 #### Option C: You already run nginx or Apache
 
-Run the Node server as a service (see `deploy/moddedrealms.service`, with `HOST=127.0.0.1` and `TRUST_PROXY=true` in `.env`) and proxy your domain to it. For nginx:
+Run the Node server as a service (see `deploy/moddedrealms.service`, with `HOST=127.0.0.1`, `TRUST_PROXY=true` and `SITE_URL=https://yourdomain.com` in `.env`) and proxy your domain to it. For nginx:
 
 ```nginx
 server {
@@ -121,6 +121,7 @@ server {
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
@@ -214,7 +215,7 @@ sudo docker compose exec web node server/manage.js admin add YOUR_USERNAME
 
 ### Optional: email
 
-Fill in `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` in `.env` with details from any email provider (for example a Gmail address with an [app password](https://myaccount.google.com/apppasswords): host `smtp.gmail.com`, port `587`). Then restart the site. Players can then add an email on their account page. After they confirm it, they get emails when staff update their reports, reply to their feedback, or close a report about them, and they can reset a forgotten password. Without email, players who forget their password can ask staff, who run `manage.js password USERNAME`.
+Fill in `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` in `.env` (and make sure `SITE_URL` is set) with details from any email provider (for example a Gmail address with an [app password](https://myaccount.google.com/apppasswords): host `smtp.gmail.com`, port `587`). Then restart the site. Players can then add an email on their account page. After they confirm it, they get emails when staff update their reports, reply to their feedback, or close a report about them, and they can reset a forgotten password. Without email, players who forget their password can ask staff, who run `manage.js password USERNAME`.
 
 ---
 
@@ -245,7 +246,7 @@ Your `.env` settings and saved submissions are kept.
 | Setting | What it does |
 |---|---|
 | `DOMAIN` | Your domain, e.g. `moddedrealms.net` (Docker uses it for HTTPS). |
-| `SITE_URL` | Full site URL, used for Discord/Twitter link previews. Docker sets it from `DOMAIN`. |
+| `SITE_URL` | Full site URL, used for Discord/Twitter link previews and links in emails (email stays off without it). Docker sets it from `DOMAIN`. |
 | `DISCORD_WEBHOOK_URL` | Where feedback and reports are posted. |
 | `DISCORD_FEEDBACK_WEBHOOK_URL` / `DISCORD_REPORT_WEBHOOK_URL` | Optional separate channels. |
 | `DISCORD_REPORT_PING_ROLE_ID` | Optional role to @mention on new reports. |
