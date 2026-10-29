@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import { chatJSON } from '../llm.js'
 import { SKILLS, ARGS_SCHEMA } from '../agent/skills.js'
 import { gearScore } from '../agent/combat.js'
+import { pickBearing } from '../util.js'
 
 const TOGETHER_RADIUS = 48 // everyone within this of the leader counts as "together"
 const MOVING = new Set(['travel_far', 'goto', 'explore', 'come_to'])
@@ -55,7 +56,7 @@ export class Team extends EventEmitter {
     this.feed = [] // recent team events for the website
     this.hurtSaid = new Map() // bot id -> when it last asked for help
     // Anarchy mode: everyone leaves spawn through the nether in the same direction, so they end up near each other.
-    this.heading = Math.floor(Math.random() * 8) * Math.PI / 4
+    this.heading = pickBearing()
   }
 
   members () { return this.cfg.members.map(id => this.bots.get(id)).filter(Boolean) }

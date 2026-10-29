@@ -1,7 +1,7 @@
 // The bot's body: friendly wrappers over the bridge mod (state, Baritone, inventory, containers).
 import { check, wait, isAbort, tierOf } from '../util.js'
 
-const FOODS = {
+export const FOODS = {
   enchanted_golden_apple: 12, golden_apple: 9.6, golden_carrot: 20.4, cooked_beef: 20.8, cooked_porkchop: 20.8,
   cooked_mutton: 15.6, cooked_salmon: 15.6, cooked_chicken: 13.2, cooked_rabbit: 11, baked_potato: 11, cooked_cod: 11,
   bread: 11, mushroom_stew: 13.2, rabbit_stew: 22, beetroot_soup: 13.2, pumpkin_pie: 12.8, apple: 6.4, carrot: 6.6,
