@@ -69,7 +69,9 @@ export class Agent extends EventEmitter {
     this.running = true
     this.gen = (this.gen ?? 0) + 1
     // Baritone defaults that suit a bot: use the whole inventory for building, don't break chests.
-    for (const cmd of ['set allowInventory true', 'set allowParkour true', 'set blocksToAvoidBreaking chest,trapped_chest,barrel,shulker_box,ender_chest,crafting_table,furnace']) {
+    // Pressure plates and tripwire are how traps are set off (TNT, dispensers, pistons): never step on them.
+    const traps = 'tripwire,stone_pressure_plate,oak_pressure_plate,light_weighted_pressure_plate,heavy_weighted_pressure_plate,polished_blackstone_pressure_plate'
+    for (const cmd of ['set allowInventory true', 'set allowParkour true', 'set blocksToAvoidBreaking chest,trapped_chest,barrel,shulker_box,ender_chest,crafting_table,furnace', `set blocksToAvoid ${traps}`]) {
       this.body.baritone(cmd).catch(() => {})
     }
     this.reflexTimer = setInterval(() => this.reflexTick(), 250)

@@ -253,7 +253,11 @@ async function handleLlm(req, res, pathname) {
     const body = await jsonBodyOrError(req, res);
     if (!body) return;
     c.models = (Array.isArray(body.models) ? body.models : []).map(String).filter((s) => /^[\w.:/-]{1,64}$/.test(s)).slice(0, 50);
-    publish({ type: "connector", who: c.name, online: true, models: c.models });
+    // Memory and GPU of the staff member's computer, so the Bots page can say which models fit there.
+    const mb = (o) => (o && Number.isFinite(o.totalMb) && Number.isFinite(o.freeMb) ? { totalMb: Math.round(o.totalMb), freeMb: Math.round(o.freeMb) } : null);
+    c.mem = mb(body.mem);
+    c.gpu = mb(body.gpu);
+    publish({ type: "connector", who: c.name, online: true, models: c.models, mem: c.mem, gpu: c.gpu });
     return sendJson(res, 200, { ok: true, name: c.name });
   }
   if (pathname === "/api/llm/poll") {
@@ -282,7 +286,7 @@ function staffState(user) {
     ok: true,
     me: { username: user.username, minecraft: user.mc_name || null },
     managers: [...managers.values()].map((m) => ({ name: m.name, online: Date.now() - m.lastSeen < ONLINE_MS, lastSeen: m.lastSeen, snapshot: m.snapshot })),
-    connectors: [...connectors.values()].map((c) => ({ name: c.name, models: c.models, online: Date.now() - c.lastSeen < ONLINE_MS, mine: c.userId === user.id })),
+    connectors: [...connectors.values()].map((c) => ({ name: c.name, models: c.models, mem: c.mem || null, gpu: c.gpu || null, online: Date.now() - c.lastSeen < ONLINE_MS, mine: c.userId === user.id })),
     builds: q.builds.all(),
     events: recentEvents(200),
   };

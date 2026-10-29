@@ -1,6 +1,7 @@
 import { chatJSON } from '../llm.js'
 import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { HOSTILE, RANGED, gearScore } from './combat.js'
+import { FOODS } from './body.js'
 
 // Private messages as formatted by vanilla and common server plugins. Lines starting with "<"
 // are public chat, so a player can't fake these by typing them.
@@ -17,6 +18,11 @@ const HOSTILE_TRUST = -50 // at or below: flee on sight, never talk
 const TALK_CAP = 70 // talking alone can't make a stranger fully trusted
 const PASSIVE_CAP = 30 // trust earned just by being near us without attacking
 
+// Natural ways of asking what the bot carries; these get the real inventory, not a guess from the AI.
+const INV_RE = /\b(inv|inventory|invent|items|bags?|pockets|loot)\b|what (do|have) you (got|have|carry)|what('?s| is) on you|what are you (carrying|holding)|what('?ve| have) you got/
+const asksInventory = t => INV_RE.test(t) && !/\b(drop|give|throw|clear|empty|put|stash|store)\b/.test(t)
+const HAVE_RE = /^(?:do you (?:have|got)|you got|got any|have you got|how many|how much) (?:any )?([a-z][a-z _]{1,30}?)(?: do you (?:have|got))?$/
+
 const HELP = 'commands: status, inv, come [x z], follow, stop, auto, goto x z, give <item> [n], build <file> [x y z], rejoin, or just tell me what to do'
 
 const ownerSystem = me => `You are ${me}, a Minecraft survival bot. Your owner or a staff member just sent you a
@@ -25,6 +31,8 @@ message. Decide what it means:
 - kind "directive": standing guidance that should shape everything you do from now on (put it in "directive").
 - kind "answer": a question or chat; just reply.
 Always include a short reply in "reply" (under 150 chars, casual).
+Answer questions only from the Context (status, what you're doing, inventory). Never make up items, places or
+plans that aren't there; if the Context doesn't say, say you're not sure.
 Actions:
 ${Object.entries(SKILLS).map(([k, v]) => `- ${k} ${v.args}: ${v.desc}`).join('\n')}`
 
@@ -158,7 +166,8 @@ export class Social {
       const r = this.record(e.name)
       if (r.passive < PASSIVE_CAP && Math.random() < 2 / 30) { r.passive++; r.trust++ }
       // Might say something when a stranger first comes close.
-      if (this.cfg.greetStrangers && rel === 'unknown' && e.dist < 16 &&
+      // On anarchy servers saying hi just tells a killer you're there.
+      if (this.cfg.greetStrangers && this.agent.cfg.behavior.mode !== 'anarchy' && rel === 'unknown' && e.dist < 16 &&
           Date.now() - (this.greeted.get(e.name) ?? 0) > 15 * 60e3) {
         this.greeted.set(e.name, Date.now())
         this.enqueue({ kind: 'stranger', user: e.name, text: null, channel: 'whisper' })
@@ -254,7 +263,9 @@ export class Social {
 
     if (/^(help|commands|\?)$/.test(t)) return reply(HELP)
     if (/^(status|where|where are you|pos|coords|hp|wya)$/.test(t)) return reply(this.statusLine())
-    if (/^(inv|inventory|items)$/.test(t)) return reply(this.inventoryLine())
+    if (asksInventory(t)) return reply(this.inventoryLine())
+    if ((m = HAVE_RE.exec(t)) && !/^(any|anything|something|stuff|items)$/.test(m[1])) return reply(this.haveLine(m[1]))
+    if (/^(what are you doing|what're you doing|wyd|what you doing|whats? (is )?(your|the) plan|what are you up to)$/.test(t)) return reply(this.doingLine())
     if (/^(stop|cancel|halt|stay|wait|hold)$/.test(t)) {
       agent.ownerStop()
       return reply('ok, stopped. waiting for orders ("auto" to go back to normal)')
@@ -296,6 +307,8 @@ export class Social {
       from: user,
       distanceToThem: Number.isFinite(this.playerDistance(user)) ? Math.round(this.playerDistance(user)) : 'not visible',
       status: this.statusLine(),
+      doing: this.doingLine(),
+      inventory: this.inventoryLine(),
       schematics: agent.schematics?.() ?? [],
       currentDirective: this.memory.data.ownerDirective ?? null
     }
@@ -336,8 +349,30 @@ export class Social {
   }
 
   inventoryLine () {
+    if (!this.body.inWorld) return `can't check, not in a world right now (${this.statusLine()})`
     const parts = Object.entries(this.body.inventory()).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`)
-    return parts.length ? parts.join(', ') : 'empty'
+    const eq = this.body.equipment()
+    const worn = ['head', 'chest', 'legs', 'feet', 'offhand'].map(k => eq[k]?.item).filter(Boolean).map(i => i.replace(/_/g, ' '))
+    return `${parts.length ? parts.join(', ') : 'nothing in my bags'}${worn.length ? `. wearing: ${worn.join(', ')}` : ''}`
+  }
+
+  /** "do you have diamonds" / "how many logs": count anything whose id contains the word. */
+  haveLine (what) {
+    if (!this.body.inWorld) return this.inventoryLine()
+    const word = what.replace(/^(any|some|a|an)\s+/, '').replace(/\s+/g, '_').replace(/(es|s)$/, '')
+    const hits = Object.entries(this.body.inventory()).filter(([k]) => word === 'food' ? k in FOODS : k.includes(word))
+    if (!hits.length) return `no ${what}`
+    return hits.map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`).join(', ')
+  }
+
+  doingLine () {
+    const agent = this.agent
+    const task = agent.task?.name
+    const why = agent.lastDecision?.thought
+    const escape = agent.cfg.behavior.mode === 'anarchy' ? agent.instance.escapeStatus?.() : null
+    if (!this.body.inWorld) return this.statusLine()
+    const what = task ? task.replace(/_/g, ' ') : agent.autonomous ? 'deciding what to do next' : 'waiting for orders'
+    return `${what}${why && task ? ` (${why})` : ''}${escape && !/out of spawn/.test(escape) ? `, anarchy: ${escape}` : ''}`.slice(0, 200)
   }
 
   // ------------------------------------------------------------ strangers

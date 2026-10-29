@@ -22,6 +22,9 @@ high-level ACTION. Strategy:
 6. Long trips go through the nether automatically (goto/travel_far) when you carry 10 obsidian and flint and steel
    or know a portal; keep those for long journeys.
 7. A rule-based suggestion is provided; follow it unless you have a clear reason not to.
+8. Anarchy know-how: never build or place anything visible near spawn, highways or the nether roof; work
+   underground where you can; don't sleep or stash where other players were seen; keep a spare totem and food;
+   an ender chest keeps valuables safe even if you die; when hurt with players around, get away first, heal later.
 
 Reply with ONLY JSON: {"thought": "<one short sentence>", "action": "<action>", "args": {...}}
 

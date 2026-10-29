@@ -1,4 +1,9 @@
-import { HOSTILE, FLEE_ONLY, RANGED, fight, flee, equipBestArmor, ensureTotem } from './combat.js'
+import { HOSTILE, FLEE_ONLY, RANGED, fight, flee, equipBestArmor, ensureTotem, gearScore } from './combat.js'
+
+// Things that blow up, and how close is too close. End crystals and TNT minecarts are how people kill on anarchy servers.
+const EXPLOSIVE = { tnt: 9, tnt_minecart: 9, end_crystal: 10, wither_skull: 10, wither: 40 }
+// Held items that mean a player came to fight.
+const ARMED = /_sword$|_axe$|^bow$|^crossbow$|^trident$|^mace$|^end_crystal$|^respawn_anchor$|^tnt$|^flint_and_steel$/
 
 // Task priorities: higher interrupts lower.
 export const PRI = { brain: 1, owner: 1.5, eat: 2, mob: 3, player: 4, hazard: 5 }
@@ -45,6 +50,16 @@ export class Reflexes {
       body.b.request('key', { key: 'jump', down: drowning }).catch(() => {})
     }
 
+    const boom = this.explosiveThreat()
+    if (boom && cur < PRI.hazard) {
+      agent.memory.event(`ran from ${boom.type.replace(/_/g, ' ')} (${Math.round(boom.dist)}m)`)
+      agent.runTask(`flee_${boom.type}`, PRI.hazard, s => flee(agent.ctx, boom.id, EXPLOSIVE[boom.type] + 8, s, 15000).catch(err => {
+        if (err.message === 'cornered') return 'cornered by an explosive'
+        throw err
+      }))
+      return
+    }
+
     const player = this.playerThreat()
     if (player && cur < PRI.player) {
       this.fledFrom.set(player.name, Date.now())
@@ -55,6 +70,11 @@ export class Reflexes {
           return await flee(agent.ctx, player.id, player.fleeTo, s, 45000)
         } catch (err) {
           if (err.message !== 'cornered') throw err
+          // Anarchy: someone who corners us usually wants our stuff. With gear worth taking, leave the server.
+          if (this.anarchy && (gearScore(body) >= 6 || player.armed || rel === 'hostile')) {
+            agent.instance.autoLogoff(`cornered by ${player.name}`)
+            return 'logged off to get away'
+          }
           // Never throw the first punch at a stranger; fight back once they attacked us.
           if (rel === 'hostile') return fight(agent.ctx, player.id, s, 15000)
           return 'cornered by a stranger, holding still'
@@ -88,7 +108,20 @@ export class Reflexes {
     }
   }
 
+  get anarchy () { return this.cfg.mode === 'anarchy' }
+
+  explosiveThreat () {
+    let best = null
+    for (const e of this.body.entities()) {
+      const r = EXPLOSIVE[e.type]
+      if (r && e.dist <= r && (!best || e.dist < best.dist)) best = e
+    }
+    return best
+  }
+
   // Hostile players: flee at long range. Strangers: keep a careful distance. Trusted/staff: ignore.
+  // On anarchy servers every stranger may be a killer: keep twice as far, and further still from armed or
+  // well-geared ones (they're not there to chat).
   playerThreat () {
     const social = this.agent.social
     let best = null
@@ -96,11 +129,13 @@ export class Reflexes {
       if (!e.name || e.name === this.body.name) continue
       const rel = social?.relation(e.name) ?? 'unknown'
       if (['owner', 'staff', 'friend', 'trusted', 'team'].includes(rel)) continue
-      const radius = rel === 'hostile' ? this.cfg.fleePlayerRadius : this.cfg.carefulRadius
+      const armed = ARMED.test(e.held ?? '') || (e.armor ?? []).some(a => /^(diamond|netherite)_/.test(a))
+      let radius = rel === 'hostile' ? this.cfg.fleePlayerRadius : this.cfg.carefulRadius
+      if (this.anarchy) radius = Math.max(radius * 2, rel === 'hostile' ? 48 : 0) * (armed ? 1.5 : 1)
       if (e.dist > radius) continue
       const recently = Date.now() - (this.fledFrom.get(e.name) ?? 0) < 20000
       if (recently && e.dist > Math.min(10, radius * 0.6)) continue
-      if (!best || e.dist < best.dist) best = { ...e, fleeTo: radius + (rel === 'hostile' ? 24 : 10) }
+      if (!best || e.dist < best.dist) best = { ...e, armed, fleeTo: radius + (rel === 'hostile' ? 24 : 10) }
     }
     return best
   }

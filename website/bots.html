@@ -135,11 +135,12 @@
                       <div class="field"><label for="set-server">Server</label><input class="input" id="set-server" name="server" maxlength="100"></div>
                       <div class="field"><label for="set-account">Account</label><select class="input" id="set-account" name="account"></select></div>
                       <div class="field"><label for="set-source">AI runs on</label>
-                        <select class="input" id="set-source" name="source"><option value="vps">The bot host</option><option value="connector">My computer (connector)</option><option value="off">No AI (rules only)</option></select></div>
-                      <div class="field"><label for="set-model">Model</label><input class="input" id="set-model" name="model" maxlength="64" placeholder="qwen2.5:7b"></div>
+                        <select class="input" id="set-source" name="source"><option value="vps">Same computer as the bot</option><option value="connector">My computer, through the connector</option><option value="off">No AI (rules only)</option></select></div>
+                      <div class="field"><label for="set-model-pick">Model</label><select class="input" id="set-model-pick" data-model-pick></select><input class="input" id="set-model" name="model" maxlength="64" placeholder="model name, e.g. llama3.1:8b" hidden></div>
                       <div class="field"><label for="set-mode">Mode</label>
                         <select class="input" id="set-mode" name="mode"><option value="survival">Survival: settle in and get stronger</option><option value="anarchy">Anarchy: leave spawn through the nether first</option></select></div>
                     </div>
+                    <p class="small model-hint" data-model-hint></p>
                     <p class="muted small">Anarchy mode is for servers like 2b2t and 9b9t: on joining, the bot takes the nearest nether portal, travels far through the nether until it gets hungry, then comes back out and survives there. It starts over if it dies without a bed.</p>
                     <div class="form-actions">
                       <button class="btn btn-danger btn-sm" type="button" data-remove-bot>Remove bot</button>

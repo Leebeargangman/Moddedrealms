@@ -2,7 +2,8 @@
 // portal, far along the nether (1 block there = 8 here) until food runs low, then back out and live there.
 // Anarchy worlds are full of portals players left behind, so it only uses existing ones, never builds.
 // Progress is kept in memory.data.escape so a rejoin carries on where it stopped.
-import { check, isAbort, wait } from '../util.js'
+// The nether run goes off the highways (axes and diagonals): they're where the killers wait.
+import { check, isAbort, wait, pickBearing, offHighway } from '../util.js'
 import { usePortal, nearbyPortals, knownPortal } from './travel.js'
 
 const SEGMENT = 250 // nether blocks per Baritone trip
@@ -15,7 +16,7 @@ export async function escapeSpawn (ctx, args, signal) {
   const { body, cfg, memory, log } = ctx
   const opts = { maxNetherBlocks: 15000, foodLow: 6, ...(cfg.behavior.anarchy ?? {}) }
   // Teammates share one direction so they come out near each other.
-  const e = memory.data.escape ??= { heading: ctx.team()?.heading ?? Math.floor(Math.random() * 8) * Math.PI / 4, startedAt: new Date().toISOString() }
+  const e = memory.data.escape ??= { heading: ctx.team()?.heading ?? pickBearing(), startedAt: new Date().toISOString() }
   memory.save()
 
   if (body.dimension === 'overworld' && !e.entered) await enterNether(ctx, e, signal)
@@ -81,7 +82,7 @@ async function netherRun (ctx, e, opts, signal) {
       if (isAbort(err)) throw err
       // Lava lake, wall... after a few failures bend the route a little.
       if (++fails >= 3) {
-        e.heading += (Math.random() < 0.5 ? -1 : 1) * Math.PI / 8
+        e.heading = offHighway(e.heading + (Math.random() < 0.5 ? -1 : 1) * Math.PI / 8)
         fails = 0
       }
     }
@@ -106,10 +107,10 @@ async function leaveNether (ctx, e, signal) {
     if (seen && await tryPortals(ctx, seen, tried, signal)) return
     if (Math.hypot(body.pos.x - target.x, body.pos.z - target.z) > 20 && !seen) {
       // Blocked (lava, a wall): bend the route a little, alternating sides.
-      e.heading = base + (++fails % 2 ? 1 : -1) * Math.min(fails, 6) * Math.PI / 12
+      e.heading = offHighway(base + (++fails % 2 ? 1 : -1) * Math.min(fails, 6) * Math.PI / 12)
     } else {
       fails = 0
-      e.heading = (e.heading + base) / 2 // drift back to the original direction
+      e.heading = offHighway((e.heading + base) / 2) // drift back to the original direction
     }
   }
   // Last resort: the nearest portal Baritone has seen, even if it's behind us.

@@ -37,10 +37,23 @@ async function site (path, body, timeoutMs = 15000) {
   return data
 }
 
+/** Total and free GPU memory in MB (NVIDIA only), so the Bots page can say which models fit here. */
+function gpuInfo () {
+  return new Promise(resolve => {
+    require('child_process').execFile('nvidia-smi', ['--query-gpu=memory.total,memory.free', '--format=csv,noheader,nounits'], { timeout: 5000 }, (err, out) => {
+      if (err) return resolve(null)
+      const rows = String(out).trim().split('\n').map(l => l.split(',').map(Number)).filter(r => r.length === 2 && r.every(n => n >= 0))
+      resolve(rows.length ? { totalMb: rows.reduce((n, r) => n + r[0], 0), freeMb: rows.reduce((n, r) => n + r[1], 0) } : null)
+    })
+  })
+}
+
 async function hello () {
+  const os = require('os')
   const tags = await fetch(`${OLLAMA}/api/tags`).then(r => r.json())
   const models = (tags.models || []).map(m => m.name)
-  const r = await site('/api/llm/hello', { models })
+  const mem = { totalMb: Math.round(os.totalmem() / 1048576), freeMb: Math.round(os.freemem() / 1048576) }
+  const r = await site('/api/llm/hello', { models, mem, gpu: await gpuInfo() })
   log(`connected as ${r.name}; models: ${models.join(', ') || 'none (run: ollama pull qwen2.5:7b)'}`)
 }
 

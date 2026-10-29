@@ -1,7 +1,7 @@
 // Everything the AI can choose to do, built on Baritone and the bridge mod.
 import fs from 'node:fs'
 import path from 'node:path'
-import { check, wait, isAbort, hdist, tierOf, isNightTime } from '../util.js'
+import { check, wait, isAbort, hdist, tierOf, isNightTime, pickBearing } from '../util.js'
 import { travelTo } from './travel.js'
 import { fight, gearScore } from './combat.js'
 import { readLitematic, missingMaterials, normalizeLitematic } from '../build/litematic.js'
@@ -534,12 +534,6 @@ async function build (ctx, args, signal) {
 }
 
 // ---------------------------------------------------------------- travel
-
-// 2b2t highways run along the axes and diagonals; walk on a bearing 15-30 degrees off them.
-function pickBearing () {
-  const sector = Math.floor(Math.random() * 8)
-  return (sector * 45 + 15 + Math.random() * 15) * Math.PI / 180
-}
 
 // Stranded far above everything (sky platform, griefed tower) with nothing to lose: respawn with /kill.
 async function escapeIfStranded (ctx, signal) {

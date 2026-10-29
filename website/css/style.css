@@ -3969,3 +3969,16 @@ button.row:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.model-hint {
+  margin: 0;
+  color: var(--muted, inherit);
+}
+
+.model-hint.is-bad {
+  color: var(--red-hi);
+}
+
+.field .input + .input {
+  margin-top: 0.4rem;
+}

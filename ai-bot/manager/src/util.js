@@ -38,3 +38,17 @@ export function tierOf (name) {
 }
 
 export const isNightTime = t => t >= 12542 && t <= 23460
+
+// 2b2t-style highways run along the axes and diagonals; walk on a bearing 15-30 degrees off them.
+export function pickBearing () {
+  const sector = Math.floor(Math.random() * 8)
+  return (sector * 45 + 15 + Math.random() * 15) * Math.PI / 180
+}
+
+/** Nudge a bearing that has drifted within 10 degrees of a highway back off it. */
+export function offHighway (a) {
+  const d = ((a * 180 / Math.PI) % 45 + 45) % 45
+  if (d < 10) return a + (10 - d) * Math.PI / 180
+  if (d > 35) return a - (d - 35) * Math.PI / 180
+  return a
+}
