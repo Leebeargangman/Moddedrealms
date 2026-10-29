@@ -83,6 +83,9 @@ Edit `manager.json`:
 }
 ```
 
+A bot runs on the host it was created on. To run bots on the VPS, the VPS needs its own manager (these same steps,
+with `"name": "vps"`); until then everything runs on whichever PC has one. Only one manager runs per folder.
+
 Start it with `node src/manager.js`. On a desktop PC you can have it start whenever you log in (and restart if
 it crashes) with the user service in `deploy/moddedrealms-bots.service`; the file explains the two commands. Without a website configured it runs the bots and teams marked `autoStart` in
 `data/bots.json` / `data/teams.json`, and writes what each bot is doing to `data/status.json` every 5 seconds. In a container without systemd, use `bash deploy/start-container.sh`, which
@@ -92,6 +95,11 @@ On the website, set `BOT_MANAGER_KEY` in `.env` (any long random string, e.g. `o
 value in each manager's `manager.json`. Then open **Bots** in the staff menu.
 
 ### Models
+
+The Bots page lists models (Qwen 2.5 from 0.5b to 32b, Llama 3.x, Gemma 2, Mistral, Phi 3.5, or any Ollama name) and
+marks each one ✓ or ✗ for the computer it would run on, from that machine's free RAM and GPU. A model the bot host
+doesn't have yet downloads when the bot starts; the bot plays on its built-in rules until it's ready. The manager
+refuses to start a bot if it would leave less than `reserveMemMb` (default 1536 MB) free for the system.
 
 Pull one model per machine and use it for every bot there: `ollama pull qwen2.5:7b`. On an 8 GB GPU,
 **qwen2.5:7b** fits entirely in VRAM and answers in a few seconds, and Ollama serves several bots in parallel.

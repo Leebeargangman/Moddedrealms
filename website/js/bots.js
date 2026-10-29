@@ -99,7 +99,9 @@
       if (known) {
         known.online = ev.online;
         if (ev.models) known.models = ev.models;
-      } else state.connectors.push({ name: ev.who, online: ev.online, models: ev.models || [], mine: ev.who === state.me.username });
+        if (ev.mem !== undefined) known.mem = ev.mem;
+        if (ev.gpu !== undefined) known.gpu = ev.gpu;
+      } else state.connectors.push({ name: ev.who, online: ev.online, models: ev.models || [], mem: ev.mem || null, gpu: ev.gpu || null, mine: ev.who === state.me.username });
       return renderConnectors();
     }
     if (ev.type === "upload") {
@@ -237,6 +239,7 @@
     $("[data-detail-name]").textContent = b.name;
     $("[data-detail-tag]").replaceChildren(tag(b.state, STATE_TAGS[b.state]));
     var dl = el("dl", "kv");
+    kvRow(dl, "Runs on", selected.manager + (state.managers[selected.manager] && !state.managers[selected.manager].online ? " (offline)" : ""));
     kvRow(dl, "Account", b.account);
     kvRow(dl, "Server", b.server);
     kvRow(dl, "AI", b.model);
@@ -338,6 +341,161 @@
     return (m && m.snapshot && m.snapshot.accounts) || [];
   }
 
+  /* ---------- Models: which ones fit where ---------- */
+
+  // Ollama models that work with the bots (any model does, these are the tested sizes). Download size in GB.
+  var MODELS = [
+    ["qwen2.5:0.5b", 0.4, "tiny, weak plans"],
+    ["qwen2.5:1.5b", 1.0, "very small"],
+    ["qwen2.5:3b", 1.9, "best for hosts without a GPU"],
+    ["qwen2.5:7b", 4.7, "recommended"],
+    ["qwen2.5:14b", 9.0, "smarter, needs a big GPU"],
+    ["qwen2.5:32b", 20, "smartest, needs 24 GB+"],
+    ["llama3.2:1b", 1.3, "very small"],
+    ["llama3.2:3b", 2.0, "small"],
+    ["llama3.1:8b", 4.9, "good all-rounder"],
+    ["gemma2:2b", 1.6, "small"],
+    ["gemma2:9b", 5.4, "good planner"],
+    ["mistral:7b", 4.1, "fast"],
+    ["mistral-nemo:12b", 7.1, "smarter"],
+    ["phi3.5:3.8b", 2.2, "small"],
+  ];
+  var CLIENT_MB = 1900; // one Minecraft client: 1400 MB heap + ~500 MB outside it
+  var RESERVE_MB = 1536; // left free for the system (the manager's default)
+
+  var gb = function (mb) { return (Math.round(mb / 102.4) / 10) + " GB"; };
+
+  /** Where a model would run: a bot host (its Ollama) or a staff member's own computer (connector). */
+  function aiPlace(source, manager) {
+    if (source === "connector") {
+      var c = state.connectors.filter(function (x) { return x.mine; })[0];
+      if (!c || !c.online) return { name: "your computer", missing: "Your connector isn't running, so the bot would use its built-in rules." };
+      return {
+        name: "your computer",
+        connector: true,
+        freeMb: c.mem ? c.mem.freeMb : null,
+        reserveMb: RESERVE_MB,
+        gpu: c.gpu,
+        installed: (c.models || []).map(function (n) { return { name: n }; }),
+        loaded: [],
+      };
+    }
+    var m = state.managers[manager];
+    var s = m && m.snapshot;
+    if (!s) return { name: manager || "the bot host", missing: "No bot host picked." };
+    var o = s.ollama || {};
+    return {
+      name: s.host || m.name,
+      offline: !m.online,
+      noOllama: o.up === false,
+      freeMb: s.freeMemMb,
+      reserveMb: s.reserveMemMb || RESERVE_MB,
+      gpu: s.gpu,
+      installed: o.models || [],
+      loaded: o.loaded || [],
+      pulling: o.pulling || [],
+    };
+  }
+
+  function modelSizeMb(name, place) {
+    var have = (place.installed || []).filter(function (x) { return x.name === name && x.sizeMb; })[0];
+    if (have) return have.sizeMb;
+    var known = MODELS.filter(function (x) { return x[0] === name; })[0];
+    if (known) return known[1] * 1024;
+    var b = /[:-](\d+(?:\.\d+)?)b\b/i.exec(name);
+    return b ? Number(b[1]) * 620 + 200 : null;
+  }
+
+  /**
+   * Can this model run at `place`? newClient: a Minecraft client for this bot still has to start on the
+   * same machine (new or stopped bot, AI on the bot host). Returns { ok: true|false|null, text }.
+   */
+  function modelFit(name, place, newClient) {
+    if (place.missing) return { ok: null, text: place.missing };
+    var size = modelSizeMb(name, place);
+    var need = size ? size + 600 : null;
+    var installed = (place.installed || []).some(function (x) { return x.name === name || x.name === name + ":latest"; });
+    var where = place.name;
+    var dl = "";
+    if (!installed) {
+      if (place.connector) return { ok: false, text: "Not on your computer yet: run  ollama pull " + name + "  then restart the connector." };
+      dl = (place.pulling || []).indexOf(name) >= 0 ? " Downloading now." : " Not downloaded on " + where + " yet: it downloads when the bot starts" + (size ? " (" + gb(size) + ")" : "") + ".";
+    }
+    if (place.noOllama) return { ok: false, text: "Ollama isn't running on " + where + ", so the bot would use its built-in rules." };
+    var loaded = (place.loaded || []).filter(function (x) { return x.name === name; })[0];
+    if (loaded) return { ok: true, text: "✓ Already loaded on " + where + (loaded.vramMb ? " (GPU)." : ".") };
+    if (!need) return { ok: null, text: "Unknown model size, can't tell if it fits on " + where + "." + dl };
+    var spare = place.freeMb == null ? null : place.freeMb - place.reserveMb - (newClient ? CLIENT_MB : 0);
+    if (newClient && spare != null && spare < 0) {
+      return { ok: false, text: "✗ " + where + " can't take another bot: its Minecraft client needs about " + gb(CLIENT_MB) + " and only " + gb(place.freeMb) + " is free, with " + gb(place.reserveMb) + " kept for the system. Pick another computer or stop a bot there." };
+    }
+    var gpu = place.gpu;
+    if (gpu && gpu.freeMb >= need) return { ok: true, text: "✓ Fits on " + where + "'s GPU (" + gb(need) + " of " + gb(gpu.freeMb) + " free), fast." + dl };
+    var others = (place.loaded || []).filter(function (x) { return x.vramMb; });
+    var swappable = others.reduce(function (n, x) { return n + x.vramMb; }, 0);
+    if (gpu && gpu.freeMb + swappable >= need) {
+      return { ok: true, text: "✓ Fits on " + where + "'s GPU, but only by swapping out " + others.map(function (x) { return x.name; }).join(", ") + ": slow while other bots use that one." + dl };
+    }
+    if (spare == null) return { ok: null, text: "Can't tell how much memory " + where + " has." + dl };
+    if (need <= spare) {
+      var slow = !gpu && size > 3000 ? " Slow without a GPU (expect 20 s+ per decision)." : gpu ? " Too big for the GPU, so it runs on the CPU: slow." : "";
+      return { ok: true, text: "✓ Fits in " + where + "'s RAM (" + gb(need) + " of " + gb(spare) + " spare)." + slow + dl };
+    }
+    return {
+      ok: false,
+      text: "✗ Too big for " + where + ": needs about " + gb(need) + ", only " + gb(Math.max(0, spare)) + " spare after " + (newClient ? "the bot's Minecraft client and " : "") + gb(place.reserveMb) + " kept free for the system." + (dl && " (Not downloaded either.)"),
+    };
+  }
+
+  /**
+   * A model dropdown that labels each model ✓/✗ for where it would run, with a hint line underneath.
+   * The text input (name="model") holds the value, so forms read it as before; "Other" lets you type any name.
+   */
+  function modelPicker(select, inputEl, hint, getPlace) {
+    function refresh() {
+      var place = getPlace();
+      var cur = inputEl.value.trim();
+      var names = MODELS.map(function (x) { return x[0]; });
+      (place.installed || []).forEach(function (x) {
+        if (names.indexOf(x.name) < 0) names.push(x.name);
+      });
+      select.replaceChildren();
+      names.forEach(function (n) {
+        var fit = modelFit(n, place.place, place.newClient);
+        var info = MODELS.filter(function (x) { return x[0] === n; })[0];
+        var size = modelSizeMb(n, place.place);
+        var mark = fit.ok === true ? "✓ " : fit.ok === false ? "✗ " : "";
+        select.appendChild(option(n, mark + n + (size ? " · " + gb(size) : "") + (info ? " · " + info[2] : " · downloaded"), cur));
+      });
+      select.appendChild(option("__other", "Other (type a model name)…", null));
+      if (cur && names.indexOf(cur) < 0) select.value = "__other";
+      else if (!cur) {
+        select.value = "qwen2.5:7b";
+        inputEl.value = "qwen2.5:7b";
+      }
+      showHint();
+    }
+    function showHint() {
+      var other = select.value === "__other";
+      inputEl.hidden = !other;
+      var name = inputEl.value.trim();
+      var place = getPlace();
+      var fit = name ? modelFit(name, place.place, place.newClient) : { ok: null, text: "Type an Ollama model name, e.g. llama3.1:8b" };
+      hint.textContent = fit.text;
+      hint.className = "small model-hint" + (fit.ok === false ? " is-bad" : "");
+    }
+    select.addEventListener("change", function () {
+      if (select.value !== "__other") inputEl.value = select.value;
+      else {
+        inputEl.value = "";
+        inputEl.focus();
+      }
+      showHint();
+    });
+    inputEl.addEventListener("input", showHint);
+    return refresh;
+  }
+
   function fillSettings(b, manager) {
     var f = $("[data-settings-form]");
     f.elements.server.value = b.server || "";
@@ -354,7 +512,28 @@
     f.elements.source.value = model === "rules only" ? "off" : /on .+'s PC/.test(model) ? "connector" : "vps";
     f.elements.model.value = model.split(" ")[0] === "rules" ? "" : model.split(" ")[0];
     f.elements.mode.value = b.mode === "anarchy" ? "anarchy" : "survival";
+    sourceLabels(f.elements.source, manager);
+    settingsModels();
   }
+
+  /** "AI runs on" says which machine: the bot host by name, or your own computer. */
+  function sourceLabels(sel, manager) {
+    var mine = state.connectors.filter(function (c) { return c.mine; })[0];
+    $$("option", sel).forEach(function (o) {
+      if (o.value === "vps") o.textContent = "Same computer as the bot (" + (manager || "bot host") + ")";
+      if (o.value === "connector") o.textContent = "My computer, through the connector" + (mine && mine.online ? "" : " (not running)");
+    });
+  }
+
+  var settingsForm = $("[data-settings-form]");
+  var settingsModels = modelPicker($("[data-model-pick]", settingsForm), settingsForm.elements.model, $("[data-model-hint]", settingsForm), function () {
+    var b = findBot(selected) || {};
+    var source = settingsForm.elements.source.value;
+    var place = aiPlace(source, selected && selected.manager);
+    if (source === "off") place = { missing: "No AI: the bot plays with its built-in rules only." };
+    return { place: place, newClient: source === "vps" && (b.state === "stopped" || !b.state) };
+  });
+  settingsForm.elements.source.addEventListener("change", function () { settingsModels(); });
 
   function renderTeams() {
     var box = $("[data-teams]");
@@ -433,6 +612,7 @@
       row.appendChild(el("span", null, c.name + (c.mine ? " (you)" : "")));
       row.appendChild(tag(c.online ? "connected" : "offline", c.online ? "green" : "grey"));
       if (c.online && c.models && c.models.length) row.appendChild(el("small", "muted", c.models.join(", ")));
+      if (c.online && c.mem) row.appendChild(el("small", "muted", gb(c.mem.freeMb) + " RAM free" + (c.gpu ? ", GPU " + gb(c.gpu.freeMb) + " free" : ", no GPU")));
       box.appendChild(row);
     });
   }
@@ -444,10 +624,17 @@
       var row = el("div", "account-row");
       row.appendChild(el("span", null, m.name));
       row.appendChild(tag(m.online ? "online" : "offline", m.online ? "green" : "grey"));
-      if (m.snapshot) row.appendChild(el("small", "muted", m.snapshot.freeMemMb + " MB free · max " + m.snapshot.maxBots + " bots"));
       box.appendChild(row);
+      var s = m.snapshot;
+      if (!s) return;
+      var bits = [gb(s.freeMemMb) + " free" + (s.totalMemMb ? " of " + gb(s.totalMemMb) : ""), gb(s.reserveMemMb || RESERVE_MB) + " kept for the system", "max " + s.maxBots + " bots"];
+      bits.push(s.gpu ? "GPU: " + gb(s.gpu.freeMb) + " of " + gb(s.gpu.totalMb) + " free" : "no GPU (AI runs on the CPU)");
+      if (s.ollama) bits.push(s.ollama.up === false ? "Ollama not running" : "models: " + (s.ollama.models.map(function (x) { return x.name; }).join(", ") || "none"));
+      box.appendChild(el("p", "muted small host-info", bits.join(" · ")));
     });
     if (!hosts().length) box.appendChild(el("p", "muted small", "Start the bot manager (ai-bot/manager) with this website's address and BOT_MANAGER_KEY."));
+    box.appendChild(el("p", "muted small", "A bot runs on the host it was created on: its Minecraft client and (unless it uses a connector) its AI." +
+      (hosts().some(function (m) { return /vps|server/i.test(m.name); }) ? "" : " No VPS host yet: install the bot manager on the VPS to run bots there.")));
   }
 
   function showLinkCode(ev) {
@@ -653,11 +840,45 @@
     return s;
   }
 
+  /** Every bot host, offline ones disabled, so it's clear which machines can run a bot right now. */
+  function hostSelect() {
+    var s = select("manager", []);
+    hosts().forEach(function (m) {
+      var snap = m.snapshot;
+      var o = option(m.name, m.online ? m.name + " (" + gb(snap.freeMemMb) + " free" + (snap.gpu ? ", GPU" : ", no GPU") + ")" : m.name + " (offline)");
+      o.disabled = !m.online;
+      s.appendChild(o);
+    });
+    var first = onlineHosts()[0];
+    if (first) s.value = first.name;
+    return s;
+  }
+
+  function hostHelp() {
+    var p = el("p", "muted small", "Only computers running the bot manager are listed. ");
+    if (!hosts().some(function (m) { return /vps|server/i.test(m.name); })) {
+      p.appendChild(document.createTextNode("The VPS isn't one yet, so bots can't run there: install the bot manager on it first (see ai-bot/README.md, \"Running a bot host\")."));
+    }
+    return p;
+  }
+
+  /** Model dropdown + "Other" text box + fit hint, appended to `form`. Returns its refresh function. */
+  function modelField(form, getPlace, name, label) {
+    var pickSel = el("select", "input");
+    var text = input(name || "model", "model name, e.g. llama3.1:8b", "qwen2.5:7b");
+    var hint = el("p", "small model-hint");
+    var f = field(label || "Model", pickSel);
+    f.appendChild(text);
+    form.appendChild(f);
+    form.appendChild(hint);
+    return modelPicker(pickSel, text, hint, getPlace);
+  }
+
   $("[data-new-bot]").addEventListener("click", function () {
     var host = onlineHosts()[0];
     if (!host) return MR.toast("No bot host is connected. Start the bot manager on your PC or the VPS.");
     var form = el("form", "form");
-    var hostSel = select("manager", onlineHosts().map(function (m) { return [m.name, m.name + " (" + m.snapshot.freeMemMb + " MB free)"]; }));
+    var hostSel = hostSelect();
     var accSel = select("account", []);
     function fillAccounts() {
       accSel.replaceChildren();
@@ -667,12 +888,24 @@
     }
     hostSel.addEventListener("change", fillAccounts);
     fillAccounts();
-    form.appendChild(field("Bot host", hostSel));
+    form.appendChild(field("Runs on (the computer that plays Minecraft)", hostSel));
+    form.appendChild(hostHelp());
     form.appendChild(field("Minecraft account", accSel));
     form.appendChild(field("Name (shown here)", input("name", "e.g. Builder")));
     form.appendChild(field("Server", input("server", "host:port", "152.53.114.44:25576")));
-    form.appendChild(field("AI runs on", select("source", [["vps", "The bot host"], ["connector", "My computer (connector)"], ["off", "No AI (rules only)"]])));
-    form.appendChild(field("Model", input("model", "qwen2.5:7b", "qwen2.5:7b")));
+    var sourceSel = select("source", [["vps", ""], ["connector", ""], ["off", "No AI (rules only)"]]);
+    form.appendChild(field("AI runs on", sourceSel));
+    var pick = modelField(form, function () {
+      var place = sourceSel.value === "off" ? { missing: "No AI: the bot plays with its built-in rules only." } : aiPlace(sourceSel.value, hostSel.value);
+      return { place: place, newClient: sourceSel.value === "vps" };
+    });
+    function refreshAi() {
+      sourceLabels(sourceSel, hostSel.value);
+      pick();
+    }
+    hostSel.addEventListener("change", refreshAi);
+    sourceSel.addEventListener("change", pick);
+    refreshAi();
     var actions = el("div", "form-actions");
     var submit = el("button", "btn btn-primary btn-sm", "Create");
     submit.type = "submit";
@@ -684,6 +917,7 @@
       if (!f.account.value) return MR.toast("Add a Minecraft account first.");
       var source = f.source.value;
       var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.model.value.trim() || "qwen2.5:7b" };
+      if (source === "connector") ai.connector = state.me.username;
       command(f.manager.value, "createBot", { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai }, function (ev) {
         if (ev.ok) {
           modal.close();
@@ -699,12 +933,13 @@
     var host = onlineHosts()[0];
     if (!host) return MR.toast("No bot host is connected. Start the bot manager on your PC or the VPS.");
     var form = el("form", "form");
-    var hostSel = select("manager", onlineHosts().map(function (m) { return [m.name, m.name]; }));
+    var hostSel = hostSelect();
     var membersBox = el("div", "chips");
     var leaderSel = select("leader", []);
     function fillMembers() {
       membersBox.replaceChildren();
       leaderSel.replaceChildren();
+      if (!state.managers[hostSel.value]) return;
       state.managers[hostSel.value].snapshot.bots.forEach(function (b) {
         var chip = el("label", "chip");
         var cb = el("input");
@@ -726,7 +961,14 @@
     mf.appendChild(membersBox);
     form.appendChild(mf);
     form.appendChild(field("Leader", leaderSel));
-    form.appendChild(field("Leader's model (smarter is better)", input("leaderModel", "qwen2.5:7b", "qwen2.5:7b")));
+    var leaderPick = modelField(form, function () {
+      var leader = (state.managers[hostSel.value] ? state.managers[hostSel.value].snapshot.bots : []).filter(function (b) { return b.id === leaderSel.value; })[0];
+      var source = leader && /on .+'s PC/.test(leader.model || "") ? "connector" : "vps";
+      return { place: aiPlace(source, hostSel.value), newClient: false };
+    }, "leaderModel", "Leader's model (smarter is better; the members keep their own)");
+    hostSel.addEventListener("change", leaderPick);
+    leaderSel.addEventListener("change", leaderPick);
+    leaderPick();
     var chatLabel = el("label", "check");
     var chatBox = el("input");
     chatBox.type = "checkbox";

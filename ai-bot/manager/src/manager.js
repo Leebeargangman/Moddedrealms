@@ -9,6 +9,7 @@ import { initLog, log } from './log.js'
 import { BotInstance } from './bot/instance.js'
 import { Team } from './team/team.js'
 import * as accounts from './bot/accounts.js'
+import { availableMemMb, totalMemMb, hostInfo, modelRamMb, ensureModel, pullingModels, watchHost } from './hostinfo.js'
 
 const DATA = path.join(ROOT, 'data')
 const BOTS_FILE = path.join(DATA, 'bots.json')
@@ -19,14 +20,7 @@ const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(f
 const writeJson = (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file + '.tmp', JSON.stringify(data, null, 2)); fs.renameSync(file + '.tmp', file) }
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'bot'
 
-/** MB of memory the OS says is available (Linux), or free memory elsewhere. */
-export function availableMemMb () {
-  try {
-    const m = /MemAvailable:\s+(\d+)/.exec(fs.readFileSync('/proc/meminfo', 'utf8'))
-    if (m) return Math.round(Number(m[1]) / 1024)
-  } catch {}
-  return Math.round(os.freemem() / 1048576)
-}
+export { availableMemMb }
 
 export class Manager extends EventEmitter {
   constructor (cfg = loadManagerConfig()) {
@@ -88,6 +82,10 @@ export class Manager extends EventEmitter {
       // Switched to anarchy mode: drop what it's doing so it heads for a portal now.
       if (bot.cfg.behavior.mode !== mode) bot.agent?.interruptBrain()
       if (changes.server && changes.server !== server) bot.switchServer(changes.server)
+      const ai = bot.cfg.ai
+      if (changes.ai && bot.state !== 'stopped' && ai.enabled !== false && ai.source !== 'connector' && hostInfo().ollama.up) {
+        ensureModel(this.cfg.ollamaUrl, ai.model, log).then(() => this.emitList())
+      }
     }
     this.emitList()
   }
@@ -107,9 +105,15 @@ export class Manager extends EventEmitter {
     const running = [...this.bots.values()].filter(b => b.state !== 'stopped').length
     if (running >= this.cfg.maxBots) throw new Error(`this machine already runs ${running} bots (maxBots ${this.cfg.maxBots})`)
     const free = availableMemMb()
-    const need = (bot.cfg.heapMb ?? 1400) + 500
-    if (free < Math.max(need, this.cfg.minFreeMemMb)) {
-      throw new Error(`not enough free memory: ${free} MB available, a bot needs about ${need} MB`)
+    const client = (bot.cfg.heapMb ?? 1400) + 500
+    const model = modelRamMb(bot.cfg.ai)
+    const reserve = this.reserveMemMb()
+    if (free - client - model < reserve) {
+      throw new Error(`not enough memory on ${this.hostName()}: ${free} MB free, this bot needs about ${client} MB` +
+        (model ? ` plus ${model} MB for ${bot.cfg.ai.model}` : '') + `, and ${reserve} MB stays free for the system`)
+    }
+    if (bot.cfg.ai.enabled !== false && bot.cfg.ai.source !== 'connector' && hostInfo().ollama.up) {
+      ensureModel(this.cfg.ollamaUrl, bot.cfg.ai.model, log).then(() => this.emitList())
     }
     await bot.start()
   }
@@ -150,6 +154,10 @@ export class Manager extends EventEmitter {
     const team = new Team({ cfg: spec, bots: this.bots, log })
     team.on('event', e => this.emit('event', e))
     this.teams.set(id, team)
+    const leaderAi = this.specs.find(s => s.id === spec.leader) && this.instance(spec.leader).cfg.ai
+    if (spec.leaderModel && leaderAi?.enabled !== false && leaderAi?.source !== 'connector' && hostInfo().ollama.up) {
+      ensureModel(this.cfg.ollamaUrl, spec.leaderModel, log).then(() => this.emitList())
+    }
     // Start members one by one: each client takes a while and a lot of CPU while loading.
     for (const m of spec.members) {
       try { await this.startBot(m) } catch (e) { log(`[team ${id}] could not start ${m}: ${e.message}`) }
@@ -180,10 +188,20 @@ export class Manager extends EventEmitter {
     return this.relay(staffName, request, timeoutMs)
   }
 
+  hostName () { return this.cfg.name ?? os.hostname() }
+
+  /** RAM left for the OS and everything else; never handed to bots or models. */
+  reserveMemMb () { return this.cfg.reserveMemMb ?? 1536 }
+
   snapshot () {
+    const { gpu, ollama } = hostInfo()
     return {
-      host: this.cfg.name ?? os.hostname(),
+      host: this.hostName(),
       freeMemMb: availableMemMb(),
+      totalMemMb: totalMemMb(),
+      reserveMemMb: this.reserveMemMb(),
+      gpu,
+      ollama: { ...ollama, pulling: pullingModels() },
       maxBots: this.cfg.maxBots,
       bots: this.specs.map(s => this.bots.get(s.id)?.status() ?? { id: s.id, name: s.name, server: s.server, state: 'stopped', account: accounts.getAccount(s.account)?.name ?? null }),
       teams: this.teamSpecs.map(t => ({ ...t, ...(this.teams.get(t.id)?.status() ?? { phase: 'stopped' }) })),
@@ -242,6 +260,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   }
   initLog()
   const manager = new Manager()
+  await watchHost(manager.cfg.ollamaUrl)
   log(`[manager] starting on ${os.hostname()} (${availableMemMb()} MB free, max ${manager.cfg.maxBots} bots)`)
   if (manager.cfg.website.url) {
     const { connectWebsite } = await import('./link.js')
