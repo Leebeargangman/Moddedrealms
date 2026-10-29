@@ -206,7 +206,40 @@ export class Manager extends EventEmitter {
 
 // ------------------------------------------------------------ entry point
 
+/**
+ * Only one manager per folder: two would launch the same accounts on the same bridge ports, kick each
+ * other off the server and send the website two different stories about the same bots, so the
+ * Bots page flips between "online", "starting" and "stopped". Returns the running one's pid, or null.
+ */
+export function takeLock (file = path.join(DATA, 'manager.lock')) {
+  fs.mkdirSync(DATA, { recursive: true })
+  for (let i = 0; i < 2; i++) {
+    try {
+      fs.writeFileSync(file, String(process.pid), { flag: 'wx' })
+      process.on('exit', () => { try { if (fs.readFileSync(file, 'utf8') === String(process.pid)) fs.unlinkSync(file) } catch {} })
+      return null
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e
+    }
+    const pid = Number(fs.readFileSync(file, 'utf8'))
+    let alive = false
+    try { process.kill(pid, 0); alive = true } catch (e) { alive = e.code === 'EPERM' }
+    // A reused pid that isn't a manager doesn't count.
+    if (alive) try { alive = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('manager.js') } catch {}
+    if (alive && pid !== process.pid) return pid
+    fs.rmSync(file, { force: true }) // left behind by a crash
+  }
+  return null
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+  const running = takeLock()
+  if (running) {
+    let how = 'started by hand: stop it with Ctrl+C in its terminal, or kill ' + running
+    try { if (fs.readFileSync(`/proc/${running}/cgroup`, 'utf8').includes('moddedrealms-bots.service')) how = 'as the moddedrealms-bots service: systemctl --user stop moddedrealms-bots' } catch {}
+    console.error(`[manager] already running (pid ${running}, ${how}). Not starting a second one.`)
+    process.exit(1)
+  }
   initLog()
   const manager = new Manager()
   log(`[manager] starting on ${os.hostname()} (${availableMemMb()} MB free, max ${manager.cfg.maxBots} bots)`)
