@@ -257,7 +257,7 @@ function count(n) {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
 }
 
-/** Minehut's own API: reliable for whether the server is up (its proxy answers pings even when it's asleep). */
+/** Minehut's own API: live player count, and whether the server is up (its proxy answers pings even when it's asleep). */
 async function loadMinehutState(name) {
   const res = await fetchOk(`https://api.minehut.com/server/${encodeURIComponent(name)}?byName=true`);
   const server = (await res.json()).server;
@@ -283,14 +283,14 @@ async function loadMinecraftStatus() {
   const ping = pingResult.status === "fulfilled" ? pingResult.value : null;
   if (!hut && !ping) throw new Error("no Minecraft status source answered");
 
+  // Minehut's player count is live; the ping service caches for up to 5 minutes, so it's only
+  // used for the player count when Minehut didn't answer. The max always comes from the ping.
   const online = hut ? hut.online : ping.online;
   let players = null;
   let max = null;
-  if (online && ping && ping.online) {
-    players = ping.players;
-    max = ping.max;
-  } else if (online && hut) {
-    players = hut.players;
+  if (online) {
+    players = hut && hut.players !== null ? hut.players : ping && ping.online ? ping.players : null;
+    max = ping && ping.online ? ping.max : null;
   }
   if (config.mcMaxPlayers > 0) max = config.mcMaxPlayers;
   return { online, players, max };
@@ -348,7 +348,7 @@ async function handleApi(req, res, pathname, url) {
   if (pathname === "/api/status") {
     if (req.method !== "GET" && req.method !== "HEAD") return methodNotAllowed(res, "GET, HEAD");
     const [minecraft, discord] = await Promise.all([
-      cached("minecraft", 60_000, loadMinecraftStatus),
+      cached("minecraft", 30_000, loadMinecraftStatus),
       cached("discord", 5 * 60_000, loadDiscordStatus),
     ]);
     res.setHeader("Cache-Control", "public, max-age=30");
