@@ -265,11 +265,17 @@ function openStream(req, res) {
   res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.write(": connected\n\n");
   streams.add(res);
-  const ping = setInterval(() => res.write(": ping\n\n"), 20_000);
-  req.on("close", () => {
+  // Stop streaming to someone who signed out, had their sessions revoked or lost staff access.
+  const ping = setInterval(() => {
+    if (!accounts.isStaff(accounts.sessionUser(req))) return res.end();
+    res.write(": ping\n\n");
+  }, 20_000);
+  const stop = () => {
     clearInterval(ping);
     streams.delete(res);
-  });
+  };
+  req.on("close", stop);
+  res.on("finish", stop);
 }
 
 async function command(req, res, user) {

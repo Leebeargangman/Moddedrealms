@@ -145,10 +145,14 @@ function sessionToken(req) {
   return token && /^[A-Za-z0-9_-]{20,100}$/.test(token) ? token : "";
 }
 
-function currentUser(req) {
-  if (req._user !== undefined) return req._user;
+/** The signed-in user, looked up fresh (for long-lived connections that must notice a sign-out). */
+function sessionUser(req) {
   const token = sessionToken(req);
-  req._user = token ? q.sessionUser.get(sha256(token), Date.now()) || null : null;
+  return token ? q.sessionUser.get(sha256(token), Date.now()) || null : null;
+}
+
+function currentUser(req) {
+  if (req._user === undefined) req._user = sessionUser(req);
   return req._user;
 }
 
@@ -212,6 +216,11 @@ function createToken(kind, userId, ttlMs, data = null) {
   throw new Error("Could not create a unique token");
 }
 
+/** Throw away a user's outstanding tokens of one kind. */
+function dropTokens(userId, kind) {
+  q.deleteUserTokens.run(userId, kind);
+}
+
 /** Look up a token without using it. */
 function peekToken(kind, token) {
   if (typeof token !== "string" || !token || token.length > 100) return null;
@@ -270,11 +279,13 @@ module.exports = {
   isStaff,
   publicUser,
   currentUser,
+  sessionUser,
   startSession,
   endSession,
   endOtherSessions,
   endAllSessions,
   createToken,
+  dropTokens,
   peekToken,
   useToken,
   limited,

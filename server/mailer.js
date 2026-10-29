@@ -12,8 +12,9 @@ const { config } = require("./config");
 
 const smtp = config.smtp;
 
+/** Email needs SITE_URL too: links in emails must never be built from a request's Host header. */
 function mailEnabled() {
-  return Boolean(smtp.host && smtp.from);
+  return Boolean(smtp.host && smtp.from && config.siteUrl);
 }
 
 /** Reads SMTP replies (including multi-line "250-..." replies) from a socket. */

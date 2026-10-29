@@ -441,7 +441,7 @@
     box.replaceChildren();
     box.appendChild(el("p", null, "Open "));
     var a = el("a", "text-link", ev.verificationUri);
-    a.href = ev.verificationUri;
+    if (/^https:\/\//i.test(ev.verificationUri || "")) a.href = ev.verificationUri;
     a.target = "_blank";
     a.rel = "noopener";
     box.firstChild.appendChild(a);
