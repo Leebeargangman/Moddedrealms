@@ -16,6 +16,8 @@ import { session } from './accounts.js'
 import { normalizeLitematic } from '../build/litematic.js'
 
 const TOKEN_MAX_AGE = 20 * 3600e3 // Minecraft access tokens last ~24h; relaunch before they expire.
+// The server couldn't verify our login with Mojang: the token is dead even if it hasn't expired.
+const BAD_SESSION = /invalid session|failed to verify username|session (has )?expired|not authenticated with minecraft/i
 
 /**
  * States: stopped -> starting -> online (queue/game come from the agent) -> offline (auto log-off,
@@ -54,7 +56,9 @@ export class BotInstance extends EventEmitter {
   }
 
   async launch () {
-    this.session = await session(this.cfg.account)
+    this.session = await session(this.cfg.account, { fresh: this.freshToken })
+    this.freshTokenAt = this.freshToken ? Date.now() : this.freshTokenAt
+    this.freshToken = false
     const token = crypto.randomBytes(16).toString('hex')
     this.child = await launchClient({
       gameDir: this.gameDir,
@@ -88,7 +92,25 @@ export class BotInstance extends EventEmitter {
     })
     this.queue.on('position', p => this.emit('event', { type: 'queue', position: p, etaMin: this.queue.eta() != null ? Math.round(this.queue.eta() / 60000) : null }))
     this.bridge.on('disconnect', m => this.onDisconnect(m.reason))
+    this.bridge.on('closed', () => this.relink())
     this.log(`client up for ${this.session.name}`)
+  }
+
+  // The bridge mod serves one connection, so anything else connecting to it drops ours while the game keeps
+  // running: connect again, or the bot stands in the world with nobody steering it until it's kicked.
+  async relink () {
+    const { bridge, child } = this
+    if (!this.wanted || !bridge || !child || child.exitCode != null) return
+    this.log('lost the link to the game client, reconnecting')
+    try {
+      await bridge.connect(60000)
+    } catch (e) {
+      if (this.bridge !== bridge || child.exitCode != null) return
+      this.log(`could not reconnect to the game client (${e.message}), restarting it`)
+      try { process.kill(-child.pid, 'SIGKILL') } catch {}
+      return
+    }
+    if (this.bridge === bridge) this.queue.resume()
   }
 
   onDisconnect (reason) {
@@ -98,9 +120,19 @@ export class BotInstance extends EventEmitter {
     this.offlineReason = `disconnected${reason ? `: ${reason}` : ''}`
     this.setState('offline')
     this.emit('event', { type: 'disconnect', reason })
-    const delay = this.backoff
+    let delay = this.backoff
     this.backoff = Math.min(this.backoff * 2, 5 * 60e3)
     if (/already (connected|online)|another location|logged in from/i.test(reason ?? '')) this.backoff = Math.max(this.backoff, 60e3)
+    if (BAD_SESSION.test(reason ?? '')) {
+      // Rejoin with a new token. If a token we just fetched is refused too, the account is signed in somewhere
+      // else (another bot host, or someone playing on it), which takes the session away from us each time.
+      this.freshToken = true
+      if (Date.now() - (this.freshTokenAt ?? 0) < 10 * 60e3) {
+        delay = this.backoff = 5 * 60e3
+        this.offlineReason = `${this.session?.name ?? 'this account'} is signed in somewhere else (another bot host, or someone playing on it): only one can use it at a time`
+        this.emit('event', { type: 'error', text: this.offlineReason })
+      }
+    }
     // Retrying fast won't help until staff fix the whitelist/ban; keep trying every 5 minutes.
     if (/whitelist|white-listed|banned/i.test(reason ?? '')) this.backoff = 5 * 60e3
     this.log(`disconnected (${reason ?? 'no reason'}), rejoining in ${Math.round(delay / 1000)}s`)
@@ -166,8 +198,8 @@ export class BotInstance extends EventEmitter {
     if (!this.wanted) return this.start()
     this.log(`rejoining (${why})`)
     this.offlineReason = null
-    // Old token: relaunch the client so it signs in fresh.
-    if (!this.child || this.child.exitCode != null || (this.session?.at && Date.now() - this.session.at > TOKEN_MAX_AGE)) {
+    // Old or refused token: relaunch the client so it signs in fresh.
+    if (!this.child || this.child.exitCode != null || this.freshToken || (this.session?.at && Date.now() - this.session.at > TOKEN_MAX_AGE)) {
       const wanted = this.wanted
       await this.stop()
       this.wanted = wanted

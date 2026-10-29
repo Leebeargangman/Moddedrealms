@@ -3,7 +3,7 @@
 // Anarchy worlds are full of portals players left behind, so it only uses existing ones, never builds.
 // Progress is kept in memory.data.escape so a rejoin carries on where it stopped.
 // The nether run goes off the highways (axes and diagonals): they're where the killers wait.
-import { check, isAbort, wait, pickBearing, offHighway } from '../util.js'
+import { check, isAbort, wait, pickBearing, offHighway, settleDistance } from '../util.js'
 import { usePortal, nearbyPortals, knownPortal } from './travel.js'
 
 const SEGMENT = 250 // nether blocks per Baritone trip
@@ -32,7 +32,7 @@ export async function escapeSpawn (ctx, args, signal) {
   e.done = true
   e.out = { x: Math.round(p.x), z: Math.round(p.z) }
   // Any further travelling carries on outward, the way we came out, not in some random direction back past spawn.
-  const distance = cfg.behavior.settleDistance
+  const distance = settleDistance(cfg.behavior)
   memory.data.travel = { angle: Math.atan2(p.z, p.x), distance, done: Math.hypot(p.x, p.z) >= distance - 48 }
   memory.data.explore = null
   memory.save()

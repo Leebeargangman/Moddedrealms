@@ -39,6 +39,16 @@ export function tierOf (name) {
 
 export const isNightTime = t => t >= 12542 && t <= 23460
 
+// Around an anarchy spawn the first couple of thousand blocks are dug out to bedrock and fought over,
+// so anarchy bots never settle closer than this, whatever settleDistance says.
+export const ANARCHY_MIN_SETTLE = 2000
+
+/** How far from spawn a bot travels before it settles in. */
+export function settleDistance (behavior) {
+  const d = behavior.settleDistance ?? 15000
+  return behavior.mode === 'anarchy' ? Math.max(d, ANARCHY_MIN_SETTLE) : d
+}
+
 // 2b2t-style highways run along the axes and diagonals; walk on a bearing 15-30 degrees off them.
 export function pickBearing () {
   const sector = Math.floor(Math.random() * 8)

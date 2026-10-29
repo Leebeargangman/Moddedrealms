@@ -1,9 +1,13 @@
 import { HOSTILE, FLEE_ONLY, RANGED, fight, flee, equipBestArmor, ensureTotem, gearScore } from './combat.js'
+import { wait } from '../util.js'
 
 // Things that blow up, and how close is too close. End crystals and TNT minecarts are how people kill on anarchy servers.
 const EXPLOSIVE = { tnt: 9, tnt_minecart: 9, end_crystal: 10, wither_skull: 10, wither: 40 }
 // Held items that mean a player came to fight.
 const ARMED = /_sword$|_axe$|^bow$|^crossbow$|^trident$|^mace$|^end_crystal$|^respawn_anchor$|^tnt$|^flint_and_steel$/
+
+// Servers kick players who stand still (9b9t after 10 minutes); hop and look around well before that.
+const AFK_MS = 4 * 60e3
 
 // Task priorities: higher interrupts lower.
 export const PRI = { brain: 1, owner: 1.5, eat: 2, mob: 3, player: 4, hazard: 5 }
@@ -49,6 +53,8 @@ export class Reflexes {
       this.drowning = drowning
       body.b.request('key', { key: 'jump', down: drowning }).catch(() => {})
     }
+
+    this.antiAfk(p)
 
     const boom = this.explosiveThreat()
     if (boom && cur < PRI.hazard) {
@@ -109,6 +115,26 @@ export class Reflexes {
   }
 
   get anarchy () { return this.cfg.mode === 'anarchy' }
+
+  // Hiding in a hole, waiting for an order, or stuck: none of it moves the bot, and an AFK kick throws away
+  // the spot (and on a queue server the place in the queue).
+  antiAfk (p) {
+    const now = Date.now()
+    const s = this.still
+    if (!s || Math.hypot(p.x - s.x, p.y - s.y, p.z - s.z) > 1.5) {
+      this.still = { x: p.x, y: p.y, z: p.z, t: now }
+      return
+    }
+    if (now - s.t < AFK_MS || this.drowning) return
+    s.t = now
+    const { b } = this.body
+    const a = Math.random() * Math.PI * 2
+    b.request('lookAt', { x: p.x + Math.cos(a) * 6, y: p.y + 1, z: p.z + Math.sin(a) * 6 }).catch(() => {})
+    b.request('key', { key: 'jump', down: true })
+      .then(() => wait(400))
+      .finally(() => b.request('key', { key: 'jump', down: false }).catch(() => {}))
+      .catch(() => {})
+  }
 
   explosiveThreat () {
     let best = null
