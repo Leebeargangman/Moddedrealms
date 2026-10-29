@@ -8,6 +8,9 @@ import { pickBearing } from '../util.js'
 const TOGETHER_RADIUS = 48 // everyone within this of the leader counts as "together"
 const MOVING = new Set(['travel_far', 'goto', 'explore', 'come_to'])
 
+// "9b9t.org" and "9B9T.org:25565" are the same server.
+const serverKey = s => { const [host, port] = String(s ?? '').toLowerCase().trim().split(':'); return `${host}:${port || 25565}` }
+
 const SYSTEM = `You are the leader of a small team of Minecraft survival bots playing together. You see every
 member's status and decide what each one does next so the team survives and gets stronger together.
 Principles:
@@ -61,20 +64,40 @@ export class Team extends EventEmitter {
     this.heading = pickBearing()
   }
 
-  members () { return this.cfg.members.map(id => this.bots.get(id)).filter(Boolean) }
+  /**
+   * Members on the leader's server. One on another server can't meet up or follow, and orders to come to the
+   * leader's coordinates would send it somewhere useless on its own server, so it plays on its own until it's back.
+   */
+  members () {
+    const all = this.cfg.members.map(id => this.bots.get(id)).filter(Boolean)
+    const server = serverKey(this.leader()?.cfg.server)
+    return all.filter(b => serverKey(b.cfg.server) === server)
+  }
+
   leader () { return this.bots.get(this.cfg.leader) }
+
+  /** Point each member's .team at this team, or clear it while it's on another server. */
+  claim () {
+    const here = new Set(this.members())
+    for (const id of this.cfg.members) {
+      const b = this.bots.get(id)
+      if (!b) continue
+      if (here.has(b)) b.team = this
+      else if (b.team === this) b.team = null
+    }
+  }
   /** In-game names, so members treat each other as friends. */
   names () { return this.members().map(b => b.session?.name ?? b.cfg.name).filter(Boolean) }
 
   start () {
-    for (const b of this.members()) b.team = this
+    this.claim()
     this.timer = setInterval(() => this.tick().catch(e => this.log('tick failed:', e.message)), 15000)
     this.log(`started with ${this.cfg.members.length} members, leader ${this.cfg.leader}`)
   }
 
   stop () {
     clearInterval(this.timer)
-    for (const b of this.members()) if (b.team === this) b.team = null
+    for (const id of this.cfg.members) { const b = this.bots.get(id); if (b?.team === this) b.team = null }
   }
 
   note (text) {
@@ -101,6 +124,7 @@ export class Team extends EventEmitter {
   // ------------------------------------------------------------ the loop
 
   async tick () {
+    this.claim() // a member may have been switched to another server
     const leader = this.leader()
     const online = this.playing()
     if (!leader?.agent?.inGame() || leader.agent.escaping() || online.length < 2) return

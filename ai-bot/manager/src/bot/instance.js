@@ -15,6 +15,15 @@ import { Agent } from '../agent/agent.js'
 import { session } from './accounts.js'
 import { normalizeLitematic } from '../build/litematic.js'
 
+// A child killed by a signal has exitCode null and signalCode set, so check both.
+const alive = child => !!child && child.exitCode == null && child.signalCode == null
+const killClient = child => { try { process.kill(-child.pid, 'SIGKILL') } catch {} }
+const exited = (child, ms) => new Promise(resolve => {
+  if (!alive(child)) return resolve()
+  child.once('exit', resolve)
+  setTimeout(resolve, ms)
+})
+
 const TOKEN_MAX_AGE = 20 * 3600e3 // Minecraft access tokens last ~24h; relaunch before they expire.
 // The server couldn't verify our login with Mojang: the token is dead even if it hasn't expired.
 const BAD_SESSION = /invalid session|failed to verify username|session (has )?expired|not authenticated with minecraft/i
@@ -56,11 +65,18 @@ export class BotInstance extends EventEmitter {
   }
 
   async launch () {
+    // A client we just stopped may still be shutting down: it holds the account and the bridge port, so the
+    // new one can't start until it's gone.
+    const old = this.stopping
+    if (alive(old)) {
+      await exited(old, 10000)
+      if (alive(old)) { killClient(old); await exited(old, 5000) }
+    }
     this.session = await session(this.cfg.account, { fresh: this.freshToken })
     this.freshTokenAt = this.freshToken ? Date.now() : this.freshTokenAt
     this.freshToken = false
     const token = crypto.randomBytes(16).toString('hex')
-    this.child = await launchClient({
+    const child = this.child = await launchClient({
       gameDir: this.gameDir,
       account: this.session,
       server: this.cfg.server,
@@ -69,9 +85,17 @@ export class BotInstance extends EventEmitter {
       heapMb: this.cfg.heapMb ?? 1400,
       logFile: path.join(this.dir, 'client.log')
     })
-    this.child.once('exit', code => this.onClientExit(code))
-    this.bridge = new Bridge({ port: this.bridgePort, token })
-    await this.bridge.connect()
+    child.once('exit', (code, signal) => this.onClientExit(child, code ?? signal))
+    try {
+      this.bridge = new Bridge({ port: this.bridgePort, token })
+      await this.bridge.connect()
+      if (this.child !== child || !alive(child)) throw new Error('the game client closed while starting')
+    } catch (e) {
+      // Never leave a half-started client running: it would hold the account and the bridge port.
+      if (this.child === child) this.cleanup()
+      killClient(child)
+      throw e
+    }
     this.body = new Body(this.bridge)
     this.queue = new QueueTracker(this.bridge)
     this.agent = new Agent({ instance: this, body: this.body, cfg: this.cfg, memory: this.memory, queue: this.queue, log: this.log })
@@ -100,14 +124,14 @@ export class BotInstance extends EventEmitter {
   // running: connect again, or the bot stands in the world with nobody steering it until it's kicked.
   async relink () {
     const { bridge, child } = this
-    if (!this.wanted || !bridge || !child || child.exitCode != null) return
+    if (!this.wanted || !bridge || !alive(child)) return
     this.log('lost the link to the game client, reconnecting')
     try {
       await bridge.connect(60000)
     } catch (e) {
-      if (this.bridge !== bridge || child.exitCode != null) return
+      if (this.bridge !== bridge || !alive(child)) return
       this.log(`could not reconnect to the game client (${e.message}), restarting it`)
-      try { process.kill(-child.pid, 'SIGKILL') } catch {}
+      killClient(child)
       return
     }
     if (this.bridge === bridge) this.queue.resume()
@@ -139,7 +163,9 @@ export class BotInstance extends EventEmitter {
     this.rejoinTimer = setTimeout(() => this.rejoin('reconnect'), delay)
   }
 
-  onClientExit (code) {
+  onClientExit (child, code) {
+    // An old client finishing its shutdown after a new one started: not ours to clean up after.
+    if (child !== this.child) return this.log(`old client exited (${code})`)
     this.log(`client exited (${code})`)
     this.cleanup()
     if (this.wanted) {
@@ -149,6 +175,7 @@ export class BotInstance extends EventEmitter {
   }
 
   scheduleRestart () {
+    clearTimeout(this.restartTimer) // a failed start and the client's exit both ask for one: start only once
     const delay = this.backoff
     this.backoff = Math.min(this.backoff * 2, 5 * 60e3)
     this.restartTimer = setTimeout(() => {
@@ -173,8 +200,11 @@ export class BotInstance extends EventEmitter {
     const child = this.child
     await this.bridge?.request('quit').catch(() => {})
     this.cleanup()
-    if (child && child.exitCode == null) {
-      setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL') } catch {} }, 8000)
+    // From here its exit is not a crash to restart from; the next launch waits for it to be gone.
+    this.child = null
+    this.stopping = child
+    if (alive(child)) {
+      setTimeout(() => { if (alive(child)) killClient(child) }, 8000)
     }
     this.setState('stopped')
   }
@@ -199,7 +229,7 @@ export class BotInstance extends EventEmitter {
     this.log(`rejoining (${why})`)
     this.offlineReason = null
     // Old or refused token: relaunch the client so it signs in fresh.
-    if (!this.child || this.child.exitCode != null || this.freshToken || (this.session?.at && Date.now() - this.session.at > TOKEN_MAX_AGE)) {
+    if (!alive(this.child) || this.freshToken || (this.session?.at && Date.now() - this.session.at > TOKEN_MAX_AGE)) {
       const wanted = this.wanted
       await this.stop()
       this.wanted = wanted
