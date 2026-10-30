@@ -155,7 +155,11 @@
                       <div class="field"><label for="set-model-pick">Model</label><select class="input" id="set-model-pick" data-model-pick></select><input class="input" id="set-model" name="model" maxlength="64" placeholder="model name, e.g. llama3.1:8b" hidden></div>
                       <div class="field"><label for="set-mode">Mode</label>
                         <select class="input" id="set-mode" name="mode"><option value="survival">Survival: settle in and get stronger</option><option value="anarchy">Anarchy: leave spawn through the nether first</option></select></div>
-                      <div class="field" data-personality-field hidden><label for="set-personality">Personality</label><input class="input" id="set-personality" name="personality" maxlength="300" placeholder="builder, explorer, leader, joker, nervous, grumpy, friendly, random, or your own words"></div>
+                      <div class="field" data-personality-field><label for="set-personality">Personality</label><input class="input" id="set-personality" name="personality" maxlength="300" placeholder="builder, explorer, leader, joker, nervous, grumpy, friendly, random, or your own words"></div>
+                      <div class="field" data-personality-extra><label for="set-likes">Likes</label><input class="input" id="set-likes" name="likes" maxlength="200" placeholder="e.g. build, gather (empty: the preset's)"></div>
+                      <div class="field" data-personality-extra><label for="set-dislikes">Dislikes</label><input class="input" id="set-dislikes" name="dislikes" maxlength="200" placeholder="e.g. explore, fight (empty: the preset's)"></div>
+                      <label class="check" data-personality-extra><input type="checkbox" name="personalityOn"><span>Personality on</span></label>
+                      <label class="check" data-personality-extra><input type="checkbox" name="freeWill"><span>Free will: may refuse orders it dislikes (asking twice makes it go along)</span></label>
                     </div>
                     <p class="small model-hint" data-model-hint></p>
                     <p class="muted small">Anarchy mode is for servers like 2b2t and 9b9t: on joining, the bot takes the nearest nether portal, travels far through the nether until it gets hungry, then comes back out and survives there. It starts over if it dies without a bed.</p>
@@ -172,6 +176,11 @@
               <div class="app-card">
                 <div class="app-card-head"><h2>Teams</h2><button class="btn btn-ghost btn-sm" type="button" data-new-team>New team</button></div>
                 <div data-teams></div>
+              </div>
+
+              <div class="app-card">
+                <div class="app-card-head"><h2>Crowds</h2><button class="btn btn-ghost btn-sm" type="button" data-new-crowd>New crowd</button></div>
+                <div data-crowds></div>
               </div>
 
               <div class="app-card">

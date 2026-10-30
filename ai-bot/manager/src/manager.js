@@ -8,12 +8,16 @@ import { ROOT, loadManagerConfig, botConfig } from './config.js'
 import { initLog, log } from './log.js'
 import { BotInstance } from './bot/instance.js'
 import { Team } from './team/team.js'
+import { Crowd } from './crowd/crowd.js'
+import { normalize, randomPreset } from './agent/personality.js'
 import * as accounts from './bot/accounts.js'
 import { availableMemMb, totalMemMb, hostInfo, modelRamMb, ensureModel, pullingModels, watchHost } from './hostinfo.js'
 
 const DATA = path.join(ROOT, 'data')
 const BOTS_FILE = path.join(DATA, 'bots.json')
 const TEAMS_FILE = path.join(DATA, 'teams.json')
+const CROWDS_FILE = path.join(DATA, 'crowds.json')
+const CROWD_NAME = /^[A-Za-z0-9_]{1,12}$/
 const BASE_PORT = 25700
 
 const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return fallback } }
@@ -33,14 +37,17 @@ export class Manager extends EventEmitter {
     this.cfg = cfg
     this.specs = readJson(BOTS_FILE, []) // [{ id, name, account, server, ai, behavior, social, autoStart }]
     this.teamSpecs = readJson(TEAMS_FILE, []) // [{ id, name, leader, members, leaderModel, autoStart }]
+    this.crowdSpecs = readJson(CROWDS_FILE, []) // [{ id, name, server, leader, mode, ai, members: {name: {personality}}, autoStart }]
     this.bots = new Map()
     this.teams = new Map()
+    this.crowds = new Map()
     this.relay = null // set by the website link: (staffName, request, timeoutMs) => ollama response
   }
 
   save () {
     writeJson(BOTS_FILE, this.specs)
     writeJson(TEAMS_FILE, this.teamSpecs)
+    writeJson(CROWDS_FILE, this.crowdSpecs)
   }
 
   // ------------------------------------------------------------ bots
@@ -66,6 +73,8 @@ export class Manager extends EventEmitter {
     const clean = { id, name: spec.name ?? accounts.getAccount(spec.account).name, account: spec.account, server: spec.server ?? this.cfg.defaults.server }
     for (const k of ['ai', 'behavior', 'social', 'heapMb', 'autoStart', 'owner']) if (spec[k] != null) clean[k] = spec[k]
     if (spec.goal) clean.goal = cleanGoal(spec.goal, spec.owner)
+    const personality = normalize(spec.personality)
+    if (personality) clean.personality = personality
     this.specs.push(clean)
     this.save()
     this.emitList()
@@ -80,6 +89,11 @@ export class Manager extends EventEmitter {
       if (changes.goal) spec.goal = cleanGoal(changes.goal, changes.goalBy)
       else delete spec.goal
     }
+    if (changes.personality !== undefined) {
+      const p = normalize(changes.personality)
+      if (p) spec.personality = p
+      else delete spec.personality
+    }
     // The Bots page sends only the settings it shows (e.g. behavior.mode); keep the rest.
     for (const k of ['behavior', 'social']) if (changes[k]) spec[k] = { ...spec[k], ...changes[k] }
     this.save()
@@ -90,7 +104,7 @@ export class Manager extends EventEmitter {
       bot.cfg = botConfig(this.cfg, spec)
       if (bot.agent) { bot.agent.cfg = bot.cfg; bot.agent.ctx.cfg = bot.cfg }
       // Switched to anarchy mode: drop what it's doing so it heads for a portal now.
-      if (bot.cfg.behavior.mode !== mode || changes.goal !== undefined) bot.agent?.interruptBrain()
+      if (bot.cfg.behavior.mode !== mode || changes.goal !== undefined || changes.personality !== undefined) bot.agent?.interruptBrain()
       if (changes.server && changes.server !== server) bot.switchServer(changes.server)
       const ai = bot.cfg.ai
       if (changes.ai && bot.state !== 'stopped' && ai.enabled !== false && ai.source !== 'connector' && hostInfo().ollama.up) {
@@ -102,6 +116,7 @@ export class Manager extends EventEmitter {
 
   async removeBot (id) {
     await this.stopBot(id)
+    for (const c of this.crowdSpecs) if (c.leader === id) this.updateCrowd(c.id, { leader: null })
     this.bots.delete(id)
     this.specs = this.specs.filter(s => s.id !== id)
     for (const t of this.teamSpecs) t.members = t.members.filter(m => m !== id)
@@ -193,6 +208,125 @@ export class Manager extends EventEmitter {
 
   // ------------------------------------------------------------ misc
 
+  // ------------------------------------------------------------ crowds
+
+  /** Most crowd bots this host runs at once (all crowds together); each is a lightweight client of ~40 MB. */
+  maxCrowdBots () { return this.cfg.maxCrowdBots ?? 50 }
+
+  crowdBotsRunning () {
+    return [...this.crowds.values()].filter(c => c.running).reduce((n, c) => n + Object.keys(c.spec.members).length, 0)
+  }
+
+  /**
+   * A crowd of `count` bots called prefix1, prefix2... on an offline-mode server. personalities: "random" (a
+   * random preset each), "off", or one preset/description for all. freeWill lets them refuse orders they dislike.
+   */
+  createCrowd ({ name, server, count, prefix, personalities = 'random', freeWill = false, leader, ai, chatEverySeconds, owner }) {
+    const n = Math.round(Number(count) || 0)
+    if (n < 1 || n > this.maxCrowdBots()) throw new Error(`a crowd has 1 to ${this.maxCrowdBots()} bots (maxCrowdBots)`)
+    const pre = String(prefix || name || 'Crowd').replace(/[^A-Za-z0-9_]/g, '').slice(0, 12)
+    if (!CROWD_NAME.test(pre)) throw new Error('the name prefix is up to 12 letters, numbers or _')
+    if (leader && !this.specs.some(s => s.id === leader)) throw new Error(`no bot ${leader} to lead the crowd`)
+    const taken = new Set([...this.crowdSpecs.flatMap(c => Object.keys(c.members).map(m => m.toLowerCase())), ...accounts.listAccounts().map(a => a.name.toLowerCase())])
+    const members = {}
+    for (let i = 1; Object.keys(members).length < n && i < 10000; i++) {
+      const m = `${pre}${i}`
+      if (taken.has(m.toLowerCase())) continue
+      const p = personalities === 'off' ? null : normalize({ preset: personalities === 'random' ? randomPreset() : undefined, text: personalities === 'random' ? undefined : personalities, freeWill })
+      if (p) p.freeWill = !!freeWill
+      members[m] = { personality: p }
+    }
+    const id = `crowd-${slug(pre)}-${Date.now().toString(36).slice(-4)}`
+    const spec = {
+      id, name: String(name || pre).slice(0, 32), server: String(server || this.cfg.defaults.server), leader: leader || null,
+      mode: leader ? 'follow' : 'wander', ai: ai?.enabled ? { enabled: true, model: ai.model, source: ai.source, connector: ai.connector } : { enabled: false },
+      chatEverySeconds: Math.max(20, Number(chatEverySeconds) || 60), members, owner: owner ?? null
+    }
+    this.crowdSpecs.push(spec)
+    this.save()
+    this.emitList()
+    return { id, name: spec.name, count: Object.keys(members).length }
+  }
+
+  crowd (id) {
+    const spec = this.crowdSpecs.find(c => c.id === id)
+    if (!spec) throw new Error(`no crowd ${id}`)
+    let c = this.crowds.get(id)
+    if (!c) {
+      c = new Crowd({ spec, manager: this, log })
+      c.on('event', e => this.emit('event', { crowd: id, ...e }))
+      this.crowds.set(id, c)
+    }
+    return c
+  }
+
+  updateCrowd (id, changes) {
+    const spec = this.crowdSpecs.find(c => c.id === id)
+    if (!spec) throw new Error(`no crowd ${id}`)
+    if (changes.name) spec.name = String(changes.name).slice(0, 32)
+    if (changes.server) spec.server = String(changes.server)
+    if (changes.leader !== undefined) {
+      if (changes.leader && !this.specs.some(s => s.id === changes.leader)) throw new Error(`no bot ${changes.leader}`)
+      this.crowds.get(id)?.unclaim()
+      spec.leader = changes.leader || null
+    }
+    if (changes.ai) spec.ai = changes.ai.enabled ? { enabled: true, model: changes.ai.model, source: changes.ai.source, connector: changes.ai.connector } : { enabled: false }
+    if (changes.chatEverySeconds) spec.chatEverySeconds = Math.max(20, Number(changes.chatEverySeconds) || 60)
+    // Switch every member's personality on/off or free will on/off at once.
+    for (const m of Object.values(spec.members)) {
+      if (!m.personality) continue
+      if (changes.personalities !== undefined) m.personality.enabled = !!changes.personalities
+      if (changes.freeWill !== undefined) m.personality.freeWill = !!changes.freeWill
+    }
+    this.save()
+    this.crowds.get(id)?.update(spec)
+    this.emitList()
+  }
+
+  /** One crowd member's personality: {enabled, freeWill, preset/text, likes, dislikes}, or null to clear it. */
+  updateCrowdMember (id, name, personality) {
+    const spec = this.crowdSpecs.find(c => c.id === id)
+    if (!spec?.members[name]) throw new Error(`no ${name} in that crowd`)
+    const old = spec.members[name].personality
+    const merged = personality && old && personality.text === undefined && personality.preset === undefined ? { ...old, ...personality } : personality
+    spec.members[name].personality = normalize(merged)
+    this.save()
+    this.crowds.get(id)?.setMember(name, spec.members[name].personality)
+    this.emitList()
+    return spec.members[name].personality
+  }
+
+  async startCrowd (id) {
+    const c = this.crowd(id)
+    if (c.running) return
+    const n = Object.keys(c.spec.members).length
+    if (this.crowdBotsRunning() + n > this.maxCrowdBots()) throw new Error(`that would be more than ${this.maxCrowdBots()} crowd bots on ${this.hostName()} (maxCrowdBots)`)
+    const need = n * 60 + 200
+    if (availableMemMb() - need < this.reserveMemMb()) throw new Error(`not enough memory on ${this.hostName()} for ${n} crowd bots (about ${need} MB)`)
+    c.start()
+    this.emitList()
+  }
+
+  async stopCrowd (id) {
+    await this.crowds.get(id)?.stop()
+    this.emitList()
+  }
+
+  async removeCrowd (id) {
+    await this.stopCrowd(id)
+    this.crowds.delete(id)
+    this.crowdSpecs = this.crowdSpecs.filter(c => c.id !== id)
+    this.save()
+    this.emitList()
+  }
+
+  crowdOrder (id, mode, by) {
+    const c = this.crowd(id)
+    const r = c.order(mode, null, by)
+    this.save()
+    return r
+  }
+
   async relayLlm (staffName, request, timeoutMs) {
     if (!this.relay) throw new Error('no website connection to reach the staff member\'s computer')
     return this.relay(staffName, request, timeoutMs)
@@ -213,9 +347,27 @@ export class Manager extends EventEmitter {
       gpu,
       ollama: { ...ollama, pulling: pullingModels() },
       maxBots: this.cfg.maxBots,
-      bots: this.specs.map(s => this.bots.get(s.id)?.status() ?? { id: s.id, name: s.name, server: s.server, state: 'stopped', account: accounts.getAccount(s.account)?.name ?? null }),
+      bots: this.specs.map(s => this.bots.get(s.id)?.status() ?? this.stoppedStatus(s)),
       teams: this.teamSpecs.map(t => ({ ...t, ...(this.teams.get(t.id)?.status() ?? { phase: 'stopped' }) })),
+      crowds: this.crowdSpecs.map(c => this.crowds.get(c.id)?.status() ?? this.crowd(c.id).status()),
+      maxCrowdBots: this.maxCrowdBots(),
       accounts: accounts.listAccounts().map(a => ({ id: a.id, type: a.type, name: a.name, addedBy: a.addedBy }))
+    }
+  }
+
+  /** A bot that hasn't run since the manager started: everything the Bots page shows and its settings form fills in. */
+  stoppedStatus (s) {
+    const cfg = botConfig(this.cfg, s)
+    return {
+      id: s.id,
+      name: s.name,
+      server: s.server,
+      state: 'stopped',
+      account: accounts.getAccount(s.account)?.name ?? null,
+      model: cfg.ai.enabled === false ? 'rules only' : `${cfg.ai.model} (${cfg.ai.source === 'connector' ? `on ${cfg.ai.connector}'s PC` : 'VPS'})`,
+      mode: cfg.behavior.mode ?? 'survival',
+      goal: s.goal ?? null,
+      personality: s.personality ?? null
     }
   }
 
@@ -224,9 +376,11 @@ export class Manager extends EventEmitter {
   async autoStart () {
     for (const t of this.teamSpecs.filter(t => t.autoStart)) await this.startTeam(t.id).catch(e => log(`team ${t.id}: ${e.message}`))
     for (const s of this.specs.filter(s => s.autoStart)) await this.startBot(s.id).catch(e => log(`bot ${s.id}: ${e.message}`))
+    for (const c of this.crowdSpecs.filter(c => c.autoStart)) await this.startCrowd(c.id).catch(e => log(`crowd ${c.id}: ${e.message}`))
   }
 
   async shutdown () {
+    await Promise.all([...this.crowds.values()].map(c => c.stop()))
     for (const t of this.teams.values()) t.stop()
     await Promise.all([...this.bots.values()].map(b => b.stop()))
   }

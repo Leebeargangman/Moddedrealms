@@ -185,6 +185,7 @@
     });
     renderDetail();
     renderTeams();
+    renderCrowds();
     renderAccounts();
     renderConnectors();
     renderHosts();
@@ -255,7 +256,11 @@
     if (b.stats) kvRow(dl, "Deaths", b.stats.deaths);
     if (b.stats && b.stats.blocksMoved != null) kvRow(dl, "Walked", b.stats.blocksMoved + " blocks");
     if (b.stats && b.stats.builds) kvRow(dl, "Built", b.stats.builds + (b.stats.builds === 1 ? " thing" : " things"));
-    if (b.personality) kvRow(dl, "Personality", b.personality);
+    if (b.personality) {
+      var bp = b.personality;
+      kvRow(dl, "Personality", typeof bp === "string" ? bp : (bp.preset ? bp.preset + ": " : "") + bp.text + (bp.enabled === false ? " (switched off)" : "") + (bp.freeWill ? " · free will" : ""));
+      if (typeof bp === "object" && (bp.likes.length || bp.dislikes.length)) kvRow(dl, "Likes / dislikes", (bp.likes.join(", ") || "nothing in particular") + " / " + (bp.dislikes.join(", ") || "nothing"));
+    }
     $("[data-detail-kv]").replaceChildren(dl);
     renderGoal(b, false); // never refill the box here: it would wipe what someone is typing
 
@@ -542,8 +547,14 @@
     // Test players have no account, server or mode to change, but do have a personality.
     var test = isTestHost(state.managers[manager]);
     [f.elements.server, f.elements.account, f.elements.mode].forEach(function (x) { x.closest(".field").hidden = test; });
-    $("[data-personality-field]", f).hidden = !test;
-    f.elements.personality.value = b.personality || "";
+    // AI bots also have likes, dislikes and the on/off and free-will switches.
+    $$("[data-personality-extra]", f).forEach(function (x) { x.hidden = test; });
+    var p = b.personality;
+    f.elements.personality.value = !p ? "" : typeof p === "string" ? p : p.preset || p.text;
+    f.elements.likes.value = p && p.likes ? p.likes.join(", ") : "";
+    f.elements.dislikes.value = p && p.dislikes ? p.dislikes.join(", ") : "";
+    f.elements.personalityOn.checked = !p || p.enabled !== false;
+    f.elements.freeWill.checked = !!(p && p.freeWill);
     var model = String(b.model || "");
     f.elements.source.value = model === "rules only" ? "off" : /on .+'s PC/.test(model) ? "connector" : "vps";
     f.elements.model.value = model.split(" ")[0] === "rules" ? "" : model.split(" ")[0];
@@ -610,6 +621,82 @@
       });
     });
     if (!any) box.appendChild(el("p", "muted small", "A team is 2-5 bots with one leader AI: they meet up, split the work and survive together."));
+  }
+
+  /** Crowds: many lightweight bots under a leader, each with its own personality. */
+  function renderCrowds() {
+    var box = $("[data-crowds]");
+    // Rebuild when something you'd see changes, not every time a bot takes a step.
+    var key = JSON.stringify(onlineHosts().map(function (m) {
+      return (m.snapshot.crowds || []).map(function (c) {
+        return [c.id, c.state, c.mode, c.online, c.leader, c.ai, (c.feed || []).length, c.members.map(function (x) {
+          return [x.name, x.state, x.label, x.doing, x.personality && x.personality.enabled, x.personality && x.personality.freeWill];
+        })];
+      });
+    }));
+    if (box.getAttribute("data-key") === key) return;
+    box.setAttribute("data-key", key);
+    var open = {};
+    $$("details[data-crowd]", box).forEach(function (d) { open[d.getAttribute("data-crowd")] = d.open; });
+    box.replaceChildren();
+    var any = false;
+    onlineHosts().forEach(function (m) {
+      (m.snapshot.crowds || []).forEach(function (c) {
+        any = true;
+        var card = el("div", "team-card");
+        var head = el("div", "bot-card-head");
+        head.appendChild(el("strong", null, c.name));
+        head.appendChild(tag(c.state === "running" ? c.online + "/" + c.members.length + " online" : "stopped", c.state === "running" ? "green" : "grey"));
+        card.appendChild(head);
+        var leader = c.leader ? m.snapshot.bots.filter(function (b) { return b.id === c.leader; })[0] : null;
+        card.appendChild(el("small", null, [m.name, c.server, leader ? "led by " + leader.name : "no leader", "told to " + c.mode, c.ai ? "AI chat: " + c.ai : "no AI chat"].join(" · ")));
+        var pOn = c.members.some(function (x) { return x.personality && x.personality.enabled; });
+        var fwOn = c.members.some(function (x) { return x.personality && x.personality.freeWill; });
+        var actions = el("div", "bot-actions");
+        if (c.state === "running") {
+          actions.appendChild(button("Stop crowd", "btn-ghost", function () { command(m.name, "stopCrowd", { crowd: c.id }); }));
+          ["follow", "wander", "gather", "stop"].forEach(function (mode) {
+            actions.appendChild(button(mode === "gather" ? "Gather at leader" : mode === "stop" ? "Stand still" : mode[0].toUpperCase() + mode.slice(1), c.mode === mode ? "btn-primary" : "btn-ghost", function () {
+              command(m.name, "crowdOrder", { crowd: c.id, mode: mode }, function (ev) { if (!ev.ok) MR.toast(ev.error); });
+            }));
+          });
+        } else actions.appendChild(button("Start", "btn-primary", function () { command(m.name, "startCrowd", { crowd: c.id }, function (ev) { if (!ev.ok) MR.toast(ev.error); }); }));
+        actions.appendChild(button("Personalities: " + (pOn ? "on" : "off"), "btn-ghost", function () { command(m.name, "updateCrowd", { crowd: c.id, changes: { personalities: !pOn } }); }));
+        actions.appendChild(button("Free will: " + (fwOn ? "on" : "off"), "btn-ghost", function () { command(m.name, "updateCrowd", { crowd: c.id, changes: { freeWill: !fwOn } }); }));
+        actions.appendChild(button("Remove", "btn-ghost", function () {
+          if (window.confirm("Remove the crowd " + c.name + " (" + c.members.length + " bots)?")) command(m.name, "removeCrowd", { crowd: c.id });
+        }));
+        card.appendChild(actions);
+        var details = el("details");
+        details.setAttribute("data-crowd", c.id);
+        details.open = !!open[c.id];
+        details.appendChild(el("summary", "small", "Members"));
+        c.members.forEach(function (x) {
+          var row = el("div", "crowd-member");
+          var p = x.personality;
+          row.appendChild(el("span", null, x.name));
+          row.appendChild(tag(x.label || "no personality", p && p.enabled ? "blue" : "grey"));
+          row.appendChild(el("small", null, x.state + (x.doing && x.state === "online" ? ", " + x.doing : "")));
+          if (p) {
+            var bits = el("div", "crowd-member-actions");
+            bits.appendChild(button(p.enabled ? "Personality on" : "Personality off", "btn-ghost", function () {
+              command(m.name, "updateCrowdMember", { crowd: c.id, member: x.name, personality: { enabled: !p.enabled } });
+            }));
+            bits.appendChild(button(p.freeWill ? "Free will on" : "Free will off", "btn-ghost", function () {
+              command(m.name, "updateCrowdMember", { crowd: c.id, member: x.name, personality: { freeWill: !p.freeWill } });
+            }));
+            row.appendChild(bits);
+          }
+          details.appendChild(row);
+        });
+        card.appendChild(details);
+        (c.feed || []).slice(-2).forEach(function (f) {
+          card.appendChild(el("p", "team-feed", f.text));
+        });
+        box.appendChild(card);
+      });
+    });
+    if (!any) box.appendChild(el("p", "muted small", "A crowd is many lightweight bots (about 30 MB each, no game window) on an offline-mode server you run. Each gets a personality, and they follow an AI bot as their leader."));
   }
 
   function renderAccounts() {
@@ -812,11 +899,22 @@
     var test = isTestHost(state.managers[selected.manager]);
     var changes = test
       ? { ai: ai, personality: f.elements.personality.value.trim() || null }
-      : { server: f.elements.server.value.trim(), account: f.elements.account.value, ai: ai, behavior: { mode: f.elements.mode.value } };
+      : { server: f.elements.server.value.trim(), account: f.elements.account.value, ai: ai, behavior: { mode: f.elements.mode.value }, personality: personalityFrom(f.elements) };
     command(selected.manager, "updateBot", { bot: selected.bot, changes: changes }, function (ev) {
       if (ev.ok) MR.toast(test ? "Saved." : "Saved. Account changes apply the next time the bot starts.");
     });
   });
+
+  /** An AI bot's personality from a form: preset or description, likes, dislikes, and the two switches. */
+  function personalityFrom(els) {
+    var text = els.personality.value.trim();
+    if (!text) return null;
+    var p = { text: text, enabled: els.personalityOn ? els.personalityOn.checked : true, freeWill: !!(els.freeWill && els.freeWill.checked) };
+    // Empty likes/dislikes keep the preset's.
+    if (els.likes && els.likes.value.trim()) p.likes = els.likes.value;
+    if (els.dislikes && els.dislikes.value.trim()) p.dislikes = els.dislikes.value;
+    return p;
+  }
 
   function saveGoal(text) {
     command(selected.manager, "updateBot", { bot: selected.bot, changes: { goal: text || null } }, function (ev) {
@@ -975,13 +1073,19 @@
     form.appendChild(serverField);
     var testNote = el("p", "muted small", "A test player: a simulated player on that server. It needs no Minecraft account and appears at the server's spawn (website.spawn-at in the plugin's config).");
     form.appendChild(testNote);
-    var personalityField = field("Personality", input("personality", "builder, explorer, leader, joker, nervous, grumpy, friendly, random, or your own words"));
-    form.appendChild(personalityField);
+    form.appendChild(field("Personality (optional)", input("personality", "builder, explorer, leader, joker, nervous, grumpy, friendly, random, or your own words")));
+    var freeWillField = el("label", "check");
+    var freeWillBox = el("input");
+    freeWillBox.type = "checkbox";
+    freeWillBox.name = "freeWill";
+    freeWillField.appendChild(freeWillBox);
+    freeWillField.appendChild(el("span", null, "Free will: may refuse orders it dislikes"));
+    form.appendChild(freeWillField);
     // Test player servers spawn their own test players: no account or server address to pick.
     function showTestFields() {
       var test = isTestHost(state.managers[hostSel.value]);
-      accField.hidden = serverField.hidden = test;
-      testNote.hidden = personalityField.hidden = !test;
+      accField.hidden = serverField.hidden = freeWillField.hidden = test;
+      testNote.hidden = !test;
     }
     hostSel.addEventListener("change", showTestFields);
     showTestFields();
@@ -1018,7 +1122,7 @@
       if (source === "connector") ai.connector = state.me.username;
       var goal = f.goal.value.replace(/\s+/g, " ").trim();
       var args = { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai, goal: goal || undefined };
-      if (isTestHost(state.managers[f.manager.value])) args.personality = f.personality.value.trim() || undefined;
+      args.personality = isTestHost(state.managers[f.manager.value]) ? f.personality.value.trim() || undefined : personalityFrom(f) || undefined;
       command(f.manager.value, "createBot", args, function (ev) {
         if (ev.ok) {
           modal.close();
@@ -1028,6 +1132,64 @@
       });
     });
     openModal("New bot", form);
+  });
+
+  $("[data-new-crowd]").addEventListener("click", function () {
+    var managers = onlineHosts().filter(function (m) { return !isTestHost(m); });
+    if (!managers.length) return MR.toast("Crowds run on a bot host (the bot manager on your PC or the VPS). None is connected.");
+    var form = el("form", "form");
+    var hostSel = select("manager", managers.map(function (m) { return [m.name, m.name + " (" + gb(m.snapshot.freeMemMb) + " free, up to " + (m.snapshot.maxCrowdBots || 50) + " crowd bots)"]; }));
+    form.appendChild(field("Runs on", hostSel));
+    form.appendChild(field("Name", input("name", "e.g. Villagers", "Villagers")));
+    form.appendChild(field("Server (offline mode, one you run)", input("server", "host:port", "152.53.114.44:25576")));
+    var count = input("count", "how many", "10");
+    count.type = "number";
+    count.min = 1;
+    count.max = 50;
+    form.appendChild(field("How many bots", count));
+    form.appendChild(field("Name prefix (they're called Villager1, Villager2...)", input("prefix", "up to 12 letters", "Villager")));
+    form.appendChild(field("Personalities", select("personalities", [["random", "A random one each"], ["off", "None"], ["builder", "All builders"], ["explorer", "All explorers"], ["leader", "All leaders"], ["joker", "All jokers"], ["nervous", "All nervous"], ["grumpy", "All grumpy"], ["friendly", "All friendly"]])));
+    var fw = el("label", "check");
+    var fwBox = el("input");
+    fwBox.type = "checkbox";
+    fwBox.name = "freeWill";
+    fw.appendChild(fwBox);
+    fw.appendChild(el("span", null, "Free will: they may refuse orders they dislike"));
+    form.appendChild(fw);
+    var leaderSel = select("leader", []);
+    function fillLeaders() {
+      leaderSel.replaceChildren(option("", "No leader (they wander)"));
+      var m = state.managers[hostSel.value];
+      (m ? m.snapshot.bots : []).forEach(function (b) { leaderSel.appendChild(option(b.id, b.name + " (" + b.server + ")")); });
+    }
+    hostSel.addEventListener("change", fillLeaders);
+    fillLeaders();
+    form.appendChild(field("Leader (an AI bot on the same server)", leaderSel));
+    var sourceSel = select("source", [["off", "No AI chat (short built-in lines)"], ["vps", "AI on the bot host"], ["connector", "AI on my computer, through the connector"]]);
+    form.appendChild(field("Chat", sourceSel));
+    form.appendChild(field("Chat model", input("model", "e.g. qwen2.5:3b", "qwen2.5:3b")));
+    form.appendChild(el("p", "muted small", "Crowd bots are lightweight clients without a game window: they walk, follow, gather and chat, but don't mine or build. They only join offline-mode servers. The leader's AI can order them around."));
+    var actions = el("div", "form-actions");
+    var submit = el("button", "btn btn-primary btn-sm", "Create");
+    submit.type = "submit";
+    actions.appendChild(submit);
+    form.appendChild(actions);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var f = form.elements;
+      var source = f.source.value;
+      var ai = source === "off" ? { enabled: false } : { enabled: true, source: source, model: f.model.value.trim() || "qwen2.5:3b" };
+      if (source === "connector") ai.connector = state.me.username;
+      command(f.manager.value, "createCrowd", {
+        name: f.name.value.trim(), server: f.server.value.trim(), count: Number(f.count.value), prefix: f.prefix.value.trim(),
+        personalities: f.personalities.value, freeWill: f.freeWill.checked, leader: f.leader.value || undefined, ai: ai
+      }, function (ev) {
+        if (!ev.ok) return MR.toast(ev.error);
+        modal.close();
+        MR.toast("Created " + ev.result.name + " (" + ev.result.count + " bots). Press Start.");
+      });
+    });
+    openModal("New crowd", form);
   });
 
   $("[data-new-team]").addEventListener("click", function () {

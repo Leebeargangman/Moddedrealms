@@ -12,7 +12,7 @@ import { Bridge } from '../client/bridge.js'
 import { Body } from '../agent/body.js'
 import { QueueTracker } from '../agent/queue.js'
 import { Agent } from '../agent/agent.js'
-import { session } from './accounts.js'
+import { session, getAccount } from './accounts.js'
 import { normalizeLitematic } from '../build/litematic.js'
 
 // A child killed by a signal has exitCode null and signalCode set, so check both.
@@ -293,7 +293,7 @@ export class BotInstance extends EventEmitter {
     return {
       id: this.id,
       name: this.cfg.name,
-      account: this.session?.name ?? null,
+      account: this.session?.name ?? getAccount(this.cfg.account)?.name ?? null,
       server: this.cfg.server,
       state: this.state,
       offlineReason: this.offlineReason,
@@ -301,6 +301,7 @@ export class BotInstance extends EventEmitter {
       mode: this.cfg.behavior.mode === 'anarchy' ? 'anarchy' : 'survival',
       escape: this.cfg.behavior.mode === 'anarchy' ? this.escapeStatus() : null,
       goal: this.cfg.goal ?? null,
+      personality: this.cfg.personality ?? null,
       schematics: this.schematics(),
       stats: this.memory.data.stats,
       ...(this.agent ? this.agent.status() : {})

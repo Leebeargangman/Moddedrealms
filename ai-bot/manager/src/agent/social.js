@@ -1,4 +1,5 @@
 import { chatJSON } from '../llm.js'
+import { promptText, mayRefuse, line } from './personality.js'
 import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { HOSTILE, RANGED, gearScore } from './combat.js'
 import { FOODS } from './body.js'
@@ -25,7 +26,8 @@ const HAVE_RE = /^(?:do you (?:have|got)|you got|got any|have you got|how many|h
 
 const HELP = 'commands: status, inv, come [x z], follow, stop, auto, goto x z, give <item> [n], build <file> [x y z], rejoin, or just tell me what to do'
 
-const ownerSystem = me => `You are ${me}, a Minecraft survival bot. Your owner or a staff member just sent you a
+const ownerSystem = (me, personality) => `${promptText(personality)}
+You are ${me}, a Minecraft survival bot. Your owner or a staff member just sent you a
 message. Decide what it means:
 - kind "action": a one-off job you should do now, using one of the actions below.
 - kind "directive": standing guidance that should shape everything you do from now on (put it in "directive").
@@ -50,7 +52,8 @@ const OWNER_SCHEMA = {
   required: ['reply', 'kind', 'action', 'args', 'directive']
 }
 
-const strangerSystem = me => `You are ${me}, a player on a Minecraft server where other players may be dangerous
+const strangerSystem = (me, personality) => `${promptText(personality)}
+You are ${me}, a player on a Minecraft server where other players may be dangerous
 (on anarchy servers anyone may kill you). Another player is talking to you or has come close. Your goals: stay alive,
 come across as a friendly, harmless, broke newbie who is not worth killing, calm things down, and judge whether this
 player can be trusted.
@@ -319,7 +322,7 @@ export class Social {
       schematics: agent.schematics?.() ?? [],
       currentDirective: this.memory.data.ownerDirective ?? null
     }
-    const r = await chatJSON(agent.ai(), ownerSystem(this.me), `${user} says: ${JSON.stringify(text)}\nContext: ${JSON.stringify(context)}`, OWNER_SCHEMA, { temperature: 0.2 })
+    const r = await chatJSON(agent.ai(), ownerSystem(this.me, agent.cfg.personality), `${user} says: ${JSON.stringify(text)}\nContext: ${JSON.stringify(context)}`, OWNER_SCHEMA, { temperature: 0.2 })
     agent.log(`[owner] interpreted as ${r.kind} ${r.action ?? ''} ${JSON.stringify(r.args ?? {})} ${r.directive ?? ''}`)
     if (r.kind === 'directive' && r.directive) {
       this.memory.data.ownerDirective = String(r.directive).slice(0, 300)
@@ -338,6 +341,19 @@ export class Social {
   }
 
   order (action, args, ack, reply) {
+    // Free will: a bot that dislikes this says no the first time; asked again within 3 minutes, it gives in.
+    const p = this.agent.cfg.personality
+    if (mayRefuse(p, action)) {
+      const what = action.replace(/_/g, ' ')
+      const insisted = this.refused?.action === action && Date.now() - this.refused.at < 3 * 60e3
+      if (!insisted) {
+        this.refused = { action, at: Date.now() }
+        this.agent.log(`[personality] refused ${action} (dislikes it)`)
+        return reply(`${line(p, 'refuse', what)} (ask again if you really mean it)`)
+      }
+      this.refused = null
+      ack = line(p, 'grudging', what)
+    }
     this.agent.setOrder({ action, args, reply })
     if (this.agent.queue.state !== 'game') {
       return reply(`not in the game right now${this.agent.queue.position ? ` (queue #${this.agent.queue.position})` : ''}, will do it once I'm in`)
@@ -401,7 +417,7 @@ export class Social {
       trustSoFar: p.trust,
       recentConversation: convo.slice(-6)
     }
-    const r = await chatJSON(this.agent.ai(), strangerSystem(this.me), JSON.stringify(context), STRANGER_SCHEMA, { temperature: 0.7 })
+    const r = await chatJSON(this.agent.ai(), strangerSystem(this.me, this.agent.cfg.personality), JSON.stringify(context), STRANGER_SCHEMA, { temperature: 0.7 })
     const delta = clamp(Math.round(Number(r.trustDelta) || 0), -30, 10)
     p.trust = r.intent === 'hostile' ? Math.min(p.trust + delta, HOSTILE_TRUST) : clamp(p.trust + delta, -100, Math.max(TALK_CAP, p.trust))
     p.lastIntent = r.intent

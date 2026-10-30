@@ -29,9 +29,10 @@ const COMMANDS = new Set([
   "createTeam", "updateTeam", "startTeam", "stopTeam", "removeTeam",
   "message", "order", "build", "inspectBuild",
   "addOffline", "linkMicrosoft", "removeAccount",
+  "createCrowd", "updateCrowd", "updateCrowdMember", "startCrowd", "stopCrowd", "removeCrowd", "crowdOrder",
 ]);
 // Events worth keeping in the database (the rest are live status only).
-const KEEP = new Set(["chat", "said", "reply", "staff", "command", "team", "death", "logoff", "build", "result", "linkCode", "error", "disconnect"]);
+const KEEP = new Set(["chat", "said", "reply", "staff", "command", "team", "crowd", "death", "logoff", "build", "result", "linkCode", "error", "disconnect"]);
 
 fs.mkdirSync(BUILD_DIR, { recursive: true });
 

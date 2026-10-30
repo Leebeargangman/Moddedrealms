@@ -5,6 +5,7 @@
   },
   "ollamaUrl": "http://127.0.0.1:11434",
   "maxBots": 4,
+  "maxCrowdBots": 50,
   "reserveMemMb": 1536,
   "defaults": {
     "server": "connect.2b2t.org",
