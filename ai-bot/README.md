@@ -54,6 +54,7 @@ manager/            Node bot manager + AI agent
   src/manager.js    entry point: bots, teams, website link
   src/agent/        brain (LLM + rules), reflexes, skills, travel (nether), social rules, combat
   src/team/         team leader logic
+  src/crowd/        crowds of lightweight bots (crowd.js) and the process that runs them (worker.js)
   src/bot/          one bot's lifecycle; Microsoft / offline accounts
   src/client/       launcher (downloads Java, Minecraft, Fabric, mods) and the bridge connection
   src/build/        Litematica reader / writer
@@ -118,6 +119,40 @@ Add accounts on the Bots page:
 Bots page → "Get my connector token" → download `connector.js` → `node connector.js --site https://your-website --token <token>`.
 Then set a bot's "AI runs on" to "My computer". Bots then use your Ollama, even though they run on the VPS.
 
+## Personalities
+
+Every AI bot can have a personality: a preset (`builder`, `explorer`, `leader`, `joker`, `nervous`, `grumpy`,
+`friendly`), `random`, or your own words. Set it in the New bot form or the bot's settings on the Bots page.
+
+- It goes into the bot's AI prompts, so it shapes what the bot chooses and how it talks.
+- **Likes and dislikes** are activities: `build`, `gather`, `mine`, `explore`, `fight`, `follow`, `stay`, `chat`.
+  Presets come with their own; type your own to override them.
+- **Personality on/off** switches it off without losing it.
+- **Free will**: a bot may say no to an order it dislikes ("n-no way, that sounds dangerous"). Asking again within
+  3 minutes makes it go along, grumbling. `stop` is always obeyed.
+
+## Crowds
+
+A crowd is many lightweight bots on an **offline-mode** server you run: mineflayer clients without a game window,
+about 30 MB each, so a PC can run dozens next to the AI bots. No server plugin is needed.
+
+```
+team leader (AI bot) ──orders──> team members (AI bots: real clients, mine, build, survive)
+        └──"crowd" action──> crowd (lightweight bots: follow, wander, gather, chat)
+```
+
+- Create one on the Bots page (Crowds, New crowd): server, how many, a name prefix (`Villager` makes Villager1,
+  Villager2...), personalities (a random one each, all the same, or none), free will, and a leader.
+- The **leader** is one of the AI bots on the same server. The crowd follows it, and its AI can tell the crowd to
+  `follow`, `wander`, `gather` (come to where the leader is) or `stop`. Staff can do the same from the page.
+- Personalities change how each one behaves: explorers roam and drift off, nervous ones stay close, and with free
+  will some refuse orders they dislike (an explorer told to stand still keeps wandering for a couple of minutes).
+  Each member's personality and free will can be switched on and off on the page.
+- **Chat**: with an AI model they answer players who say their name and now and then say something in character
+  (`chatEverySeconds`, default 60). Without one they use short built-in lines.
+- They don't mine, build or fight. They may break leaves to get out of a dense forest or down from a treetop.
+- `maxCrowdBots` in manager.json (default 50) caps how many run on one host; they join 1.5 s apart.
+
 ## Building the bridge mod
 
 `bridge-mod/dist/ai-bridge-1.0.0.jar` is ready to use. To change the mod you need JDK 25:
@@ -129,6 +164,11 @@ cd ai-bot/bridge-mod && JAVA_HOME=/path/to/jdk-25 ./gradlew build
 The launcher prefers `build/libs/` over `dist/`.
 
 ## Limits
+
+- **Crowds only join offline-mode servers.** On an online-mode server each bot needs its own Microsoft account, like
+  the AI bots. Only use crowds on servers you run.
+- **Crowd pathfinding** struggles in very dense forests (pale gardens, jungles); bots there may stay put until
+  ordered elsewhere.
 
 - **Baritone** can't place some blocks from a schematic, such as wall torches. Builds stop after a minute without
   progress and report what's left.

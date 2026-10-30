@@ -3833,6 +3833,31 @@ button.row:hover {
   font-size: 0.82rem;
 }
 
+.team-card details summary {
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.crowd-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.crowd-member small {
+  flex: 1 1 100%;
+}
+
+.crowd-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .bot-kv {
   margin: 12px 0;
 }

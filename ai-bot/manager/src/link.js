@@ -132,6 +132,22 @@ export function connectWebsite (manager) {
           bot.agent.setOrder({ action: 'build', args: { file, ...where, force: !!args.force }, source: 'owner', reply: t => send({ type: 'reply', bot: args.bot, to: who, text: t }) })
           return reply(true, `building ${name}`)
         }
+        case 'createCrowd': {
+          const ai = args.ai ?? {}
+          if (ai.source === 'connector' && !ai.connector) ai.connector = staff?.name
+          return reply(true, manager.createCrowd({ ...args, ai, owner: staff?.name }))
+        }
+        case 'updateCrowd': {
+          const changes = { ...(args.changes ?? {}) }
+          if (changes.ai?.source === 'connector' && !changes.ai.connector) changes.ai.connector = staff?.name
+          manager.updateCrowd(args.crowd, changes)
+          return reply(true, 'saved')
+        }
+        case 'updateCrowdMember': return reply(true, manager.updateCrowdMember(args.crowd, String(args.member ?? ''), args.personality ?? null))
+        case 'startCrowd': await manager.startCrowd(args.crowd); return reply(true, 'starting')
+        case 'stopCrowd': await manager.stopCrowd(args.crowd); return reply(true, 'stopped')
+        case 'removeCrowd': await manager.removeCrowd(args.crowd); return reply(true, 'removed')
+        case 'crowdOrder': return reply(true, manager.crowdOrder(args.crowd, String(args.mode ?? ''), staff?.name))
         case 'addOffline': manager.emitList(); return reply(true, accounts.addOffline(String(args.name ?? ''), staff?.name))
         case 'linkMicrosoft': {
           reply(true, 'starting Microsoft sign-in')

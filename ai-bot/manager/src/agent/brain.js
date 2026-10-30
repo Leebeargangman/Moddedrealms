@@ -1,6 +1,7 @@
 import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { chatJSON } from '../llm.js'
 import { settleDistance } from '../util.js'
+import { promptText } from './personality.js'
 
 const SYSTEM = `You are the strategic brain of a Minecraft survival bot. Usually it plays on 2b2t-style anarchy servers.
 There are no rules: hacked clients, griefing and spawn-killing are normal. The area within several thousand blocks
@@ -157,10 +158,13 @@ export class Brain {
     const directive = this.agent.memory.data.ownerDirective
     const team = this.agent.instance.team
     const goal = this.cfg.goal?.text ? this.cfg.goal : null
+    const crowds = this.agent.instance.crowds ?? []
     const user = [
+      promptText(this.cfg.personality),
       goal ? goalText(goal) : '',
       directive ? `OWNER DIRECTIVE (your owner's standing order; it outranks the strategy above unless it would get you killed): ${directive}` : '',
       team ? `TEAM: you play together with ${team.names().filter(n => n !== this.agent.body.name).join(', ')} (leader ${team.leader()?.session?.name}). Stay near them, never fight them, share with them. Leader's directive: ${this.agent.memory.data.teamDirective ?? 'none yet'}` : '',
+      crowds.length ? `CROWD: you lead ${crowds.map(c => c.describe()).join('; ')}. They follow your lead: use the "crowd" action (mode follow, wander, gather or stop) to tell them what to do.` : '',
       `Settle distance: ${settleDistance(this.cfg.behavior)} blocks from spawn.`,
       `STATE: ${JSON.stringify(obs)}`,
       `RECENT ACTIONS:\n${history.slice(-6).map(h => `- ${h.action} ${JSON.stringify(h.args)} -> ${h.ok ? 'OK' : 'FAILED'}: ${h.result}`).join('\n') || '- none'}`,
