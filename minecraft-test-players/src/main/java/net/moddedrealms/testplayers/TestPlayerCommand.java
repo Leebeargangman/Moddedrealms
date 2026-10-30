@@ -21,8 +21,9 @@ import org.bukkit.entity.Player;
 final class TestPlayerCommand implements TabExecutor {
 
     private static final List<String> SUBS = List.of("spawn", "despawn", "start", "remove", "move", "follow", "wander", "walk", "stop",
-            "sprint", "bring", "tp", "say", "ai", "goal", "list", "info", "stats", "reload", "help");
-    private static final List<String> TARGETED = List.of("despawn", "start", "remove", "move", "follow", "wander", "walk", "stop", "sprint", "bring", "ai", "goal");
+            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "list", "info", "stats", "reload", "help");
+    private static final List<String> TARGETED = List.of("despawn", "start", "remove", "move", "follow", "wander", "walk", "stop", "sprint", "bring", "ai", "goal",
+            "personality", "build", "undo");
 
     private final TestPlayersPlugin plugin;
 
@@ -206,6 +207,46 @@ final class TestPlayerCommand implements TabExecutor {
                 players.markDirty();
                 ok(sender, text.equalsIgnoreCase("clear") ? "Goal cleared." : "Goal set for " + count(list) + " (their AI model works toward it).");
             }
+            case "personality" -> {
+                need(a, 3, "personality <target> <" + String.join("|", Personalities.PRESETS.keySet()) + "|random|your own words...|clear>");
+                List<TestPlayer> list = players.select(a[1]);
+                String text = String.join(" ", Arrays.copyOfRange(a, 2, a.length)).trim();
+                for (TestPlayer tp : list) {
+                    tp.personality = text.equalsIgnoreCase("clear") ? null : Personalities.resolve(text); // "random" picks again for each
+                    tp.nextThinkAt = 0;
+                }
+                players.markDirty();
+                if (text.equalsIgnoreCase("clear")) ok(sender, "Personality cleared for " + count(list) + ".");
+                else if (list.size() == 1) ok(sender, list.getFirst().name + ": " + list.getFirst().personality);
+                else ok(sender, "Personalities set for " + count(list) + (text.equalsIgnoreCase("random") ? " (a random preset each)." : "."));
+                if (list.stream().anyMatch(tp -> tp.model == null)) sender.sendMessage(Component.text("Personalities only show with an AI model: /testplayer ai <target> <model>", NamedTextColor.GRAY));
+            }
+            case "build" -> {
+                need(a, 3, "build <target> <" + String.join("|", Builder.STRUCTURES) + "> [" + String.join("|", Builder.MATERIALS) + "]");
+                List<TestPlayer> list = players.select(a[1]);
+                String material = a.length > 3 ? a[3] : "wood";
+                List<String> errors = new ArrayList<>();
+                int started = 0;
+                for (TestPlayer tp : list) {
+                    try {
+                        String r = plugin.builder().startOrApproach(tp, a[2], material);
+                        if (list.size() == 1) ok(sender, r);
+                        started++;
+                    } catch (IllegalArgumentException | IllegalStateException e) {
+                        errors.add(e.getMessage());
+                    }
+                }
+                if (list.size() > 1) ok(sender, started + " of " + list.size() + " started building.");
+                errors.stream().distinct().limit(3).forEach(e -> sender.sendMessage(Component.text(e, NamedTextColor.RED)));
+            }
+            case "undo" -> {
+                need(a, 2, "undo <target>");
+                List<TestPlayer> list = players.select(a[1]);
+                int n = 0;
+                for (TestPlayer tp : list) n += plugin.builder().undo(tp);
+                ok(sender, "Removed " + n + " blocks built by " + count(list) + ".");
+            }
+            case "zone" -> zone(sender, a);
             case "list" -> list(sender);
             case "info" -> {
                 need(a, 2, "info <name>");
@@ -217,6 +258,41 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, "Reloaded config.yml. Website link: " + plugin.link().status() + ".");
             }
             default -> throw new IllegalArgumentException("Unknown subcommand. /testplayer help");
+        }
+    }
+
+    /** /testplayer zone add|list|remove: where test players may build. */
+    private void zone(CommandSender sender, String[] a) {
+        Builder b = plugin.builder();
+        String op = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "list";
+        switch (op) {
+            case "add" -> {
+                need(a, 4, "zone add <name> <radius>   (a square around you)   or   zone add <name> <x1> <z1> <x2> <z2>");
+                Builder.Zone z;
+                if (a.length >= 7) {
+                    z = b.addZone(a[2], origin(sender).getWorld(), (int) number(a[3]), (int) number(a[4]), (int) number(a[5]), (int) number(a[6]));
+                } else {
+                    Location here = player(sender).getLocation();
+                    int r = integer(a[3], 4, 500);
+                    z = b.addZone(a[2], here.getWorld(), here.getBlockX() - r, here.getBlockZ() - r, here.getBlockX() + r, here.getBlockZ() + r);
+                }
+                ok(sender, "Build zone " + z.name() + ": " + z.world() + " " + z.x1() + " " + z.z1() + " to " + z.x2() + " " + z.z2()
+                        + ". Test players can build there (never over existing blocks).");
+            }
+            case "remove" -> {
+                need(a, 3, "zone remove <name>");
+                b.removeZone(a[2]);
+                ok(sender, "Removed build zone " + a[2] + ". Builds there stay (/testplayer undo removes a test player's builds).");
+            }
+            case "list" -> {
+                if (b.zones().isEmpty()) {
+                    sender.sendMessage(Component.text("No build zones, so test players can't build. /testplayer zone add <name> <radius>", NamedTextColor.GRAY));
+                    return;
+                }
+                sender.sendMessage(Component.text("Build zones (" + b.buildCount() + " builds so far):", NamedTextColor.GOLD));
+                for (Builder.Zone z : b.zones()) line(sender, z.name(), z.world() + " " + z.x1() + " " + z.z1() + " to " + z.x2() + " " + z.z2());
+            }
+            default -> throw new IllegalArgumentException("Usage: /testplayer zone add|list|remove");
         }
     }
 
@@ -241,6 +317,10 @@ final class TestPlayerCommand implements TabExecutor {
                 {"say <name> <text>", "chat as the test player"},
                 {"ai <target> <model|on|off> [staff]", "let an AI model control them"},
                 {"goal <target> <text|clear>", "a goal their AI works toward"},
+                {"personality <target> <preset|random|text|clear>", "who they are: builder, explorer, leader, joker, nervous, grumpy, friendly"},
+                {"build <target> <structure> [material]", "build a hut, house, tower, wall or campfire (inside a build zone)"},
+                {"undo <target>", "remove everything they built"},
+                {"zone add <name> <radius> / zone list / zone remove <name>", "where test players may build"},
                 {"list / info <name> / stats", "what they're doing, server performance"},
                 {"reload", "re-read config.yml"}}) {
             s.sendMessage(Component.text(c + line[0], NamedTextColor.YELLOW).append(Component.text(line[1].isEmpty() ? "" : "  " + line[1], NamedTextColor.GRAY)));
@@ -264,7 +344,8 @@ final class TestPlayerCommand implements TabExecutor {
             String where = m == null ? (tp.wanted ? "starting" : "stopped")
                     : m.getLocation().getBlockX() + " " + m.getLocation().getBlockY() + " " + m.getLocation().getBlockZ() + " " + m.getWorld().getName();
             s.sendMessage(Component.text(tp.name, m != null ? NamedTextColor.GREEN : NamedTextColor.GRAY)
-                    .append(Component.text("  " + where + "  " + (m != null ? tp.doing() : "") + (tp.ai && tp.model != null ? "  AI " + tp.model : ""), NamedTextColor.GRAY)));
+                    .append(Component.text("  " + where + "  " + (m != null ? tp.doing() : "") + (tp.ai && tp.model != null ? "  AI " + tp.model : "")
+                            + (tp.personality != null ? "  (" + Personalities.label(tp.personality) + ")" : ""), NamedTextColor.GRAY)));
         }
     }
 
@@ -281,7 +362,10 @@ final class TestPlayerCommand implements TabExecutor {
         line(s, "Moved", Math.round(tp.blocksMoved) + " blocks");
         if (!tp.lastResult.isEmpty()) line(s, "Last result", tp.lastResult);
         line(s, "AI", tp.model == null ? "none" : tp.model + (tp.staff != null ? " on " + tp.staff + "'s computer" : "") + (tp.ai ? "" : " (paused)"));
+        if (tp.personality != null) line(s, "Personality", tp.personality);
         if (tp.goal != null) line(s, "Goal", tp.goal);
+        int built = plugin.builder().buildCount(tp);
+        if (built > 0) line(s, "Built", built + " thing" + (built == 1 ? "" : "s"));
         if (!tp.thought.isEmpty()) line(s, "Thinking", tp.thought);
         line(s, "Deaths", String.valueOf(tp.deaths));
     }
@@ -379,6 +463,11 @@ final class TestPlayerCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] a) {
         if (a.length == 1) return starting(SUBS.stream(), a[0]);
         String sub = a[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("zone")) {
+            if (a.length == 2) return starting(Stream.of("add", "list", "remove"), a[1]);
+            if (a.length == 3 && a[1].equalsIgnoreCase("remove")) return starting(plugin.builder().zones().stream().map(Builder.Zone::name), a[2]);
+            return List.of();
+        }
         if (a.length == 2 && (TARGETED.contains(sub) || List.of("tp", "say", "info").contains(sub))) {
             Stream<String> names = plugin.players().all().stream().map(tp -> tp.name);
             return starting(TARGETED.contains(sub) ? Stream.concat(Stream.of("all"), names) : names, a[1]);
@@ -392,11 +481,14 @@ final class TestPlayerCommand implements TabExecutor {
                 case "sprint" -> starting(Stream.of("on", "off"), a[2]);
                 case "ai" -> starting(Stream.of("off", "on", "qwen2.5:0.5b", "qwen2.5:1.5b", "qwen2.5:3b", "qwen2.5:7b", "llama3.2:3b"), a[2]);
                 case "goal" -> starting(Stream.of("clear"), a[2]);
+                case "personality" -> starting(Stream.concat(Personalities.PRESETS.keySet().stream(), Stream.of("random", "clear")), a[2]);
+                case "build" -> starting(Builder.STRUCTURES.stream(), a[2]);
                 case "wander" -> starting(Stream.of("16", "32", "64", "128"), a[2]);
                 default -> List.of();
             };
         }
         if (a.length == 4 && sub.equals("spawn")) return starting(Stream.of("idle", "wander", "walk"), a[3]);
+        if (a.length == 4 && sub.equals("build")) return starting(Builder.MATERIALS.stream(), a[3]);
         return List.of();
     }
 

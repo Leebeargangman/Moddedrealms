@@ -30,6 +30,7 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
     private ChunkTickets chunks;
     private TestPlayers players;
     private Brain brain;
+    private Builder builder;
     private WebsiteLink link;
     private BukkitTask tickTask;
     private BukkitTask thinkTask;
@@ -41,6 +42,9 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         chunks = new ChunkTickets(this);
         players = new TestPlayers(this, chunks);
         brain = new Brain(this);
+        builder = new Builder(this);
+        builder.loadZones();
+        builder.load();
         link = new WebsiteLink(this);
 
         PluginCommand cmd = getCommand("testplayer");
@@ -68,12 +72,14 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
             players.save(); // before removing the mannequins, so it remembers which were in the world and where
             players.despawnAllForShutdown();
         }
+        if (builder != null) builder.save();
         if (chunks != null) chunks.clear();
     }
 
     void reload() {
         reloadConfig();
         settings = Settings.from(getConfig());
+        builder.loadZones();
         link.start();
     }
 
@@ -87,6 +93,10 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
 
     Brain brain() {
         return brain;
+    }
+
+    Builder builder() {
+        return builder;
     }
 
     WebsiteLink link() {

@@ -28,15 +28,17 @@ import org.bukkit.entity.Player;
 final class Brain {
 
     private static final String SYSTEM = """
-            You control a simulated test player on a Minecraft test server. Staff use test players to see how the
-            server copes with players moving around, so keep moving most of the time, and be friendly and brief when
-            someone talks to you. You can't break or place blocks, fight, or use items.
+            You play a simulated player (a "test player") on a Minecraft server, living in a small community with
+            the other test players. Stay in character: your personality shapes what you choose and how you talk.
+            Keep busy most of the time, and be brief in chat. You can't break blocks, fight or use items.
             Pick one action:
             - wander: walk around randomly within "radius" blocks of where you are
             - goto: walk to "x", "z" (and "y" if you know it)
-            - follow: follow the online player named "player"
+            - follow: follow the player or test player named "player"
             - walk: walk straight on in "direction" (north, south, east, west, north-east...) to explore new chunks
             - idle: stand still
+            - build: build a "structure" (hut, house, tower, wall or campfire) out of "material" (wood, spruce,
+              stone, brick or cherry) next to you; only inside a build zone, and it takes a minute or two
             "say" is what you say in chat: when someone talked to you, answer them there (one short, friendly
             sentence); otherwise leave it "". Only use player names you can see in the context. Reply with ONLY JSON.""";
 
@@ -45,7 +47,9 @@ final class Brain {
              "properties": {
                "thought": {"type": "string", "maxLength": 200},
                "say": {"type": "string", "maxLength": 200},
-               "action": {"type": "string", "enum": ["wander", "goto", "follow", "walk", "idle"]},
+               "action": {"type": "string", "enum": ["wander", "goto", "follow", "walk", "idle", "build"]},
+               "structure": {"type": "string", "enum": ["hut", "house", "tower", "wall", "campfire"]},
+               "material": {"type": "string", "enum": ["wood", "spruce", "stone", "brick", "cherry"]},
                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
                "player": {"type": "string", "maxLength": 16},
                "direction": {"type": "string", "maxLength": 16},
@@ -71,6 +75,8 @@ final class Brain {
         Settings s = plugin.settings();
         if (!tp.ai || tp.model == null || tp.thinking || inFlight >= s.aiMaxConcurrent()) return;
         if (System.currentTimeMillis() < tp.nextThinkAt) return;
+        // Busy building (or walking to build): let it finish, unless someone talks to it.
+        if (busy(tp) && tp.inbox.isEmpty()) return;
         Mannequin m = tp.entity();
         if (m == null) return;
 
@@ -118,6 +124,17 @@ final class Brain {
         tp.nextThinkAt = Math.min(tp.nextThinkAt, System.currentTimeMillis() + 1000);
     }
 
+    /**
+     * Another test player said something nearby. They can hold a conversation, but each one answers another
+     * test player at most every 30 seconds, so two models can't chat back and forth nonstop.
+     */
+    void heardTestPlayer(TestPlayer tp, String from, String text) {
+        long now = System.currentTimeMillis();
+        if (now - tp.lastBotHeardAt < 30_000) return;
+        tp.lastBotHeardAt = now;
+        heard(tp, from + " (test player)", text);
+    }
+
     private CompletableFuture<JsonObject> ollama(String url, JsonObject request, long timeoutMs) {
         HttpRequest req = HttpRequest.newBuilder(URI.create(url + "/api/chat"))
                 .timeout(Duration.ofMillis(timeoutMs))
@@ -141,6 +158,7 @@ final class Brain {
     private String observe(TestPlayer tp, Mannequin m) {
         Location l = m.getLocation();
         List<String> lines = new ArrayList<>();
+        if (tp.personality != null) lines.add("YOUR PERSONALITY: " + tp.personality);
         if (tp.goal != null) lines.add("YOUR GOAL (set by staff, never forget it): " + tp.goal);
         lines.add("You are " + tp.name + " at x=" + l.getBlockX() + " y=" + l.getBlockY() + " z=" + l.getBlockZ() + " in " + l.getWorld().getName()
                 + ", " + (l.getWorld().isDayTime() ? "day" : "night") + ". You are " + tp.doing() + ".");
@@ -161,7 +179,13 @@ final class Brain {
         List<String> online = new ArrayList<>();
         for (Player p : Bukkit.getOnlinePlayers()) if (online.size() < 20) online.add(p.getName());
         lines.add("Online players: " + (online.isEmpty() ? "none" : String.join(", ", online)));
-        if (tp.goal != null) lines.add("Remember your goal: " + tp.goal);
+        Builder builder = plugin.builder();
+        String zone = builder.zoneHint(l);
+        lines.add("Building: " + (zone == null ? "not allowed in this world" : zone)
+                + (builder.buildCount(tp) > 0 ? "; you have built " + builder.buildCount(tp) + " thing(s) so far" : ""));
+        List<String> builds = builder.near(l, 64);
+        if (!builds.isEmpty()) lines.add("Builds near you: " + String.join(", ", builds));
+        if (tp.goal != null) lines.add("Remember your goal: " + tp.goal + " (talking about it doesn't get it done: your actions do)");
         // Chat goes last, quoted, with who to answer: small models weigh the end of the prompt most, and
         // with the chat further up they kept writing their reply into "thought" and leaving "say" empty.
         tp.answering = !tp.inbox.isEmpty();
@@ -198,19 +222,34 @@ final class Brain {
         Mannequin m = tp.entity();
         if (m == null) return;
         try {
-            switch (action) {
+            // While building it only answers chat: a new action would leave the build half done.
+            if (!busy(tp)) switch (action) {
                 case "wander" -> players.wander(tp, num(d, "radius", 24));
                 case "goto" -> {
                     Location l = m.getLocation();
                     double y = d.has("y") ? num(d, "y", l.getY()) : l.getY();
                     players.goTo(tp, new Location(l.getWorld(), num(d, "x", l.getX()), y, num(d, "z", l.getZ())));
                 }
-                case "follow" -> players.follow(tp, str(d, "player"));
+                case "follow" -> players.follow(tp, str(d, "player").isEmpty() ? nearest(tp, m) : str(d, "player"));
                 case "walk" -> players.walk(tp, TestPlayers.parseDirection(str(d, "direction").isEmpty() ? "north" : str(d, "direction")));
                 case "idle" -> players.idle(tp);
+                case "build" -> {
+                    // A pause between builds, so AI test players don't cover the zone in huts.
+                    long wait = plugin.getConfig().getLong("building.cooldown-seconds", 120) * 1000 - (System.currentTimeMillis() - tp.lastBuiltAt);
+                    if (wait > 0) throw new IllegalArgumentException("you just finished a build; you can start another in " + (wait / 1000 + 1) + " seconds");
+                    // Small models often leave out what to build: pick something (mostly huts) rather than fail.
+                    String structure = str(d, "structure");
+                    if (!Builder.STRUCTURES.contains(structure)) {
+                        String[] picks = {"hut", "hut", "hut", "house", "tower", "campfire", "wall"};
+                        structure = picks[java.util.concurrent.ThreadLocalRandom.current().nextInt(picks.length)];
+                    }
+                    String material = str(d, "material");
+                    if (!Builder.MATERIALS.contains(material)) material = Builder.MATERIALS.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(Builder.MATERIALS.size()));
+                    tp.lastResult = plugin.builder().startOrApproach(tp, structure, material);
+                }
                 default -> { }
             }
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             tp.lastResult = action + " failed: " + e.getMessage();
         }
         // Answers at most every 5 s; anything said unprompted at most once a minute, so a chatty model
@@ -218,6 +257,26 @@ final class Brain {
         String say = str(d, "say");
         long gap = tp.answering ? 5_000 : 60_000;
         if (!say.isEmpty() && System.currentTimeMillis() - tp.lastSaidAt > gap) players.say(tp, say);
+    }
+
+    private static boolean busy(TestPlayer tp) {
+        return tp.mode == TestPlayer.Mode.BUILD || tp.pendingBuild != null;
+    }
+
+    /** The nearest player or other test player within 32 blocks (for "follow" without a name), or "". */
+    private String nearest(TestPlayer tp, Mannequin m) {
+        String best = "";
+        double bestD = 32 * 32;
+        for (Entity e : m.getNearbyEntities(32, 16, 32)) {
+            String name = e instanceof Player p ? p.getName() : e instanceof Mannequin o && plugin.players().of(o) != null ? plugin.players().of(o).name : null;
+            double d = e.getLocation().distanceSquared(m.getLocation());
+            if (name != null && d < bestD) {
+                bestD = d;
+                best = name;
+            }
+        }
+        if (best.isEmpty()) throw new IllegalArgumentException("nobody is near enough to follow");
+        return best;
     }
 
     private static String str(JsonObject o, String k) {

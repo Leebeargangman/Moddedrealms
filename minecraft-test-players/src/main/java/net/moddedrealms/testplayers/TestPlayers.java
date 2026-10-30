@@ -163,7 +163,12 @@ final class TestPlayers {
         }
         tp.body = null;
         chunks.release(tp);
-        if (remove) players.remove(tp.id);
+        plugin.builder().cancel(tp);
+        if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE;
+        if (remove) {
+            players.remove(tp.id);
+            plugin.builder().forget(tp);
+        }
         dirty = true;
     }
 
@@ -189,6 +194,8 @@ final class TestPlayers {
 
     /** It died: come back home in a few seconds. */
     void died(TestPlayer tp) {
+        plugin.builder().cancel(tp);
+        if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE;
         tp.deaths++;
         tp.body = null;
         tp.respawnAt = System.currentTimeMillis() + RESPAWN_MS;
@@ -209,12 +216,17 @@ final class TestPlayers {
     // ------------------------------------------------------------ orders (commands, the website and the AI)
 
     void idle(TestPlayer tp) {
+        // Any new order ends a build in progress, or one it was on its way to.
+        plugin.builder().cancel(tp);
+        tp.pendingBuild = null;
         tp.mode = TestPlayer.Mode.IDLE;
         tp.target = null;
         dirty = true;
     }
 
     void goTo(TestPlayer tp, Location where) {
+        plugin.builder().cancel(tp);
+        tp.pendingBuild = null;
         tp.mode = TestPlayer.Mode.GOTO;
         tp.target = where.clone();
         tp.stuckTicks = 0;
@@ -224,16 +236,22 @@ final class TestPlayers {
         dirty = true;
     }
 
+    /** Follow a player, or another test player. */
     void follow(TestPlayer tp, String player) {
+        plugin.builder().cancel(tp);
+        tp.pendingBuild = null;
         Player p = Bukkit.getPlayerExact(player);
-        if (p == null) throw new IllegalArgumentException(player + " isn't online.");
+        TestPlayer other = p == null ? get(player) : null;
+        if (p == null && (other == null || other == tp || other.entity() == null)) throw new IllegalArgumentException("\"" + player + "\" isn't online.");
         tp.mode = TestPlayer.Mode.FOLLOW;
-        tp.follow = p.getName();
+        tp.follow = p != null ? p.getName() : other.name;
         tp.stuckTicks = 0;
         dirty = true;
     }
 
     void wander(TestPlayer tp, double radius) {
+        plugin.builder().cancel(tp);
+        tp.pendingBuild = null;
         Mannequin m = tp.entity();
         tp.mode = TestPlayer.Mode.WANDER;
         tp.wanderRadius = Math.max(4, Math.min(radius, 10_000));
@@ -243,6 +261,8 @@ final class TestPlayers {
     }
 
     void walk(TestPlayer tp, float yaw) {
+        plugin.builder().cancel(tp);
+        tp.pendingBuild = null;
         tp.mode = TestPlayer.Mode.WALK;
         tp.walkYaw = yaw;
         tp.stuckTicks = 0;
@@ -259,6 +279,16 @@ final class TestPlayers {
                 .append(Component.text("<" + tp.name + "> ", NamedTextColor.WHITE))
                 .append(Component.text(t, NamedTextColor.WHITE)));
         plugin.link().said(tp, t);
+        // AI test players nearby hear it, so they can talk to each other (Brain limits how often).
+        Mannequin me = tp.entity();
+        if (me == null) return;
+        for (TestPlayer other : players.values()) {
+            Mannequin om = other == tp ? null : other.entity();
+            if (om == null || !other.ai || other.model == null || om.getWorld() != me.getWorld()) continue;
+            if (om.getLocation().distanceSquared(me.getLocation()) <= 32 * 32 || t.toLowerCase(Locale.ROOT).contains(other.id)) {
+                plugin.brain().heardTestPlayer(other, tp.name, t);
+            }
+        }
     }
 
     /** "north", "south-west", "e", or a yaw in degrees. */
@@ -305,7 +335,10 @@ final class TestPlayers {
                 idle(tp);
             }
         }
-        if (dirty && ticks % 600 == 0) save();
+        if (ticks % 600 == 0) {
+            if (dirty) save();
+            plugin.builder().save();
+        }
     }
 
     private void step(TestPlayer tp, Mannequin m) {
@@ -334,31 +367,53 @@ final class TestPlayers {
                 if (d < 1.5) {
                     finish(tp, "arrived at " + tp.target.getBlockX() + " " + tp.target.getBlockY() + " " + tp.target.getBlockZ());
                     brake(m);
+                    String[] build = tp.pendingBuild;
+                    tp.pendingBuild = null;
+                    if (build != null) {
+                        try {
+                            tp.lastResult = plugin.builder().start(tp, build[0], build[1]);
+                        } catch (IllegalArgumentException | IllegalStateException e) {
+                            tp.lastResult = "build failed: " + e.getMessage();
+                        }
+                    }
                     return;
                 }
                 if (d < tp.bestDist - 1) {
                     tp.bestDist = d;
                     tp.ticksSinceBetter = 0;
                 } else if (++tp.ticksSinceBetter > 600) {
-                    finish(tp, "stuck " + Math.round(d) + " blocks from " + tp.target.getBlockX() + " " + tp.target.getBlockZ() + " (no way around found in 30 s)");
+                    String[] build = tp.pendingBuild;
+                    Location to = tp.target;
+                    finish(tp, "stuck " + Math.round(d) + " blocks from " + to.getBlockX() + " " + to.getBlockZ() + " (no way around found in 30 s)");
                     brake(m);
+                    if (build != null) {
+                        // On its way to build and stuck (a cliff, a ravine): hop into the build zone rather than give up.
+                        Location top = to.getWorld().getHighestBlockAt(to.getBlockX(), to.getBlockZ(), org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES).getLocation().add(0.5, 1, 0.5);
+                        m.teleport(top);
+                        try {
+                            tp.lastResult = "got stuck, hopped into the build zone; " + plugin.builder().start(tp, build[0], build[1]);
+                        } catch (IllegalArgumentException | IllegalStateException e) {
+                            tp.lastResult = "build failed: " + e.getMessage();
+                        }
+                    }
                     return;
                 }
                 head(tp, m, loc, tp.target.getX(), tp.target.getZ(), speed);
             }
             case FOLLOW -> {
                 Player p = tp.follow == null ? null : Bukkit.getPlayerExact(tp.follow);
-                if (p == null || p.getWorld() != loc.getWorld()) {
+                TestPlayer other = p == null ? get(tp.follow) : null;
+                Mannequin om = other == null ? null : other.entity();
+                Location pl = p != null ? p.getLocation() : om != null ? om.getLocation() : null;
+                if (pl == null || pl.getWorld() != loc.getWorld()) {
                     finish(tp, "lost " + tp.follow);
                     brake(m);
                     return;
                 }
-
-                Location pl = p.getLocation();
                 double d = hdist(pl, loc);
                 if (d < 2.5) {
                     brake(m);
-                    m.lookAt(p.getEyeLocation().getX(), p.getEyeLocation().getY(), p.getEyeLocation().getZ(), io.papermc.paper.entity.LookAnchor.EYES);
+                    m.lookAt(pl.getX(), pl.getY() + 1.6, pl.getZ(), io.papermc.paper.entity.LookAnchor.EYES);
                 } else head(tp, m, loc, pl.getX(), pl.getZ(), d > 8 ? s().sprintSpeed() : speed);
             }
             case WANDER -> {
@@ -370,6 +425,32 @@ final class TestPlayers {
                     tp.stuckTicks = 0;
                 }
                 steer(m, loc, tp.target.getX(), tp.target.getZ(), speed);
+            }
+            case BUILD -> {
+                Block next = plugin.builder().next(tp);
+                if (next == null) {
+                    brake(m);
+                    return;
+                }
+                Location spot = next.getLocation().add(0.5, 0.5, 0.5);
+                Location stand = plugin.builder().stand(tp);
+                double toStand = stand == null ? 0 : hdist(stand, loc);
+                if (toStand < tp.bestDist - 1) {
+                    tp.bestDist = toStand;
+                    tp.ticksSinceBetter = 0;
+                }
+                if (toStand > 1.5 && ++tp.ticksSinceBetter > 300) {
+                    // 15 s without getting closer to its building spot (up a cliff, across a ravine): hop there.
+                    m.teleport(stand);
+                    tp.bestDist = 0;
+                    tp.ticksSinceBetter = 0;
+                } else if (toStand > 1.5) head(tp, m, loc, stand.getX(), stand.getZ(), speed);
+                else brake(m);
+                // Builds from its spot outside the doorway, or from wherever it got stuck if that's close enough.
+                if (hdist(spot, loc) <= 12) {
+                    m.lookAt(spot.getX(), spot.getY(), spot.getZ(), io.papermc.paper.entity.LookAnchor.EYES);
+                    plugin.builder().work(tp, m);
+                }
             }
             case WALK -> {
                 if (tp.stuckTicks >= 60) {
@@ -483,6 +564,7 @@ final class TestPlayers {
             if (tp.staff != null) c.set("staff", tp.staff);
             c.set("ai", tp.ai);
             if (tp.goal != null) c.set("goal", tp.goal);
+            if (tp.personality != null) c.set("personality", tp.personality);
             c.set("deaths", tp.deaths);
         }
         try {
@@ -508,6 +590,7 @@ final class TestPlayers {
             } catch (IllegalArgumentException e) {
                 tp.mode = TestPlayer.Mode.IDLE;
             }
+            if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE; // builds in progress aren't saved
             tp.target = location(c, "target");
             tp.follow = c.getString("follow");
             tp.wanderRadius = c.getDouble("wander-radius", 24);
@@ -517,6 +600,7 @@ final class TestPlayers {
             tp.staff = c.getString("staff");
             tp.ai = c.getBoolean("ai", false) && tp.model != null;
             tp.goal = c.getString("goal");
+            tp.personality = c.getString("personality");
             tp.deaths = c.getInt("deaths", 0);
             if ((tp.mode == TestPlayer.Mode.GOTO && tp.target == null) || (tp.mode == TestPlayer.Mode.FOLLOW && tp.follow == null)) tp.mode = TestPlayer.Mode.IDLE;
             players.put(tp.id, tp);

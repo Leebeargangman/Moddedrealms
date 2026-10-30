@@ -152,6 +152,7 @@ final class WebsiteLink {
                 TestPlayer tp = players.create(name);
                 applyAi(tp, args.has("ai") && args.get("ai").isJsonObject() ? args.getAsJsonObject("ai") : new JsonObject(), who);
                 if (args.has("goal") && !str(args, "goal").isEmpty()) tp.goal = cleanGoal(str(args, "goal"));
+                if (!str(args, "personality").isEmpty()) tp.personality = Personalities.resolve(str(args, "personality"));
                 players.spawn(tp, spawnPoint());
                 JsonObject o = new JsonObject();
                 o.addProperty("id", tp.id);
@@ -178,6 +179,7 @@ final class WebsiteLink {
                 JsonObject changes = args.has("changes") && args.get("changes").isJsonObject() ? args.getAsJsonObject("changes") : new JsonObject();
                 if (changes.has("ai") && changes.get("ai").isJsonObject()) applyAi(tp, changes.getAsJsonObject("ai"), who);
                 if (changes.has("goal")) tp.goal = changes.get("goal").isJsonNull() || str(changes, "goal").isEmpty() ? null : cleanGoal(str(changes, "goal"));
+                if (changes.has("personality")) tp.personality = changes.get("personality").isJsonNull() || str(changes, "personality").isEmpty() ? null : Personalities.resolve(str(changes, "personality"));
                 players.relabel(tp);
                 tp.nextThinkAt = 0;
                 return text("saved");
@@ -256,6 +258,21 @@ final class WebsiteLink {
             players.say(tp, t.substring(4));
             return null;
         }
+        if (lower.equals("undo")) return "Removed " + plugin.builder().undo(tp) + " blocks I built.";
+        if (lower.startsWith("personality ")) {
+            tp.personality = Personalities.resolve(t.substring(12));
+            players.markDirty();
+            tp.nextThinkAt = 0;
+            return "Personality: " + tp.personality;
+        }
+        String[] bw = lower.split("\\s+");
+        if (bw[0].equals("build") && bw.length >= 2 && Builder.STRUCTURES.contains(bw[1])) {
+            try {
+                return plugin.builder().startOrApproach(tp, bw[1], bw.length > 2 ? bw[2] : "wood");
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                return e.getMessage();
+            }
+        }
         if (tp.ai && tp.model != null) {
             plugin.brain().heard(tp, str(staff, "name") + " (staff, on the website)", t);
             return null; // the model answers in chat
@@ -280,7 +297,8 @@ final class WebsiteLink {
         } catch (NumberFormatException e) {
             return "That needs a number.";
         }
-        return "I have no AI model, so I only understand: status, stop, auto, come [x z], follow <player>, wander [radius], walk <direction>, say <text>.";
+        return "I have no AI model, so I only understand: status, stop, auto, come [x z], follow <player>, wander [radius], walk <direction>, say <text>, "
+                + "build <" + String.join("|", Builder.STRUCTURES) + "> [material], undo, personality <text>.";
     }
 
     /** Orders from the bot detail view and team tools, named like the AI bots' skills. */
@@ -418,6 +436,8 @@ final class WebsiteLink {
         perf.addProperty("players", Bukkit.getOnlinePlayers().size());
         perf.addProperty("testPlayers", players.spawnedCount());
         perf.addProperty("chunksHeld", players.chunksHeld());
+        perf.addProperty("builds", plugin.builder().buildCount());
+        perf.addProperty("buildZones", plugin.builder().zones().size());
         int loaded = 0;
         int entities = 0;
         for (World w : Bukkit.getWorlds()) {
@@ -441,12 +461,13 @@ final class WebsiteLink {
             b.addProperty("server", Bukkit.getName() + " " + Bukkit.getMinecraftVersion());
             b.addProperty("state", m != null ? "online" : tp.wanted ? "starting" : "stopped");
             b.add("offlineReason", null);
-            b.addProperty("model", tp.model == null ? "rules only" : tp.model + (tp.staff != null ? " (" + tp.staff + "'s computer)" : ""));
+            b.addProperty("model", tp.model == null ? "rules only" : tp.model + (tp.staff != null ? " (on " + tp.staff + "'s PC)" : ""));
             b.addProperty("mode", "test");
             b.addProperty("queue", "game");
             b.addProperty("autonomous", tp.ai);
             b.addProperty("task", tp.doing());
             b.addProperty("thought", tp.thought);
+            if (tp.personality != null) b.addProperty("personality", tp.personality);
             if (tp.goal != null) {
                 JsonObject g = new JsonObject();
                 g.addProperty("text", tp.goal);
@@ -455,6 +476,7 @@ final class WebsiteLink {
             JsonObject stats = new JsonObject();
             stats.addProperty("deaths", tp.deaths);
             stats.addProperty("blocksMoved", Math.round(tp.blocksMoved));
+            stats.addProperty("builds", plugin.builder().buildCount(tp));
             b.add("stats", stats);
             if (m != null) {
                 Location l = m.getLocation();

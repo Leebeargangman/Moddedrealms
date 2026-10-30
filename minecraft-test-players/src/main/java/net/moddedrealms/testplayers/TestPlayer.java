@@ -9,7 +9,7 @@ import org.bukkit.entity.Mannequin;
 /** One simulated test player: what it should be doing, its AI settings, and the mannequin that is its body. */
 final class TestPlayer {
 
-    enum Mode { IDLE, WANDER, GOTO, FOLLOW, WALK }
+    enum Mode { IDLE, WANDER, GOTO, FOLLOW, WALK, BUILD }
 
     final String id;
     final String name;
@@ -28,6 +28,11 @@ final class TestPlayer {
     String staff;           // relay the model through the website to this staff member's computer (their connector)
     boolean ai;             // the model chooses what to do
     String goal;            // set on the Bots page; repeated in every prompt
+    String personality;     // who it is: shapes what it chooses and how it talks
+    long lastBotHeardAt;    // last time another test player's chat reached its AI (limits bot-to-bot chatter)
+    long lastBuiltAt;
+    String buildStatus = "building";
+    String[] pendingBuild;  // {structure, material}: build this once it reaches the build zone it's walking to
     String thought = "";
     boolean thinking;
     long nextThinkAt;
@@ -79,6 +84,7 @@ final class TestPlayer {
             case GOTO -> target == null ? "going somewhere" : "going to " + target.getBlockX() + " " + target.getBlockY() + " " + target.getBlockZ();
             case FOLLOW -> "following " + follow;
             case WALK -> "walking " + compass(walkYaw);
+            case BUILD -> buildStatus;
         };
     }
 
