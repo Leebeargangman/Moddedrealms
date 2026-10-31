@@ -255,6 +255,7 @@
     kvRow(dl, "Offline", b.offlineReason);
     if (b.stats) kvRow(dl, "Deaths", b.stats.deaths);
     if (b.stats && b.stats.blocksMoved != null) kvRow(dl, "Walked", b.stats.blocksMoved + " blocks");
+    if (b.town) kvRow(dl, "Town / job", b.town + " · " + b.job);
     if (b.stats && b.stats.builds) kvRow(dl, "Built", b.stats.builds + (b.stats.builds === 1 ? " thing" : " things"));
     if (b.personality) {
       var bp = b.personality;
@@ -650,13 +651,15 @@
         card.appendChild(head);
         var leader = c.leader ? m.snapshot.bots.filter(function (b) { return b.id === c.leader; })[0] : null;
         card.appendChild(el("small", null, [m.name, c.server, leader ? "led by " + leader.name : "no leader", "told to " + c.mode, c.ai ? "AI chat: " + c.ai : "no AI chat"].join(" · ")));
+        if (c.settle) card.appendChild(el("small", null, "Settlement at " + c.settle.x + " " + c.settle.z + ": " + (c.huts || 0) + " of " + c.members.length + " huts built"));
         var pOn = c.members.some(function (x) { return x.personality && x.personality.enabled; });
         var fwOn = c.members.some(function (x) { return x.personality && x.personality.freeWill; });
         var actions = el("div", "bot-actions");
         if (c.state === "running") {
           actions.appendChild(button("Stop crowd", "btn-ghost", function () { command(m.name, "stopCrowd", { crowd: c.id }); }));
-          ["follow", "wander", "gather", "stop"].forEach(function (mode) {
-            actions.appendChild(button(mode === "gather" ? "Gather at leader" : mode === "stop" ? "Stand still" : mode[0].toUpperCase() + mode.slice(1), c.mode === mode ? "btn-primary" : "btn-ghost", function () {
+          ["follow", "wander", "gather", "settle", "stop"].forEach(function (mode) {
+            var label = { follow: "Follow", wander: "Wander", gather: "Gather at leader", settle: "Settle at leader", stop: "Stand still" }[mode];
+            actions.appendChild(button(label, c.mode === mode ? "btn-primary" : "btn-ghost", function () {
               command(m.name, "crowdOrder", { crowd: c.id, mode: mode }, function (ev) { if (!ev.ok) MR.toast(ev.error); });
             }));
           });
@@ -676,7 +679,7 @@
           var p = x.personality;
           row.appendChild(el("span", null, x.name));
           row.appendChild(tag(x.label || "no personality", p && p.enabled ? "blue" : "grey"));
-          row.appendChild(el("small", null, x.state + (x.doing && x.state === "online" ? ", " + x.doing : "")));
+          row.appendChild(el("small", null, x.state + (x.job ? " · " + x.job : "") + (x.hut && x.hut.size ? " · hut " + Math.min(x.hut.done, x.hut.size) + "/" + x.hut.size : "") + (x.doing && x.state === "online" ? ", " + x.doing : "")));
           if (p) {
             var bits = el("div", "crowd-member-actions");
             bits.appendChild(button(p.enabled ? "Personality on" : "Personality off", "btn-ghost", function () {
@@ -766,6 +769,9 @@
         var tb = [s.server, "TPS " + p.tps + ", " + p.mspt + " ms/tick", p.testPlayers + " test players (max " + s.maxBots + "), " + p.players + " real players",
           p.chunksHeld + " chunks held by test players, " + p.loadedChunks + " loaded", "heap " + p.heapUsedMb + " / " + p.heapMaxMb + " MB",
           p.buildZones ? p.builds + " builds in " + p.buildZones + " build zone" + (p.buildZones === 1 ? "" : "s") : "no build zones"];
+        (s.towns || []).forEach(function (t) {
+          tb.push(t.name + ": " + t.stage + ", " + t.citizens + " citizens, " + t.homes + " homes, " + t.built + "/" + t.planned + " buildings");
+        });
         if (s.ollama) tb.push(s.ollama.up === false ? "Ollama not reachable" : "models: " + (s.ollama.models.map(function (x) { return x.name; }).join(", ") || "none"));
         box.appendChild(el("p", "muted small host-info", tb.join(" · ")));
         return;

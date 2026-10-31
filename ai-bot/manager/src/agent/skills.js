@@ -686,15 +686,15 @@ export const SKILLS = {
   give: { desc: 'walk to your owner/staff and throw them items', args: '{"item": string, "count": number, "name": string}', maxMs: 4 * 60e3, run: give },
   leave_spawn: { desc: 'walk out of the protected area around world spawn (you cannot dig or build there)', args: '{}', maxMs: 5 * 60e3, run: leaveSpawn },
   crowd: {
-    desc: 'tell the crowd you lead what to do: "mode" follow (stay near you), wander, gather (come to where you are now) or stop',
-    args: '{"mode": "follow"|"wander"|"gather"|"stop"}',
+    desc: 'tell the crowd you lead what to do: "mode" follow (stay near you), wander, gather (come to where you are now), settle (found a settlement here: they chop trees and build huts around this spot) or stop',
+    args: '{"mode": "follow"|"wander"|"gather"|"settle"|"stop"}',
     maxMs: 10e3,
     run: async (ctx, a) => {
       const crowds = ctx.instance().crowds ?? []
       if (!crowds.length) throw new Error("you don't lead a crowd")
       const mode = String(a.mode ?? 'follow').toLowerCase()
       const p = ctx.body.pos
-      return crowds.map(c => c.order(mode, mode === 'gather' && p ? { x: p.x, y: p.y, z: p.z } : null, ctx.body.name)).join('; ')
+      return crowds.map(c => c.order(mode, ['gather', 'settle'].includes(mode) && p ? { x: p.x, y: p.y, z: p.z } : null, ctx.body.name)).join('; ')
     }
   },
   wait: { desc: 'stand still for a while', args: '{"seconds": number}', maxMs: 2 * 60e3, run: async (ctx, a, s) => { await wait(Math.min(Number(a.seconds) || 10, 110) * 1000, s); return 'waited' } }
@@ -716,7 +716,7 @@ export const ARGS_SCHEMA = {
     seconds: { type: 'integer', minimum: 1, maximum: 3600 },
     minutes: { type: 'integer', minimum: 1, maximum: 60 },
     untilDay: { type: 'boolean' },
-    mode: { type: 'string', enum: ['follow', 'wander', 'gather', 'stop'] },
+    mode: { type: 'string', enum: ['follow', 'wander', 'gather', 'settle', 'stop'] },
     x: coord,
     y: coord,
     z: coord

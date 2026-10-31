@@ -36,9 +36,13 @@ A `<target>` is one name, a prefix ending in `*` (`Load*`) or `all`.
 | `ai <target> <model\|on\|off> [staff]` | Let an AI model control them (see below) |
 | `goal <target> <text\|clear>` | A goal their AI works toward |
 | `personality <target> <preset\|random\|text\|clear>` | Who they are (see below) |
-| `build <target> <hut\|house\|tower\|wall\|campfire> [wood\|spruce\|stone\|brick\|cherry]` | Build next to them (inside a build zone) |
+| `build <target> <structure> [wood\|spruce\|stone\|brick\|cherry]` | Build next to them (inside a build zone): hut, house, townhall, tower, wall, campfire, farm, well, lamp or stall |
 | `undo <target>` | Remove everything they built |
 | `zone add <name> <radius>` / `zone add <name> <x1> <z1> <x2> <z2>` / `zone list` / `zone remove <name>` | Where test players may build |
+| `town found <name> [radius]` / `town found <name> <radius> <x> <z>` | Plan a town around you (also makes it a build zone) |
+| `town join <town> <target> [job]` / `town leave <target>` | Make test players citizens (job from their personality) |
+| `town info [name]` / `town list` / `town remove <name>` | How the towns are doing |
+| `job <target> <job\|auto>` | Change a citizen's job |
 | `list`, `info <name>`, `stats` | What they're doing; TPS, MSPT, chunks, entities, memory |
 | `reload` | Re-read config.yml |
 
@@ -80,6 +84,46 @@ Safety, because this can run on a live server:
 
 They pick a spot that's level within two blocks (filling in a foundation), near their own height first. Put
 zones on fairly flat ground: on steep hills they may not find a spot, and if they can't walk to one they hop.
+
+## Towns: a civilisation that builds itself
+
+`/testplayer town found Riverton 45` plans a whole town around you, in a 91 x 91 square: a town square with a
+campfire and a well, a stone town hall with a bell, about 20 houses and huts in mixed materials, market stalls,
+four fenced wheat farms, lamp posts and guard towers. `/testplayer town join Riverton Citizen*` makes test
+players its citizens, and they build it, in that order, with dirt roads from every door to the square. It grows
+from a **camp** to a **village** (2 homes), a **town** (6 homes and the town hall) and a **city** (12 homes,
+3 towers), and the mayor announces each step in chat.
+
+Every citizen has a job, from its personality (or `/testplayer job <name> <job>`):
+
+| Personality | Job | What it does |
+|---|---|---|
+| builder (or none) | builder | builds the plan in order, paves roads when they pile up |
+| leader | mayor | builds the campfire, well and town hall, then looks over the town and announces how it's doing |
+| nervous | farmer | builds the farms, then harvests ripe wheat and replants it |
+| friendly | trader | builds the market stalls, minds one and greets players who come by |
+| grumpy | guard | builds the guard towers and patrols the town (also at night) |
+| explorer | scout | explores 70-110 blocks out and comes back to report what's there |
+| joker | entertainer | hangs around the campfire telling jokes when there's an audience |
+| (by hand) | roadworker | paves the roads and puts up lamp posts |
+
+At night everyone except the guards goes home: into a house nobody else lives in, or to the campfire. None of
+this needs an AI model; with one, citizens also talk about their town and their work in character.
+
+Building is still safe for a live server: the town is a build zone, nothing is built over existing blocks
+(roads and farms only replace grass and dirt), and `/testplayer undo <citizens>` takes it all away again.
+A building that doesn't fit where it's planned (a hill, a lake) is nudged a few blocks or skipped. Put towns
+on fairly flat ground. A town of 7 citizens reached "town" in about 6 minutes in testing.
+
+A quick civilisation:
+
+```
+/testplayer town found Riverton 45
+/testplayer spawn Citizen 8 idle
+/testplayer personality Citizen* random
+/testplayer town join Riverton Citizen*
+/testplayer ai Citizen* qwen2.5:3b DrLeebear      (optional: they talk about it)
+```
 
 ## Running it on Minehut (play.moddedrealms.net)
 
@@ -128,7 +172,7 @@ counts), and its test players appear with the bots. From there staff can:
   deep enclosed hole can still trap them (`bring` or `move` fixes that).
 - They keep chunks loaded and ticking (`chunk-radius`), but mobs don't spawn around them the way they do
   around real players, and they don't send network traffic. For network or login load, use real clients.
-- They don't mine, fight or use items, and build only the five structures above (no free-form building).
+- They don't mine, fight or use items, and build only the structures above (no free-form building).
 - Builds in progress aren't saved: after a restart they start fresh (finished builds and `undo` are kept).
 
 ## Building

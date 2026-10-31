@@ -166,6 +166,7 @@ final class TestPlayers {
         plugin.builder().cancel(tp);
         if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE;
         if (remove) {
+            if (tp.town != null) plugin.towns().leave(tp);
             players.remove(tp.id);
             plugin.builder().forget(tp);
         }

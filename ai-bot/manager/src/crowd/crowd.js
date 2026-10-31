@@ -69,13 +69,23 @@ export class Crowd extends EventEmitter {
     this.send({ type: 'spec', spec })
   }
 
-  /** follow | wander | gather | stop. "at" is where to gather (defaults to the leader). */
+  /**
+   * follow | wander | gather | settle | stop. "at" is where to gather or found the settlement (defaults to the
+   * leader's position).
+   */
   order (mode, at, by) {
-    if (!['follow', 'wander', 'gather', 'stop'].includes(mode)) throw new Error('crowd orders: follow, wander, gather, stop')
+    if (!['follow', 'wander', 'gather', 'settle', 'stop'].includes(mode)) throw new Error('crowd orders: follow, wander, gather, settle, stop')
     if (!this.child) throw new Error(`the crowd ${this.spec.name} isn't running`)
+    if (mode === 'settle' && !at && !this.leaderPos() && !this.spec.settle) throw new Error('settling needs a place: a leader in the game, or coordinates')
     this.spec.mode = mode
     if (mode === 'gather') this.spec.gather = at ?? this.leaderPos() ?? this.spec.gather ?? null
-    this.send({ type: 'order', mode, at: this.spec.gather, by })
+    // A new camp means new plots; settling again at the same camp keeps them.
+    if (mode === 'settle') {
+      const camp = at ?? this.spec.settle ?? this.leaderPos()
+      if (this.spec.settle && Math.hypot(camp.x - this.spec.settle.x, camp.z - this.spec.settle.z) > 16) for (const m of Object.values(this.spec.members)) delete m.plot
+      this.spec.settle = { x: Math.round(camp.x), y: Math.round(camp.y), z: Math.round(camp.z) }
+    }
+    this.send({ type: 'order', mode, at: mode === 'settle' ? this.spec.settle : this.spec.gather, by })
     return `told ${this.spec.name} to ${mode}`
   }
 
@@ -116,13 +126,19 @@ export class Crowd extends EventEmitter {
   describe () {
     const online = (this.last?.members ?? []).filter(m => m.state === 'online')
     const kinds = [...new Set(online.map(m => m.personality?.preset).filter(Boolean))]
-    return `a crowd of ${online.length} ("${this.spec.name}"${kinds.length ? `: ${kinds.join(', ')} types` : ''}), currently told to ${this.last?.mode ?? this.spec.mode}`
+    const st = this.status()
+    return `a crowd of ${online.length} ("${this.spec.name}"${kinds.length ? `: ${kinds.join(', ')} types` : ''}), currently told to ${this.last?.mode ?? this.spec.mode}` +
+      (this.spec.settle ? `; their settlement at ${this.spec.settle.x} ${this.spec.settle.z} has ${st.huts} finished huts` : '')
   }
 
   // ------------------------------------------------------------ the worker
 
   async onMessage (msg) {
     if (msg.type === 'status') this.last = msg
+    else if (msg.type === 'plot') {
+      if (this.spec.members[msg.name]) this.spec.members[msg.name].plot = msg.plot
+      this.manager.save()
+    }
     else if (msg.type === 'event') {
       this.note(msg.event)
       this.emit('event', msg.event)
@@ -155,6 +171,8 @@ export class Crowd extends EventEmitter {
       mode: this.last?.mode ?? this.spec.mode,
       ai: this.spec.ai?.enabled ? this.spec.ai.model : null,
       online: members.filter(m => m.state === 'online').length,
+      settle: this.spec.settle ?? null,
+      huts: members.filter(m => m.hut && m.hut.size && m.hut.done >= m.hut.size).length,
       feed: this.feed.slice(-5),
       members: members.map(m => ({ ...m, label: label(m.personality) }))
     }

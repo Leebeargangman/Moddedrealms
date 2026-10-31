@@ -9,6 +9,7 @@ import { initLog, log } from './log.js'
 import { BotInstance } from './bot/instance.js'
 import { Team } from './team/team.js'
 import { Crowd } from './crowd/crowd.js'
+import { setCrowdNames } from './crowd/registry.js'
 import { normalize, randomPreset } from './agent/personality.js'
 import * as accounts from './bot/accounts.js'
 import { availableMemMb, totalMemMb, hostInfo, modelRamMb, ensureModel, pullingModels, watchHost } from './hostinfo.js'
@@ -41,6 +42,7 @@ export class Manager extends EventEmitter {
     this.bots = new Map()
     this.teams = new Map()
     this.crowds = new Map()
+    this.knowCrowds()
     this.relay = null // set by the website link: (staffName, request, timeoutMs) => ollama response
   }
 
@@ -210,6 +212,11 @@ export class Manager extends EventEmitter {
 
   // ------------------------------------------------------------ crowds
 
+  /** Tell the AI bots who the crowd bots are, so they treat them as friends. */
+  knowCrowds () {
+    setCrowdNames(this.crowdSpecs.flatMap(c => Object.keys(c.members)))
+  }
+
   /** Most crowd bots this host runs at once (all crowds together); each is a lightweight client of ~40 MB. */
   maxCrowdBots () { return this.cfg.maxCrowdBots ?? 50 }
 
@@ -243,6 +250,7 @@ export class Manager extends EventEmitter {
       chatEverySeconds: Math.max(20, Number(chatEverySeconds) || 60), members, owner: owner ?? null
     }
     this.crowdSpecs.push(spec)
+    this.knowCrowds()
     this.save()
     this.emitList()
     return { id, name: spec.name, count: Object.keys(members).length }
@@ -316,6 +324,7 @@ export class Manager extends EventEmitter {
     await this.stopCrowd(id)
     this.crowds.delete(id)
     this.crowdSpecs = this.crowdSpecs.filter(c => c.id !== id)
+    this.knowCrowds()
     this.save()
     this.emitList()
   }
