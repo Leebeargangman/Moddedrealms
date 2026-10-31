@@ -33,6 +33,14 @@ final class TestPlayer {
     long lastBuiltAt;
     String buildStatus = "building";
     String[] pendingBuild;  // {structure, material}: build this once it reaches the build zone it's walking to
+
+    // Town life
+    String town;            // the town it lives in, if any
+    String job;             // builder, farmer, guard, scout, mayor, entertainer, trader, roadworker
+    long jobUntil;          // busy with the current errand until then
+    Location scoutOut;      // a scout's destination while it's out exploring
+    String scoutReport;     // what a scout says when it gets back
+    int harvested;
     String thought = "";
     boolean thinking;
     long nextThinkAt;
@@ -78,6 +86,8 @@ final class TestPlayer {
     }
 
     String doing() {
+        // A citizen shows its errand ("on patrol", "harvesting wheat") rather than how it's moving.
+        if (town != null && mode != Mode.BUILD && buildStatus != null && !buildStatus.equals("building")) return buildStatus;
         return switch (mode) {
             case IDLE -> "idle";
             case WANDER -> "wandering (" + Math.round(wanderRadius) + " blocks)";

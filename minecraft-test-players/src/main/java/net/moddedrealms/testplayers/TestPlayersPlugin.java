@@ -31,9 +31,11 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
     private TestPlayers players;
     private Brain brain;
     private Builder builder;
+    private Towns towns;
     private WebsiteLink link;
     private BukkitTask tickTask;
     private BukkitTask thinkTask;
+    private BukkitTask townTask;
 
     @Override
     public void onEnable() {
@@ -45,6 +47,7 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         builder = new Builder(this);
         builder.loadZones();
         builder.load();
+        towns = new Towns(this);
         link = new WebsiteLink(this);
 
         PluginCommand cmd = getCommand("testplayer");
@@ -55,10 +58,12 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
 
         players.removeStrays();
         players.load();
+        towns.load(); // after the test players, so their jobs come back too
         tickTask = Bukkit.getScheduler().runTaskTimer(this, players::tick, 1, 1);
         thinkTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (TestPlayer tp : players.all()) if (tp.entity() != null) brain.maybeThink(tp);
         }, 40, 20);
+        townTask = Bukkit.getScheduler().runTaskTimer(this, towns::tick, 60, 20);
         link.start();
         getLogger().info(players.all().size() + " test players known. Website link: " + link.status() + ".");
     }
@@ -68,6 +73,8 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         if (link != null) link.stop();
         if (tickTask != null) tickTask.cancel();
         if (thinkTask != null) thinkTask.cancel();
+        if (townTask != null) townTask.cancel();
+        if (towns != null) towns.save();
         if (players != null) {
             players.save(); // before removing the mannequins, so it remembers which were in the world and where
             players.despawnAllForShutdown();
@@ -97,6 +104,10 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
 
     Builder builder() {
         return builder;
+    }
+
+    Towns towns() {
+        return towns;
     }
 
     WebsiteLink link() {

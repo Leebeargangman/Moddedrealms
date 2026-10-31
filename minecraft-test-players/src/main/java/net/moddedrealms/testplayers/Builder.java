@@ -28,7 +28,7 @@ import org.bukkit.util.BoundingBox;
  */
 final class Builder {
 
-    static final List<String> STRUCTURES = List.of("hut", "house", "tower", "wall", "campfire");
+    static final List<String> STRUCTURES = List.of("hut", "house", "tower", "wall", "campfire", "farm", "well", "lamp", "stall", "townhall");
     static final List<String> MATERIALS = List.of("wood", "spruce", "stone", "brick", "cherry");
 
     /** A box (all heights) where test players may build: "world,x1,z1,x2,z2". */
@@ -56,14 +56,21 @@ final class Builder {
         }
     }
 
-    private enum Role { FLOOR, WALL, PILLAR, ROOF, WINDOW, LIGHT, SEAT, FIRE }
+    private enum Role { FLOOR, WALL, PILLAR, ROOF, WINDOW, LIGHT, SEAT, FIRE, WATER, FARMLAND, CROP, FENCE, LANTERN, HAY, BARREL, BELL }
 
     private record Cell(int x, int y, int z, Role role) { }
 
-    /** A structure: cells relative to its corner, the door (if any) on the z = 0 side. */
-    private record Template(int w, int d, List<Cell> cells) { }
+    /**
+     * A structure: cells relative to its corner, the door (if any) on the z = 0 side. Cells at y = -1 replace the
+     * ground itself (grass or dirt: farmland, water); a template with those needs flat ground.
+     */
+    private record Template(int w, int d, List<Cell> cells) {
+        boolean groundWork() {
+            return cells.stream().anyMatch(c -> c.y() < 0);
+        }
+    }
 
-    private record Palette(Material floor, Material wall, Material pillar, Material roof) {
+    private record Palette(Material floor, Material wall, Material pillar, Material roof, Material fence) {
         Material of(Role r) {
             return switch (r) {
                 case FLOOR -> floor;
@@ -73,26 +80,39 @@ final class Builder {
                 case WINDOW -> Material.GLASS_PANE;
                 case LIGHT -> Material.TORCH;
                 case FIRE -> Material.CAMPFIRE;
+                case WATER -> Material.WATER;
+                case FARMLAND -> Material.FARMLAND;
+                case CROP -> Material.WHEAT;
+                case FENCE -> fence;
+                case LANTERN -> Material.LANTERN;
+                case HAY -> Material.HAY_BLOCK;
+                case BARREL -> Material.BARREL;
+                case BELL -> Material.BELL;
             };
         }
     }
 
     private static final Map<String, Palette> PALETTES = Map.of(
-            "wood", new Palette(Material.OAK_PLANKS, Material.OAK_PLANKS, Material.OAK_LOG, Material.OAK_SLAB),
-            "spruce", new Palette(Material.SPRUCE_PLANKS, Material.SPRUCE_PLANKS, Material.SPRUCE_LOG, Material.SPRUCE_SLAB),
-            "stone", new Palette(Material.STONE_BRICKS, Material.COBBLESTONE, Material.STONE_BRICKS, Material.STONE_BRICK_SLAB),
-            "brick", new Palette(Material.BRICKS, Material.BRICKS, Material.STONE_BRICKS, Material.BRICK_SLAB),
-            "cherry", new Palette(Material.CHERRY_PLANKS, Material.CHERRY_PLANKS, Material.CHERRY_LOG, Material.CHERRY_SLAB));
+            "wood", new Palette(Material.OAK_PLANKS, Material.OAK_PLANKS, Material.OAK_LOG, Material.OAK_SLAB, Material.OAK_FENCE),
+            "spruce", new Palette(Material.SPRUCE_PLANKS, Material.SPRUCE_PLANKS, Material.SPRUCE_LOG, Material.SPRUCE_SLAB, Material.SPRUCE_FENCE),
+            "stone", new Palette(Material.STONE_BRICKS, Material.COBBLESTONE, Material.STONE_BRICKS, Material.STONE_BRICK_SLAB, Material.COBBLESTONE_WALL),
+            "brick", new Palette(Material.BRICKS, Material.BRICKS, Material.STONE_BRICKS, Material.BRICK_SLAB, Material.BRICK_WALL),
+            "cherry", new Palette(Material.CHERRY_PLANKS, Material.CHERRY_PLANKS, Material.CHERRY_LOG, Material.CHERRY_SLAB, Material.CHERRY_FENCE));
 
-    private static final Map<String, Template> TEMPLATES = Map.of(
-            "hut", house(5, 3),
-            "house", house(7, 4),
-            "tower", tower(),
-            "wall", wall(),
-            "campfire", campfire());
+    private static final Map<String, Template> TEMPLATES = Map.ofEntries(
+            Map.entry("hut", house(5, 3, false)),
+            Map.entry("house", house(7, 4, false)),
+            Map.entry("townhall", house(9, 5, true)),
+            Map.entry("tower", tower()),
+            Map.entry("wall", wall()),
+            Map.entry("campfire", campfire()),
+            Map.entry("farm", farm()),
+            Map.entry("well", well()),
+            Map.entry("lamp", lamp()),
+            Map.entry("stall", stall()));
 
     /** A square house: floor, walls with a door gap at the front and windows, a flat slab roof, a torch inside. */
-    private static Template house(int size, int wallHeight) {
+    private static Template house(int size, int wallHeight, boolean hall) {
         List<Cell> c = new ArrayList<>();
         int m = size - 1;
         int door = size / 2;
@@ -112,7 +132,62 @@ final class Builder {
         }
         for (int x = 0; x < size; x++) for (int z = 0; z < size; z++) c.add(new Cell(x, wallHeight + 1, z, Role.ROOF));
         c.add(new Cell(1, 1, size - 2, Role.LIGHT));
+        if (hall) {
+            c.add(new Cell(size - 2, 1, size - 2, Role.LIGHT));
+            c.add(new Cell(size / 2, 1, size - 2, Role.BELL)); // the town bell, at the back of the hall
+        }
         return new Template(size, size, c);
+    }
+
+    /** A fenced 9x9 wheat field around a water block, with a gate at the front. */
+    private static Template farm() {
+        List<Cell> c = new ArrayList<>();
+        for (int x = 1; x <= 7; x++) {
+            for (int z = 1; z <= 7; z++) {
+                boolean centre = x == 4 && z == 4;
+                c.add(new Cell(x, -1, z, centre ? Role.WATER : Role.FARMLAND));
+                if (!centre) c.add(new Cell(x, 0, z, Role.CROP));
+            }
+        }
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 9; z++) {
+                boolean edge = x == 0 || x == 8 || z == 0 || z == 8;
+                if (edge && !(z == 0 && x == 4)) c.add(new Cell(x, 0, z, Role.FENCE));
+            }
+        }
+        return new Template(9, 9, c);
+    }
+
+    /** A stone well: water in the middle, a low wall around it, four posts and a slab roof. */
+    private static Template well() {
+        List<Cell> c = new ArrayList<>();
+        c.add(new Cell(2, -1, 2, Role.WATER));
+        for (int x = 1; x <= 3; x++) for (int z = 1; z <= 3; z++) if (x != 2 || z != 2) c.add(new Cell(x, 0, z, Role.WALL));
+        for (int[] k : new int[][] {{1, 1}, {3, 1}, {1, 3}, {3, 3}}) {
+            c.add(new Cell(k[0], 1, k[1], Role.FENCE));
+            c.add(new Cell(k[0], 2, k[1], Role.FENCE));
+        }
+        for (int x = 1; x <= 3; x++) for (int z = 1; z <= 3; z++) c.add(new Cell(x, 3, z, Role.ROOF));
+        return new Template(5, 5, c);
+    }
+
+    /** A lamp post: three fence posts with a lantern on top. */
+    private static Template lamp() {
+        List<Cell> c = new ArrayList<>();
+        for (int y = 0; y < 3; y++) c.add(new Cell(0, y, 0, Role.FENCE));
+        c.add(new Cell(0, 3, 0, Role.LANTERN));
+        return new Template(1, 1, c);
+    }
+
+    /** A market stall: a barrel counter at the front, hay at the back, posts and a slab roof. */
+    private static Template stall() {
+        List<Cell> c = new ArrayList<>();
+        for (int x = 1; x <= 3; x++) c.add(new Cell(x, 0, 0, Role.BARREL));
+        c.add(new Cell(1, 0, 2, Role.HAY));
+        c.add(new Cell(3, 0, 2, Role.HAY));
+        for (int[] k : new int[][] {{0, 0}, {4, 0}, {0, 2}, {4, 2}}) for (int y = 0; y < 3; y++) c.add(new Cell(k[0], y, k[1], Role.FENCE));
+        for (int x = 0; x < 5; x++) for (int z = 0; z < 3; z++) c.add(new Cell(x, 3, z, Role.ROOF));
+        return new Template(5, 3, c);
     }
 
     private static boolean window(int size, int along) {
@@ -150,7 +225,8 @@ final class Builder {
 
     // ------------------------------------------------------------ state
 
-    private record Placed(String world, int x, int y, int z, Material type) { }
+    /** A block a test player placed, and what was there before (null = air), for undo. */
+    private record Placed(String world, int x, int y, int z, Material type, Material before) { }
 
     record Built(String owner, String structure, String world, int x, int y, int z) { }
 
@@ -158,7 +234,13 @@ final class Builder {
         final String structure;
         final List<Block> blocks = new ArrayList<>();
         final List<Material> types = new ArrayList<>();
+        final List<Material> before = new ArrayList<>(); // what each replaces (ground work), else null
         final Location center;
+        Town town;          // building a town's plot (or road), if any
+        int plot = -1;      // which plot; -1 for a road
+        boolean road;       // a road: it walks along it instead of standing at a doorway
+        String label;       // "building a hut", "paving a road"...
+        boolean resume;     // finishing a plot we started before (a restart): our own blocks count as done
         Location stand; // just outside the doorway, where it builds from
         int minX, minZ, maxX, maxZ; // footprint, reserved while it's being built
         int next;
@@ -320,16 +402,74 @@ final class Builder {
             String where = zoneAt(l) == null ? "it isn't inside a build zone" : "there's no clear, flat enough spot near it (move it to flatter ground)";
             throw new IllegalArgumentException(tp.name + " can't build a " + s + " here: " + where + ".");
         }
+        begin(tp, job, p.wall(), "building a " + s);
+        return "Building a " + mat + " " + s + " at " + job.center.getBlockX() + " " + job.center.getBlockY() + " " + job.center.getBlockZ()
+                + " (" + job.blocks.size() + " blocks).";
+    }
+
+    private void begin(TestPlayer tp, Job job, Material hand, String label) {
         plugin.players().idle(tp); // stops anything else, including an older build
+        job.label = label;
         jobs.put(tp.id, job);
         tp.mode = TestPlayer.Mode.BUILD;
         tp.bestDist = Double.MAX_VALUE;
         tp.ticksSinceBetter = 0;
-        tp.buildStatus = "building a " + s + " (0/" + job.blocks.size() + ")";
+        tp.buildStatus = label + " (0/" + job.blocks.size() + ")";
         tp.stuckTicks = 0;
-        m.getEquipment().setItemInMainHand(new ItemStack(p.wall()));
-        return "Building a " + mat + " " + s + " at " + job.center.getBlockX() + " " + job.center.getBlockY() + " " + job.center.getBlockZ()
-                + " (" + job.blocks.size() + " blocks).";
+        Mannequin m = tp.entity();
+        if (m != null && hand.isItem()) m.getEquipment().setItemInMainHand(new ItemStack(hand));
+    }
+
+    /**
+     * Build one of a town's planned plots: on the spot, or nudged a few blocks if the ground there is uneven or
+     * taken. Returns false if it fits nowhere near (the town gives up on that plot).
+     */
+    boolean startPlot(TestPlayer tp, Town town, int index) {
+        Town.Plot pl = town.plots.get(index);
+        Template t = TEMPLATES.get(pl.structure);
+        Palette p = PALETTES.get(pl.material);
+        World w = Bukkit.getWorld(town.world);
+        if (t == null || p == null || w == null) return false;
+        // The planned spot, then rings further and further out (up to 9 blocks): trees and dips are common.
+        Job job = fit(w, t, p, pl.structure, pl.rot, pl.x, pl.z, pl.resume);
+        for (int r = 2; job == null && r <= 9; r++) {
+            for (int i = 0; job == null && i < 8; i++) {
+                double a = i * Math.PI / 4;
+                job = fit(w, t, p, pl.structure, pl.rot, pl.x + (int) Math.round(Math.cos(a) * r), pl.z + (int) Math.round(Math.sin(a) * r), pl.resume);
+            }
+        }
+        if (job == null) return false;
+        pl.resume = true; // from now on, a restart picks this one up where it left off
+        job.town = town;
+        job.plot = index;
+        begin(tp, job, p.of(pl.structure.equals("farm") ? Role.CROP : Role.WALL), "building the " + town.name + " " + pl.structure);
+        return true;
+    }
+
+    /** Pave a dirt path from one spot to another (grass and dirt only, inside the town's zone). False if there's nothing to pave. */
+    boolean startRoad(TestPlayer tp, Town town, Location from, Location to) {
+        World w = from.getWorld();
+        Job job = new Job("road", to.clone());
+        job.road = true;
+        job.town = town;
+        job.stand = from.clone();
+        job.minX = job.minZ = Integer.MAX_VALUE; // a road reserves no area
+        job.maxX = job.maxZ = Integer.MIN_VALUE;
+        double dx = to.getX() - from.getX();
+        double dz = to.getZ() - from.getZ();
+        int steps = (int) Math.ceil(Math.hypot(dx, dz) * 2);
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (int i = 0; i <= steps; i++) {
+            int bx = (int) Math.floor(from.getX() + dx * i / steps);
+            int bz = (int) Math.floor(from.getZ() + dz * i / steps);
+            if (!seen.add(((long) bx << 32) | (bz & 0xffffffffL))) continue;
+            if (!w.isChunkLoaded(bx >> 4, bz >> 4) || zoneAt(new Location(w, bx, 0, bz)) == null) continue;
+            Block top = w.getHighestBlockAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+            if (top.getRelative(org.bukkit.block.BlockFace.UP).getType().isAir()) addGround(job, top, Material.DIRT_PATH);
+        }
+        if (job.blocks.isEmpty()) return false;
+        begin(tp, job, Material.WOODEN_SHOVEL, "paving a road to the " + town.name + " square");
+        return true;
     }
 
     /** Spiral out from the test player looking for a spot where the whole structure fits in a zone, on flat ground, in air. */
@@ -358,6 +498,10 @@ final class Builder {
     }
 
     private Job fit(World w, Template t, Palette p, String structure, int rot, int cx, int cz) {
+        return fit(w, t, p, structure, rot, cx, cz, false);
+    }
+
+    private Job fit(World w, Template t, Palette p, String structure, int rot, int cx, int cz, boolean resume) {
         boolean swap = rot % 2 == 1;
         int fw = swap ? t.d() : t.w();
         int fd = swap ? t.w() : t.d();
@@ -377,6 +521,8 @@ final class Builder {
                 if (zoneAt(new Location(w, bx, 0, bz)) == null) return null;
                 if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return null;
                 Block top = w.getHighestBlockAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+                // Resuming: our own half-finished build counts as ground level, not as an obstacle.
+                while (resume && top.getY() > w.getMinHeight() && (top.getType() == Material.WATER || ownPart(top.getType()))) top = top.getRelative(org.bukkit.block.BlockFace.DOWN);
                 if (top.isLiquid() || unsuitableGround(top.getType())) return null;
                 ground[x][z] = top.getY();
                 lo = Math.min(lo, top.getY());
@@ -384,8 +530,10 @@ final class Builder {
             }
         }
         if (hi - lo > 2) return null; // up to two blocks of slope, filled in with a foundation
+        if (t.groundWork() && hi != lo) return null; // farmland and water need level ground
         int baseY = hi + 1;
         Job job = new Job(structure, new Location(w, cx + 0.5, baseY, cz + 0.5));
+        job.resume = resume;
         job.minX = minX;
         job.minZ = minZ;
         job.maxX = minX + fw - 1;
@@ -414,9 +562,35 @@ final class Builder {
                 case 3 -> { lx = c.z(); lz = t.w() - 1 - c.x(); }
                 default -> { lx = c.x(); lz = c.z(); }
             }
-            if (!add(job, w.getBlockAt(minX + lx, baseY + c.y(), minZ + lz), p.of(c.role()))) return null;
+            Block b = w.getBlockAt(minX + lx, baseY + c.y(), minZ + lz);
+            if (!(c.y() < 0 ? addGround(job, b, p.of(c.role())) : add(job, b, p.of(c.role())))) return null;
         }
         return job;
+    }
+
+    private static final java.util.Set<Material> GROUND = java.util.EnumSet.of(Material.GRASS_BLOCK, Material.DIRT, Material.COARSE_DIRT,
+            Material.PODZOL, Material.ROOTED_DIRT, Material.MYCELIUM);
+
+    /** Queue a block that replaces the ground (grass or dirt only); remembers what was there for undo. */
+    private static boolean addGround(Job job, Block b, Material type) {
+        if (job.resume && b.getType() == type) return true; // already done before a restart
+        if (!GROUND.contains(b.getType())) return false;
+        job.blocks.add(b);
+        job.types.add(type);
+        job.before.add(b.getType());
+        return true;
+    }
+
+    private static final java.util.Set<Material> PARTS = java.util.EnumSet.noneOf(Material.class);
+
+    static {
+        for (Palette p : PALETTES.values()) for (Role r : Role.values()) PARTS.add(p.of(r));
+        PARTS.remove(Material.WATER);
+    }
+
+    /** A block one of our structures is made of (walls, roofs, crops...), but not plain ground. */
+    private static boolean ownPart(Material m) {
+        return PARTS.contains(m) && m != Material.FARMLAND;
     }
 
     private static boolean unsuitableGround(Material m) {
@@ -426,9 +600,11 @@ final class Builder {
 
     /** Queue a block if its spot is free (air, grass, flowers...); false if something is already there. */
     private static boolean add(Job job, Block b, Material type) {
+        if (job.resume && b.getType() == type) return true; // already done before a restart
         if (!(b.getType().isAir() || (b.isReplaceable() && !b.isLiquid()))) return false;
         job.blocks.add(b);
         job.types.add(type);
+        job.before.add(null);
         return true;
     }
 
@@ -445,10 +621,12 @@ final class Builder {
         return j.blocks.get(j.next);
     }
 
-    /** Where to stand while building, or null if it isn't building. */
+    /** Where to stand while building, or null if it isn't building. A road builder walks along the road. */
     Location stand(TestPlayer tp) {
         Job j = jobs.get(tp.id);
-        return j == null ? null : j.stand;
+        if (j == null) return null;
+        if (j.road && j.next < j.blocks.size()) return j.blocks.get(j.next).getLocation().add(0.5, 1, 0.5);
+        return j.stand;
     }
 
     /** It's standing close to the next block: place it when the build speed allows. */
@@ -459,7 +637,9 @@ final class Builder {
         if (j.credit < 1) return;
         Block b = j.blocks.get(j.next);
         Material type = j.types.get(j.next);
-        if (!(b.getType().isAir() || (b.isReplaceable() && !b.isLiquid()))) {
+        Material before = j.before.get(j.next);
+        boolean free = before != null ? b.getType() == before : b.getType().isAir() || (b.isReplaceable() && !b.isLiquid());
+        if (!free) {
             j.next++; // something got there first (a player built there): leave it alone
             return;
         }
@@ -477,11 +657,12 @@ final class Builder {
         j.credit -= 1;
         b.setType(type, true);
         j.next++;
-        tp.buildStatus = "building a " + j.structure + " (" + j.next + "/" + j.blocks.size() + ")";
-        placed.computeIfAbsent(tp.id, k -> new ArrayList<>()).add(new Placed(b.getWorld().getName(), b.getX(), b.getY(), b.getZ(), type));
+        tp.buildStatus = j.label + " (" + j.next + "/" + j.blocks.size() + ")";
+        placed.computeIfAbsent(tp.id, k -> new ArrayList<>()).add(new Placed(b.getWorld().getName(), b.getX(), b.getY(), b.getZ(), type, before));
         dirty = true;
-        ItemStack hand = m.getEquipment().getItemInMainHand();
-        if (hand.getType() != type) m.getEquipment().setItemInMainHand(new ItemStack(type));
+        // Hold what it's placing (a bucket for water; nothing for blocks that aren't items).
+        Material held = type == Material.WATER ? Material.WATER_BUCKET : type.isItem() ? type : null;
+        if (held != null && m.getEquipment().getItemInMainHand().getType() != held) m.getEquipment().setItemInMainHand(new ItemStack(held));
         m.swingMainHand();
         b.getWorld().playSound(b.getLocation().add(0.5, 0.5, 0.5), b.getBlockData().getSoundGroup().getPlaceSound(), 1f, 0.9f);
     }
@@ -489,9 +670,10 @@ final class Builder {
     private void finish(TestPlayer tp, Job j) {
         jobs.remove(tp.id);
         Location c = j.center;
-        builds.add(new Built(tp.id, j.structure, c.getWorld().getName(), c.getBlockX(), c.getBlockY(), c.getBlockZ()));
+        if (j.town != null) j.town.finished(j.plot, j.road, j.stand);
+        if (!j.road) builds.add(new Built(tp.id, j.structure, c.getWorld().getName(), c.getBlockX(), c.getBlockY(), c.getBlockZ()));
         dirty = true;
-        tp.lastResult = "built a " + j.structure + " at " + c.getBlockX() + " " + c.getBlockY() + " " + c.getBlockZ();
+        tp.lastResult = j.road ? "paved a road" : "built a " + j.structure + " at " + c.getBlockX() + " " + c.getBlockY() + " " + c.getBlockZ();
         tp.lastBuiltAt = System.currentTimeMillis();
         tp.mode = TestPlayer.Mode.IDLE;
         Mannequin m = tp.entity();
@@ -503,7 +685,8 @@ final class Builder {
     void cancel(TestPlayer tp) {
         Job j = jobs.remove(tp.id);
         if (j == null) return;
-        tp.lastResult = "stopped building a " + j.structure + " (" + j.next + "/" + j.blocks.size() + " placed)";
+        if (j.town != null) j.town.released(j.plot, j.road);
+        tp.lastResult = "stopped " + j.label + " (" + j.next + "/" + j.blocks.size() + " placed)";
         Mannequin m = tp.entity();
         if (m != null) m.getEquipment().setItemInMainHand(null);
     }
@@ -521,8 +704,9 @@ final class Builder {
             World w = Bukkit.getWorld(p.world());
             if (w == null) continue;
             Block b = w.getBlockAt(p.x(), p.y(), p.z());
+            // Wheat counts as unchanged however much it has grown.
             if (b.getType() == p.type()) {
-                b.setType(Material.AIR, false);
+                b.setType(p.before() != null ? p.before() : Material.AIR, false);
                 n++;
             }
         }
@@ -569,7 +753,7 @@ final class Builder {
         YamlConfiguration y = new YamlConfiguration();
         for (Map.Entry<String, List<Placed>> e : placed.entrySet()) {
             List<String> rows = new ArrayList<>();
-            for (Placed p : e.getValue()) rows.add(p.world() + "," + p.x() + "," + p.y() + "," + p.z() + "," + p.type().name());
+            for (Placed p : e.getValue()) rows.add(p.world() + "," + p.x() + "," + p.y() + "," + p.z() + "," + p.type().name() + (p.before() != null ? "," + p.before().name() : ""));
             y.set("placed." + e.getKey(), rows);
         }
         List<String> rows = new ArrayList<>();
@@ -592,10 +776,11 @@ final class Builder {
                 List<Placed> list = new ArrayList<>();
                 for (String row : s.getStringList(id)) {
                     String[] p = row.split(",");
-                    Material m = p.length == 5 ? Material.matchMaterial(p[4]) : null;
+                    Material m = p.length >= 5 ? Material.matchMaterial(p[4]) : null;
                     if (m == null) continue;
+                    Material before = p.length >= 6 ? Material.matchMaterial(p[5]) : null;
                     try {
-                        list.add(new Placed(p[0], Integer.parseInt(p[1]), Integer.parseInt(p[2]), Integer.parseInt(p[3]), m));
+                        list.add(new Placed(p[0], Integer.parseInt(p[1]), Integer.parseInt(p[2]), Integer.parseInt(p[3]), m, before));
                     } catch (NumberFormatException ignored) {
                         // skip a damaged line
                     }

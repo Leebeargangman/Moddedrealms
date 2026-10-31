@@ -150,7 +150,14 @@ team leader (AI bot) ──orders──> team members (AI bots: real clients, mi
   Each member's personality and free will can be switched on and off on the page.
 - **Chat**: with an AI model they answer players who say their name and now and then say something in character
   (`chatEverySeconds`, default 60). Without one they use short built-in lines.
-- They don't mine, build or fight. They may break leaves to get out of a dense forest or down from a treetop.
+- **Settle**: `settle` (a button on the page, or the leader's `crowd` action) founds a settlement where the
+  leader stands. Each settler gets a plot on rings around the camp, punches trees for logs (by hand, like a new
+  player), crafts planks in its inventory and builds itself a 5x5 hut with a doorway facing the camp. Once its
+  hut is up, its personality decides its job: builders look after the settlement, scouts explore and report
+  back, keepers (nervous, grumpy) stay by the camp, entertainers (jokers) keep everyone company. At night they go
+  into their huts. Settlers only break logs (and leaves), only place planks on their own plot, keep out of spawn
+  protection, and build on open ground (they won't build in a forest, though they fetch wood from one).
+- Outside settling they don't mine, build or fight. They may break leaves to get out of a dense forest.
 - `maxCrowdBots` in manager.json (default 50) caps how many run on one host; they join 1.5 s apart.
 
 ## Building the bridge mod
@@ -169,6 +176,11 @@ The launcher prefers `build/libs/` over `dist/`.
   the AI bots. Only use crowds on servers you run.
 - **Crowd pathfinding** struggles in very dense forests (pale gardens, jungles); bots there may stay put until
   ordered elsewhere.
+- **Anti-cheats** (Vulcan, Grim) set crowd bots back every step: mineflayer's movement isn't close enough to a
+  real client's. Exempt the crowd's names in the anti-cheat, or use crowds on a server without one. (The AI bots
+  are real clients and aren't affected.)
+- **Settling is slow**: everything is done by hand with real blocks, so a hut takes a settler roughly 10-20
+  minutes depending on how many trees are within reach. Savanna and plains with scattered trees work best.
 
 - **Baritone** can't place some blocks from a schematic, such as wall torches. Builds stop after a minute without
   progress and report what's left.

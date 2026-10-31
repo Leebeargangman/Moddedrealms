@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Stream;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -21,9 +22,9 @@ import org.bukkit.entity.Player;
 final class TestPlayerCommand implements TabExecutor {
 
     private static final List<String> SUBS = List.of("spawn", "despawn", "start", "remove", "move", "follow", "wander", "walk", "stop",
-            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "list", "info", "stats", "reload", "help");
+            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "list", "info", "stats", "reload", "help");
     private static final List<String> TARGETED = List.of("despawn", "start", "remove", "move", "follow", "wander", "walk", "stop", "sprint", "bring", "ai", "goal",
-            "personality", "build", "undo");
+            "personality", "build", "undo", "job");
 
     private final TestPlayersPlugin plugin;
 
@@ -247,6 +248,17 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, "Removed " + n + " blocks built by " + count(list) + ".");
             }
             case "zone" -> zone(sender, a);
+            case "town" -> town(sender, a);
+            case "job" -> {
+                need(a, 3, "job <target> <" + String.join("|", Town.JOB_BUILDS.keySet()) + "|auto>");
+                List<TestPlayer> list = players.select(a[1]);
+                for (TestPlayer tp : list) {
+                    Town t = plugin.towns().get(tp.town);
+                    if (t == null) throw new IllegalArgumentException(tp.name + " doesn't live in a town: /testplayer town join <town> " + tp.name);
+                    plugin.towns().join(tp, t, a[2].equalsIgnoreCase("auto") ? null : a[2].toLowerCase(Locale.ROOT));
+                }
+                ok(sender, count(list) + (list.size() == 1 ? " is now a " + list.getFirst().job : " have new jobs") + ".");
+            }
             case "list" -> list(sender);
             case "info" -> {
                 need(a, 2, "info <name>");
@@ -258,6 +270,67 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, "Reloaded config.yml. Website link: " + plugin.link().status() + ".");
             }
             default -> throw new IllegalArgumentException("Unknown subcommand. /testplayer help");
+        }
+    }
+
+    /** /testplayer town found|join|leave|info|list|remove: settlements that grow by themselves. */
+    private void town(CommandSender sender, String[] a) {
+        Towns towns = plugin.towns();
+        String op = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "list";
+        switch (op) {
+            case "found" -> {
+                need(a, 3, "town found <name> [radius]   (around you)   or   town found <name> <radius> <x> <z>");
+                int radius = a.length > 3 ? integer(a[3], 30, 200) : 45;
+                Location at = a.length >= 6 ? new Location(origin(sender).getWorld(), number(a[4]), 0, number(a[5])) : player(sender).getLocation();
+                Town t = towns.found(a[2], at, radius);
+                ok(sender, "Founded " + t.name + " at " + t.cx + " " + t.cz + ": " + t.plots.size() + " buildings planned in a " + (radius * 2 + 1)
+                        + "-block square (also a build zone). Now: /testplayer town join " + t.name + " <test players>");
+            }
+            case "join" -> {
+                need(a, 4, "town join <town> <target> [job]");
+                Town t = towns.get(a[2]);
+                if (t == null) throw new IllegalArgumentException("No town called " + a[2] + ". /testplayer town list");
+                List<TestPlayer> list = plugin.players().select(a[3]);
+                Map<String, Integer> jobs = new java.util.TreeMap<>();
+                for (TestPlayer tp : list) jobs.merge(towns.join(tp, t, a.length > 4 ? a[4].toLowerCase(Locale.ROOT) : null), 1, Integer::sum);
+                ok(sender, count(list) + " now live in " + t.name + ": " + jobs.entrySet().stream().map(e -> e.getValue() + " " + e.getKey()).collect(java.util.stream.Collectors.joining(", ")) + ".");
+            }
+            case "leave" -> {
+                need(a, 3, "town leave <target>");
+                List<TestPlayer> list = plugin.players().select(a[2]);
+                list.forEach(towns::leave);
+                ok(sender, count(list) + " left their town.");
+            }
+            case "info" -> {
+                List<Town> show = a.length > 2 ? List.of(java.util.Optional.ofNullable(towns.get(a[2])).orElseThrow(() -> new IllegalArgumentException("No town called " + a[2] + "."))) : towns.all();
+                if (show.isEmpty()) throw new IllegalArgumentException("No towns yet. /testplayer town found <name> [radius]");
+                for (Town t : show) {
+                    sender.sendMessage(Component.text(t.name + " (" + t.stage() + ")", NamedTextColor.GOLD));
+                    line(sender, "Where", t.world + " " + t.cx + " " + t.cz + ", radius " + t.radius);
+                    line(sender, "Buildings", t.count("built") + " built, " + t.count("building") + " going up, " + t.count("planned") + " planned"
+                            + (t.count("skipped") > 0 ? ", " + t.count("skipped") + " didn't fit" : ""));
+                    line(sender, "Homes / farms", t.builtOf("house", "hut") + " / " + t.builtOf("farm") + (t.builtOf("townhall") > 0 ? ", town hall built" : ""));
+                    Map<String, Integer> jobs = new java.util.TreeMap<>();
+                    t.jobs.values().forEach(j -> jobs.merge(j, 1, Integer::sum));
+                    line(sender, "Citizens", t.jobs.size() + (jobs.isEmpty() ? "" : ": " + jobs.entrySet().stream().map(e -> e.getValue() + " " + e.getKey()).collect(java.util.stream.Collectors.joining(", "))));
+                    line(sender, "Roads waiting", String.valueOf(t.roads.size()));
+                }
+            }
+            case "list" -> {
+                if (towns.all().isEmpty()) {
+                    sender.sendMessage(Component.text("No towns yet. /testplayer town found <name> [radius]", NamedTextColor.GRAY));
+                    return;
+                }
+                for (Town t : towns.all()) sender.sendMessage(Component.text(t.summary(), NamedTextColor.GRAY));
+            }
+            case "remove" -> {
+                need(a, 3, "town remove <name>");
+                Town t = towns.get(a[2]);
+                if (t == null) throw new IllegalArgumentException("No town called " + a[2] + ".");
+                towns.remove(t);
+                ok(sender, "Removed " + t.name + ". Its buildings stay; /testplayer undo <citizens> removes what they built.");
+            }
+            default -> throw new IllegalArgumentException("Usage: /testplayer town found|join|leave|info|list|remove");
         }
     }
 
@@ -321,6 +394,8 @@ final class TestPlayerCommand implements TabExecutor {
                 {"build <target> <structure> [material]", "build a hut, house, tower, wall or campfire (inside a build zone)"},
                 {"undo <target>", "remove everything they built"},
                 {"zone add <name> <radius> / zone list / zone remove <name>", "where test players may build"},
+                {"town found <name> [radius] / town join <town> <target> [job]", "a town they build and live in"},
+                {"town info|list|leave|remove ... / job <target> <job|auto>", "towns and their citizens' jobs"},
                 {"list / info <name> / stats", "what they're doing, server performance"},
                 {"reload", "re-read config.yml"}}) {
             s.sendMessage(Component.text(c + line[0], NamedTextColor.YELLOW).append(Component.text(line[1].isEmpty() ? "" : "  " + line[1], NamedTextColor.GRAY)));
@@ -463,6 +538,14 @@ final class TestPlayerCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] a) {
         if (a.length == 1) return starting(SUBS.stream(), a[0]);
         String sub = a[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("town")) {
+            if (a.length == 2) return starting(Stream.of("found", "join", "leave", "info", "list", "remove"), a[1]);
+            if (a.length == 3 && List.of("join", "info", "remove").contains(a[1].toLowerCase(Locale.ROOT))) return starting(plugin.towns().all().stream().map(t -> t.name), a[2]);
+            if (a.length == 4 && a[1].equalsIgnoreCase("join")) return starting(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), a[3]);
+            if (a.length == 5 && a[1].equalsIgnoreCase("join")) return starting(Town.JOB_BUILDS.keySet().stream(), a[4]);
+            if (a.length == 3 && a[1].equalsIgnoreCase("leave")) return starting(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), a[2]);
+            return List.of();
+        }
         if (sub.equals("zone")) {
             if (a.length == 2) return starting(Stream.of("add", "list", "remove"), a[1]);
             if (a.length == 3 && a[1].equalsIgnoreCase("remove")) return starting(plugin.builder().zones().stream().map(Builder.Zone::name), a[2]);
@@ -483,6 +566,7 @@ final class TestPlayerCommand implements TabExecutor {
                 case "goal" -> starting(Stream.of("clear"), a[2]);
                 case "personality" -> starting(Stream.concat(Personalities.PRESETS.keySet().stream(), Stream.of("random", "clear")), a[2]);
                 case "build" -> starting(Builder.STRUCTURES.stream(), a[2]);
+                case "job" -> starting(Stream.concat(Town.JOB_BUILDS.keySet().stream(), Stream.of("auto")), a[2]);
                 case "wander" -> starting(Stream.of("16", "32", "64", "128"), a[2]);
                 default -> List.of();
             };

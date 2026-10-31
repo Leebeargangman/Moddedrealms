@@ -75,8 +75,9 @@ final class Brain {
         Settings s = plugin.settings();
         if (!tp.ai || tp.model == null || tp.thinking || inFlight >= s.aiMaxConcurrent()) return;
         if (System.currentTimeMillis() < tp.nextThinkAt) return;
-        // Busy building (or walking to build): let it finish, unless someone talks to it.
-        if (busy(tp) && tp.inbox.isEmpty()) return;
+        // Busy building (or walking to build): let it finish, unless someone talks to it. Citizens keep
+        // thinking (their job decides what they do, the AI decides what they say).
+        if (busy(tp) && tp.inbox.isEmpty() && tp.town == null) return;
         Mannequin m = tp.entity();
         if (m == null) return;
 
@@ -160,6 +161,12 @@ final class Brain {
         List<String> lines = new ArrayList<>();
         if (tp.personality != null) lines.add("YOUR PERSONALITY: " + tp.personality);
         if (tp.goal != null) lines.add("YOUR GOAL (set by staff, never forget it): " + tp.goal);
+        Town town = plugin.towns().get(tp.town);
+        if (town != null) {
+            lines.add("YOUR TOWN: you live in " + town.name + " (a " + town.stage() + ": " + town.builtOf("house", "hut") + " homes, "
+                    + town.count("built") + " of " + town.plots.size() + " buildings done, " + town.jobs.size() + " citizens). Your job is " + tp.job
+                    + " and you're doing it now (" + tp.doing() + "); your action is ignored while you work, so just say what fits, in character.");
+        }
         lines.add("You are " + tp.name + " at x=" + l.getBlockX() + " y=" + l.getBlockY() + " z=" + l.getBlockZ() + " in " + l.getWorld().getName()
                 + ", " + (l.getWorld().isDayTime() ? "day" : "night") + ". You are " + tp.doing() + ".");
         if (!tp.lastResult.isEmpty()) lines.add("Last result: " + tp.lastResult);
@@ -223,7 +230,7 @@ final class Brain {
         if (m == null) return;
         try {
             // While building it only answers chat: a new action would leave the build half done.
-            if (!busy(tp)) switch (action) {
+            if (!busy(tp) && tp.town == null) switch (action) {
                 case "wander" -> players.wander(tp, num(d, "radius", 24));
                 case "goto" -> {
                     Location l = m.getLocation();
