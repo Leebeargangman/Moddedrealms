@@ -35,10 +35,13 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
     private Gather gather;
     private Trading trading;
     private Towns towns;
+    private Life life;
+    private AiLink aiLink;
     private WebsiteLink link;
     private BukkitTask tickTask;
     private BukkitTask thinkTask;
     private BukkitTask townTask;
+    private BukkitTask lifeTask;
 
     @Override
     public void onEnable() {
@@ -55,6 +58,8 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         gather = new Gather(this);
         trading = new Trading(this);
         towns = new Towns(this);
+        life = new Life(this);
+        aiLink = new AiLink(this);
         link = new WebsiteLink(this);
 
         PluginCommand cmd = getCommand("testplayer");
@@ -63,6 +68,13 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         cmd.setTabCompleter(handler);
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(trading, this);
+        getServer().getPluginManager().registerEvents(life, this);
+        getServer().getPluginManager().registerEvents(aiLink, this);
+        PluginCommand teamup = getCommand("teamup");
+        if (teamup != null) {
+            teamup.setExecutor(life);
+            teamup.setTabCompleter(life);
+        }
 
         players.removeStrays();
         players.load();
@@ -72,6 +84,7 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
             for (TestPlayer tp : players.all()) if (tp.entity() != null) brain.maybeThink(tp);
         }, 40, 20);
         townTask = Bukkit.getScheduler().runTaskTimer(this, towns::tick, 60, 20);
+        lifeTask = Bukkit.getScheduler().runTaskTimer(this, life::tick, 100, 20);
         link.start();
         getLogger().info(players.all().size() + " test players known. Website link: " + link.status() + ".");
     }
@@ -82,6 +95,8 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         if (tickTask != null) tickTask.cancel();
         if (thinkTask != null) thinkTask.cancel();
         if (townTask != null) townTask.cancel();
+        if (lifeTask != null) lifeTask.cancel();
+        if (life != null) life.closeBags();
         if (towns != null) towns.save();
         if (players != null) {
             players.save(); // before removing the mannequins, so it remembers which were in the world and where
@@ -129,6 +144,14 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
 
     Towns towns() {
         return towns;
+    }
+
+    Life life() {
+        return life;
+    }
+
+    AiLink aiLink() {
+        return aiLink;
     }
 
     WebsiteLink link() {
@@ -205,6 +228,7 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
             for (TestPlayer tp : addressed) {
                 link.heard(tp, from, text);
                 if (tp.ai && tp.model != null) brain.heard(tp, from, text);
+                if (tp.free) life.heardChat(tp, e.getPlayer(), lower);
             }
         });
     }

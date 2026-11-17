@@ -42,6 +42,56 @@ final class Brain {
             talked to you, answer them there (one short sentence); otherwise usually leave it "". Only use player
             names you can see in the context. Reply with ONLY JSON.""";
 
+    /** For free players (see Life): normal survival players, solo or in a team, maybe with real players. */
+    private static final String SYSTEM_FREE = """
+            You are a player on a survival Minecraft SMP server. Play like a real, normal player: you started with
+            nothing and make your own way. Your personality shapes what you choose and how you talk. Be brief and
+            casual in chat, like players are (lowercase is fine, no essays).
+            It's survival: you only have what you carry. Chop trees for wood, mine for stone, coal and iron, hunt or
+            farm when you're hungry. Tools get made from what you gather (wood, then stone, then iron).
+            A normal player's progress: wood and tools, stone tools, find a spot away from spawn for a base (with
+            your team), build it up, mine for iron, explore, go to the nether, trade with other players.
+            If you're on a team, work together: stick with your real teammates when they're around, help them,
+            share what they need (give), and tell them what you're up to.
+            Pick one action:
+            - chop: chop the nearest tree
+            - mine: mine stone and ore (in your base's mine, or what you can reach nearby)
+            - hunt: hunt the nearest animal for food
+            - explore: head off in "direction" (north, south-west...) to see what's out there, then come back
+            - nether: go through a nether portal you know about, gather stuff there, come back
+            - trade: go to spawn and trade what you have spare with other players
+            - settle: make your team's base right here (only when you have none and you're away from spawn)
+            - home: go back to your base
+            - give: hand "count" of "item" to the teammate named "player" (teammates only)
+            - work: carry on with your own plans
+            - campfire: hang out at your base's campfire
+            - follow: follow the player or test player named "player"
+            - goto: walk to "x", "z" (and "y" if you know it)
+            - wander: walk around within "radius" blocks
+            - idle: stand still
+            - build: build a "structure" (hut, house, tower, wall or campfire) out of "material" (wood, spruce,
+              stone, brick or cherry) next to you; only at your base or in a build zone, takes a few minutes
+            Players can right-click you to trade (teammates see your bag). "say" is what you say in chat: when
+            someone talked to you, answer them there (one short sentence); otherwise usually leave it "".
+            Only use player names you can see in the context. Reply with ONLY JSON.""";
+
+    private static final JsonObject SCHEMA_FREE = JsonParser.parseString("""
+            {"type": "object",
+             "properties": {
+               "thought": {"type": "string", "maxLength": 200},
+               "say": {"type": "string", "maxLength": 200},
+               "action": {"type": "string", "enum": ["chop", "mine", "hunt", "explore", "nether", "trade", "settle", "home", "give", "work", "campfire", "follow", "goto", "wander", "idle", "build"]},
+               "structure": {"type": "string", "enum": ["hut", "house", "tower", "wall", "campfire"]},
+               "material": {"type": "string", "enum": ["wood", "spruce", "stone", "brick", "cherry"]},
+               "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
+               "player": {"type": "string", "maxLength": 16},
+               "item": {"type": "string", "maxLength": 32},
+               "count": {"type": "number"},
+               "direction": {"type": "string", "maxLength": 16},
+               "radius": {"type": "number"}
+             },
+             "required": ["thought", "say", "action"]}""").getAsJsonObject();
+
     private static final JsonObject SCHEMA = JsonParser.parseString("""
             {"type": "object",
              "properties": {
@@ -81,7 +131,7 @@ final class Brain {
 
         tp.thinking = true;
         inFlight++;
-        plugin.llm().chat(tp, SYSTEM, observe(tp, m), SCHEMA).whenComplete((text, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.llm().chat(tp, tp.free ? SYSTEM_FREE : SYSTEM, observe(tp, m), tp.free ? SCHEMA_FREE : SCHEMA).whenComplete((text, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
             inFlight--;
             tp.thinking = false;
             tp.nextThinkAt = System.currentTimeMillis() + s.aiIntervalSeconds() * 1000L * (busy(tp) ? 3 : 1);
@@ -126,7 +176,8 @@ final class Brain {
         if (tp.personality != null) lines.add("YOUR PERSONALITY: " + tp.personality);
         if (tp.goal != null) lines.add("YOUR GOAL (set by staff, never forget it): " + tp.goal);
         Town town = plugin.towns().get(tp.town);
-        if (town != null) {
+        if (tp.free) lines.add("YOUR TEAM: " + plugin.life().describe(tp, m));
+        else if (town != null) {
             lines.add("YOUR TOWN: you live in " + town.name + " (a " + town.stage() + ": " + town.builtOf("house", "hut") + " homes, "
                     + town.count("built") + " of " + town.plots.size() + " buildings done, " + town.jobs.size() + " citizens). Your job is " + tp.job
                     + " and you're " + tp.doing() + ". \"work\" carries on with it; pick something else when you feel like it (a trip, chopping, the campfire)."
@@ -198,8 +249,26 @@ final class Brain {
         try {
             // While building or on a trip it only answers chat: a new action would leave things half done.
             boolean chore = tp.mode == TestPlayer.Mode.WORK && tp.trip == null && tp.pendingBuild == null && !plugin.builder().building(tp);
-            if (busy(tp) && !(chore && List.of("explore", "nether", "campfire", "chop", "mine").contains(action) && !tp.doing().startsWith(action))) {
+            String free = null;
+            if (busy(tp) && !(chore && List.of("explore", "nether", "campfire", "chop", "mine", "hunt", "trade", "give", "follow", "home").contains(action) && !tp.doing().startsWith(action))) {
                 // carry on (a build or a trip isn't dropped halfway; a chore can be)
+            } else if (tp.free && (free = plugin.life().order(tp, action, str(d, "direction"), str(d, "player"), str(d, "item"), (int) num(d, "count", 0))) != null) {
+                tp.lastResult = free;
+            } else if (tp.free && List.of("follow", "goto", "wander", "idle", "build").contains(action)) {
+                // A free player's own routine would take over again at once: it does this for a while first.
+                tp.jobUntil = System.currentTimeMillis() + 90_000;
+                if (action.equals("follow")) {
+                    String who = str(d, "player").isEmpty() ? nearest(tp, m) : str(d, "player");
+                    players.follow(tp, who);
+                    Player p = Bukkit.getPlayerExact(who);
+                    if (p != null && plugin.life().teammates(p, tp)) tp.buddy = true; // sticks with them from now on
+                } else if (action.equals("goto")) {
+                    Location l = m.getLocation();
+                    players.goTo(tp, new Location(l.getWorld(), num(d, "x", l.getX()), d.has("y") ? num(d, "y", l.getY()) : l.getY(), num(d, "z", l.getZ())));
+                } else if (action.equals("wander")) players.wander(tp, num(d, "radius", 24));
+                else if (action.equals("idle")) players.idle(tp);
+                else tp.lastResult = plugin.builder().startOrApproach(tp, Builder.STRUCTURES.contains(str(d, "structure")) ? str(d, "structure") : "hut",
+                        Builder.MATERIALS.contains(str(d, "material")) ? str(d, "material") : "wood");
             } else if (List.of("chop", "mine", "explore", "nether", "work", "campfire").contains(action)) {
                 tp.lastResult = plugin.towns().order(tp, action, str(d, "direction"));
             } else if (tp.town != null && !List.of("follow", "goto").contains(action)) {
@@ -241,7 +310,7 @@ final class Brain {
     }
 
     private static boolean busy(TestPlayer tp) {
-        return tp.mode == TestPlayer.Mode.BUILD || tp.mode == TestPlayer.Mode.WORK || tp.pendingBuild != null || tp.trip != null;
+        return tp.mode == TestPlayer.Mode.BUILD || tp.mode == TestPlayer.Mode.WORK || tp.pendingBuild != null || tp.trip != null || tp.prey != null;
     }
 
     /** The nearest player or other test player within 32 blocks (for "follow" without a name), or "". */

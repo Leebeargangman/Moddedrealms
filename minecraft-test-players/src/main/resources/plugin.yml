@@ -13,7 +13,15 @@ commands:
     aliases: [tplayer]
     permission: moddedrealms.testplayers.admin
 
+  teamup:
+    description: Team up with a test player (they play with you, share what they carry, follow you through portals).
+    usage: /teamup <test player> | info | come | free | leave
+    permission: moddedrealms.testplayers.team
+
 permissions:
   moddedrealms.testplayers.admin:
     description: Use /testplayer
     default: op
+  moddedrealms.testplayers.team:
+    description: Team up with test players (/teamup)
+    default: true

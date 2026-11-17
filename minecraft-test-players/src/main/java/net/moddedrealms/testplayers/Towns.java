@@ -60,8 +60,53 @@ final class Towns {
         return name == null ? null : towns.get(name.toLowerCase(Locale.ROOT));
     }
 
+    /** Towns and teams' camps. */
     List<Town> all() {
         return new ArrayList<>(towns.values());
+    }
+
+    /** Planned towns only (not the free players' team camps). */
+    List<Town> townsOnly() {
+        return towns.values().stream().filter(t -> !t.camp).toList();
+    }
+
+    List<Town> camps() {
+        return towns.values().stream().filter(t -> t.camp).toList();
+    }
+
+    /** A team for free players (see Life): it has no base until it settles somewhere. */
+    Town foundCamp(String name, Location at) {
+        if (!name.matches("^[A-Za-z0-9_]{2,24}$")) throw new IllegalArgumentException("Team names are 2-24 letters, numbers or _.");
+        if (get(name) != null) throw new IllegalArgumentException("There's already a town or team called " + name + ".");
+        Town t = new Town(name, at.getWorld().getName(), at.getBlockX(), at.getBlockZ(), 28);
+        t.camp = true;
+        t.settled = false;
+        towns.put(name.toLowerCase(Locale.ROOT), t);
+        dirty = true;
+        return t;
+    }
+
+    /** The team makes its base here: a small plan around (x, z), and a build zone for it. */
+    void settle(Town t, Location at) {
+        t.world = at.getWorld().getName();
+        t.cx = at.getBlockX();
+        t.cz = at.getBlockZ();
+        t.radius = 28;
+        t.settled = true;
+        t.storage = null; // its chest goes by the new campfire
+        t.planCamp(Math.max(1, t.jobs.size()));
+        try {
+            plugin.builder().removeZone("camp-" + t.name);
+        } catch (IllegalArgumentException ignored) {
+            // it had none
+        }
+        plugin.builder().addZone("camp-" + t.name, at.getWorld(), t.cx - t.radius, t.cz - t.radius, t.cx + t.radius, t.cz + t.radius);
+        dirty = true;
+        save();
+    }
+
+    void markDirty() {
+        dirty = true;
     }
 
     // ------------------------------------------------------------ founding and joining
@@ -86,7 +131,7 @@ final class Towns {
         }
         towns.remove(t.name.toLowerCase(Locale.ROOT));
         try {
-            plugin.builder().removeZone("town-" + t.name);
+            plugin.builder().removeZone((t.camp ? "camp-" : "town-") + t.name);
         } catch (IllegalArgumentException ignored) {
             // the zone was removed by hand already
         }
@@ -124,6 +169,8 @@ final class Towns {
         tp.town = null;
         tp.job = null;
         dirty = true;
+        // A team nobody's left in is gone (what it built stays in the world).
+        if (t != null && t.camp && t.jobs.isEmpty() && t.humans.isEmpty()) remove(t);
     }
 
     /** builder for a builder personality, mayor for a leader... builder when it has none. */
@@ -141,14 +188,15 @@ final class Towns {
             Mannequin m = tp.entity();
             if (t == null || m == null) continue;
             try {
-                live(tp, t, m);
+                if (t.camp) plugin.life().live(tp, t, m);
+                else live(tp, t, m);
             } catch (RuntimeException e) {
                 plugin.getLogger().log(Level.WARNING, tp.name + "'s town routine failed", e);
                 tp.jobUntil = System.currentTimeMillis() + 10_000;
             }
         }
-        for (Town t : towns.values()) {
-            announce(t);
+        for (Town t : new ArrayList<>(towns.values())) {
+            if (!t.camp) announce(t);
             // Everything planned is built or skipped: every 10 minutes the skipped plots get another go
             // (trees chopped since, leaves decayed, a player flattened the ground...).
             long now = System.currentTimeMillis();
@@ -225,34 +273,7 @@ final class Towns {
         if (!tp.job.equals("builder") && haul(tp) >= 48 && deposit(tp, t)) return;
         int plot = t.nextPlot(tp.job);
         if (plot < 0 && !List.of("scout", "entertainer", "lumberjack", "miner").contains(tp.job) && ThreadLocalRandom.current().nextBoolean()) plot = t.nextPlot("builder");
-        if (plot >= 0) {
-            Town.Plot p = t.plots.get(plot);
-            p.state = "building";
-            p.by = tp.id;
-            if (!plugin.builder().startPlot(tp, t, plot)) {
-                // Trees in the way? Clear them first (and the wood comes in handy), then try again.
-                int[] box = survival() && p.clears < 2 ? plugin.builder().footprint(p) : null;
-                Gather.Work clear = box == null ? null : plugin.gather().clearArea(m.getWorld(), box);
-                if (clear != null) {
-                    p.clears++;
-                    p.busyUntil = now + 120_000;
-                    p.state = "planned";
-                    p.by = null;
-                    plugin.gather().start(tp, clear);
-                    tp.buildStatus = "clearing trees for the " + p.structure;
-                    return;
-                }
-                p.state = "skipped";
-                p.by = null;
-                plugin.getLogger().info(t.name + ": the " + p.structure + " at " + p.x + " " + p.z + " doesn't fit there, skipping it");
-            } else if (survival() && storageHas(t, true, true)) {
-                // Stock up from the storage chest before starting, like a player grabbing materials.
-                int[] need = plugin.builder().needs(tp);
-                if (Items.logs(tp) * 4 < need[0] * 4 || Items.stone(tp) < need[1]) plugin.builder().setMissing(tp);
-            }
-            dirty = true;
-            return;
-        }
+        if (buildPlot(tp, t, m, plot, now)) return;
         switch (tp.job) {
             case "roadworker" -> {
                 if (t.roadBy == null && !t.roads.isEmpty()) {
@@ -291,7 +312,38 @@ final class Towns {
         }
     }
 
-    private void patrol(TestPlayer tp, Town t, Location c, double r, String what, long now) {
+    /** Start building plot (from Town.nextPlot): false if there's none to build. Trees in the way get cleared first. */
+    boolean buildPlot(TestPlayer tp, Town t, Mannequin m, int plot, long now) {
+        if (plot < 0) return false;
+        Town.Plot p = t.plots.get(plot);
+        p.state = "building";
+        p.by = tp.id;
+        if (!plugin.builder().startPlot(tp, t, plot)) {
+            // Trees in the way? Clear them first (and the wood comes in handy), then try again.
+            int[] box = survival() && p.clears < 2 ? plugin.builder().footprint(p) : null;
+            Gather.Work clear = box == null ? null : plugin.gather().clearArea(m.getWorld(), box);
+            if (clear != null) {
+                p.clears++;
+                p.busyUntil = now + 120_000;
+                p.state = "planned";
+                p.by = null;
+                plugin.gather().start(tp, clear);
+                tp.buildStatus = "clearing trees for the " + p.structure;
+                return true;
+            }
+            p.state = "skipped";
+            p.by = null;
+            plugin.getLogger().info(t.name + ": the " + p.structure + " at " + p.x + " " + p.z + " doesn't fit there, skipping it");
+        } else if (survival() && storageHas(t, true, true)) {
+            // Stock up from the storage chest before starting, like a player grabbing materials.
+            int[] need = plugin.builder().needs(tp);
+            if (Items.logs(tp) * 4 < need[0] * 4 || Items.stone(tp) < need[1]) plugin.builder().setMissing(tp);
+        }
+        dirty = true;
+        return true;
+    }
+
+    void patrol(TestPlayer tp, Town t, Location c, double r, String what, long now) {
         double a = ThreadLocalRandom.current().nextDouble(Math.PI * 2);
         double d = r * (0.5 + ThreadLocalRandom.current().nextDouble() * 0.5);
         plugin.players().goTo(tp, new Location(c.getWorld(), c.getX() + Math.cos(a) * d, c.getY(), c.getZ() + Math.sin(a) * d));
@@ -300,7 +352,7 @@ final class Towns {
     }
 
     /** Walk the farms, harvesting ripe wheat (it's replanted at once). Builds a farm first if there's none. */
-    private void farm(TestPlayer tp, Town t, Mannequin m, long now) {
+    void farm(TestPlayer tp, Town t, Mannequin m, long now) {
         List<Town.Plot> farms = t.plots.stream().filter(p -> p.structure.equals("farm") && p.state.equals("built") && p.built != null).toList();
         if (farms.isEmpty()) {
             patrol(tp, t, t.center(), 10, "waiting for a farm", now);
@@ -344,7 +396,7 @@ final class Towns {
         tp.jobUntil = now + 20_000;
     }
 
-    private Location builtSpot(Town t, String structure) {
+    Location builtSpot(Town t, String structure) {
         return t.plots.stream().filter(p -> p.structure.equals(structure) && p.state.equals("built") && p.built != null).map(p -> p.built).findFirst().orElse(null);
     }
 
@@ -409,7 +461,7 @@ final class Towns {
     }
 
     /** Things it carries that aren't its own kit (tools, a few torches...). */
-    private static int haul(TestPlayer tp) {
+    static int haul(TestPlayer tp) {
         int n = 0;
         for (Map.Entry<Material, Integer> e : tp.items.entrySet()) if (!kit(e.getKey())) n += e.getValue();
         return n;
@@ -423,13 +475,14 @@ final class Towns {
     }
 
     /** Put what it's hauling in the storage chest (making the chest first if the town has none). */
-    private boolean deposit(TestPlayer tp, Town t) {
+    boolean deposit(TestPlayer tp, Town t) {
+        if (!t.settled) return false; // a team with no base yet keeps what it carries
         if (!storageOk(t)) return makeStorage(tp, t);
         Gather.Work w = visitStorage(tp, t, "putting things in the storage chest", inv -> {
             int n = 0;
             for (Map.Entry<Material, Integer> e : new ArrayList<>(tp.items.entrySet())) {
                 Material mat = e.getKey();
-                int keep = kit(mat) ? e.getValue() : mat == Material.TORCH ? 16 : mat == Material.WHEAT_SEEDS ? 8
+                int keep = kit(mat) ? e.getValue() : Life.isFood(mat) ? 16 : mat == Material.TORCH ? 16 : mat == Material.WHEAT_SEEDS ? 8
                         : Items.isLog(mat) ? 4 : mat == Material.COBBLESTONE ? 16 : 0;
                 int give = e.getValue() - keep;
                 if (give <= 0) continue;
@@ -472,7 +525,7 @@ final class Towns {
     }
 
     /** Does the storage chest have logs (wood) or cobblestone (stone) in it? */
-    private static boolean storageHas(Town t, boolean wood, boolean stone) {
+    static boolean storageHas(Town t, boolean wood, boolean stone) {
         if (!storageOk(t)) return false;
         for (ItemStack i : ((Chest) t.storage.getBlock().getState()).getInventory().getContents()) {
             if (i == null) continue;
@@ -483,7 +536,7 @@ final class Towns {
     }
 
     /** Walk to the storage chest, open it, do something with what's inside, close it. */
-    private Gather.Work visitStorage(TestPlayer tp, Town t, String label, java.util.function.Consumer<Inventory> use) {
+    Gather.Work visitStorage(TestPlayer tp, Town t, String label, java.util.function.Consumer<Inventory> use) {
         if (!storageOk(t)) return null;
         Gather.Work w = new Gather.Work(label);
         w.go = t.storage.clone().add(0.5, 0, 0.5);
@@ -514,7 +567,7 @@ final class Towns {
         return got;
     }
 
-    private void lumberjack(TestPlayer tp, Town t, Mannequin m, long now) {
+    void lumberjack(TestPlayer tp, Town t, Mannequin m, long now) {
         if (Items.logs(tp) >= 32 && deposit(tp, t)) return;
         Location c = t.center();
         // Trees in and around town, nearest first (it doesn't replant inside town: those spots are for houses).
@@ -527,7 +580,7 @@ final class Towns {
         plugin.gather().start(tp, w);
     }
 
-    private void miner(TestPlayer tp, Town t, Mannequin m, long now) {
+    void miner(TestPlayer tp, Town t, Mannequin m, long now) {
         if ((Items.stone(tp) >= 64 || haul(tp) >= 48) && deposit(tp, t)) return;
         // Needs a pickaxe: wood for one from the storage chest, or a tree.
         if (Items.tool(tp, "PICKAXE") < 0 && !Items.craftTool(tp, "PICKAXE")) {
@@ -565,12 +618,13 @@ final class Towns {
     // ------------------------------------------------------------ explorers: trips out, and to the nether
 
     /** A scout sets off: to a nether portal the town knows about (sometimes), or out to explore. A guard comes along. */
-    private void startTrip(TestPlayer tp, Town t, Mannequin m, Location c, long now, Boolean wantNether) {
+    void startTrip(TestPlayer tp, Town t, Mannequin m, Location c, long now, Boolean wantNether) {
         notePortal(tp, t, m.getLocation());
-        boolean nether = !t.portals.isEmpty() && plugin.getConfig().getBoolean("survival.nether-trips", true)
+        List<Location> known = portalsFor(t, m.getLocation());
+        boolean nether = !known.isEmpty() && plugin.getConfig().getBoolean("survival.nether-trips", true)
                 && (wantNether != null ? wantNether : ThreadLocalRandom.current().nextDouble() < 0.5);
         if (nether) {
-            tp.portal = t.portals.stream().min((a, b) -> Double.compare(Town.hdist(a, m.getLocation()), Town.hdist(b, m.getLocation()))).orElse(null);
+            tp.portal = known.stream().min((a, b) -> Double.compare(Town.hdist(a, m.getLocation()), Town.hdist(b, m.getLocation()))).orElse(null);
             tp.trip = "to-portal";
             tp.tripUntil = now + 180_000;
             plugin.players().goTo(tp, tp.portal);
@@ -601,7 +655,7 @@ final class Towns {
         }
     }
 
-    private void trip(TestPlayer tp, Town t, Mannequin m, long now) {
+    void trip(TestPlayer tp, Town t, Mannequin m, long now) {
         TestPlayers players = plugin.players();
         Location loc = m.getLocation();
         boolean inNether = loc.getWorld().getEnvironment() == World.Environment.NETHER;
@@ -724,7 +778,7 @@ final class Towns {
         }
     }
 
-    private void endTrip(TestPlayer tp, Town t) {
+    void endTrip(TestPlayer tp, Town t) {
         tp.trip = null;
         tp.portal = null;
         tp.tripFrom = null;
@@ -740,7 +794,7 @@ final class Towns {
     }
 
     /** Walk to a portal and step into it (the game itself takes it to the other side). */
-    private void intoPortal(TestPlayer tp, Mannequin m, Location portal) {
+    void intoPortal(TestPlayer tp, Mannequin m, Location portal) {
         if (portal.getWorld() != m.getWorld()) return;
         double d = Town.hdist(portal, m.getLocation());
         if (d > 1.5) {
@@ -756,8 +810,18 @@ final class Towns {
         }
     }
 
+    /** Portals this town knows, and ones any other town or team knows within 600 blocks (word gets around). */
+    List<Location> portalsFor(Town t, Location near) {
+        List<Location> out = new ArrayList<>(t.portals);
+        for (Town o : towns.values()) {
+            if (o == t) continue;
+            for (Location p : o.portals) if (p.getWorld() == near.getWorld() && Town.hdist(p, near) < 600) out.add(p);
+        }
+        return out;
+    }
+
     /** Spotted a nether portal: the town remembers it (and the scout tells everyone). */
-    private void notePortal(TestPlayer tp, Town t, Location loc) {
+    void notePortal(TestPlayer tp, Town t, Location loc) {
         Location p = Gather.portalNear(loc, 32);
         if (p == null || t.portals.stream().anyMatch(o -> o.getWorld() == p.getWorld() && o.distanceSquared(p) < 16 * 16)) return;
         t.portals.add(p);
@@ -798,7 +862,7 @@ final class Towns {
             }
             case "explore", "nether" -> {
                 Location c = t != null ? t.center() : m.getLocation();
-                if (action.equals("nether") && (t == null || t.portals.isEmpty())) return "nether failed: nobody has found a nether portal yet";
+                if (action.equals("nether") && (t == null || portalsFor(t, m.getLocation()).isEmpty())) return "nether failed: nobody has found a nether portal yet";
                 if (t == null) {
                     plugin.players().walk(tp, TestPlayers.parseDirection(direction.isEmpty() ? "north" : direction));
                     return "off exploring";
@@ -831,7 +895,7 @@ final class Towns {
     // ------------------------------------------------------------ looking like a player
 
     /** Look at players who come close, crouch to say hi now and then, wear what armour it has. */
-    private void behave(TestPlayer tp, Mannequin m, long now) {
+    void behave(TestPlayer tp, Mannequin m, long now) {
         if (tp.mode == TestPlayer.Mode.IDLE || tp.mode == TestPlayer.Mode.FOLLOW) {
             Player near = null;
             double best = 36;
@@ -913,6 +977,11 @@ final class Towns {
             s.set("z", t.cz);
             s.set("radius", t.radius);
             s.set("stage-announced", t.stageAnnounced);
+            if (t.camp) {
+                s.set("camp", true);
+                s.set("settled", t.settled);
+                s.set("humans", new ArrayList<>(t.humans));
+            }
             List<String> rows = new ArrayList<>();
             for (Town.Plot p : t.plots) {
                 // A build in progress is picked up where it left off after a restart.
@@ -944,6 +1013,9 @@ final class Towns {
             if (s == null) continue;
             Town t = new Town(name, s.getString("world", "world"), s.getInt("x"), s.getInt("z"), s.getInt("radius", 45));
             t.stageAnnounced = s.getString("stage-announced", "camp");
+            t.camp = s.getBoolean("camp", false);
+            t.settled = !t.camp || s.getBoolean("settled", false);
+            t.humans.addAll(s.getStringList("humans"));
             World w = Bukkit.getWorld(t.world);
             for (String row : s.getStringList("plots")) {
                 String[] p = row.split(",");

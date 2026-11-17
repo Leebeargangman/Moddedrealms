@@ -52,14 +52,53 @@ survival:
   # Right-click a test player to trade with it (what it really carries, for emeralds or swaps).
   trading: true
 
+free:
+  # Free players: test players that play survival like normal players (/testplayer spawn <name> <count> free|team,
+  # /testplayer populate <count>, or keep-online below). No town needed: they start with nothing at spawn, make
+  # tools, walk out and set up their own base, mine, hunt, explore, go to the nether and trade at spawn. Solo or
+  # in small teams, and real players can team up with them (/teamup <name>).
+  # Set up their own bases (a campfire, huts, a farm...) away from spawn, never near anything a player built.
+  # false = they roam and never build.
+  build-bases: true
+  base-min-distance-from-spawn: 150
+  # Keep this many free players on the server, joining at spawn like new players (0 = off).
+  keep-online: 0
+  # Those come and go like real players: they play for a while, log off, and come back later where they left off.
+  sessions: true
+  session-minutes-min: 40
+  session-minutes-max: 150
+  break-minutes-min: 20
+  break-minutes-max: 120
+  # Chance a newcomer starts a small team (2-4) that the next few newcomers join, instead of playing solo.
+  team-chance: 0.4
+  # New free players get their AI switched on when one is linked (/testplayer ai link). The API budget below
+  # still decides how many actually use a paid API at once; the rest play on their own routines.
+  ai-by-default: true
+  # Real players can team up with free players (/teamup, or "<name> team up?" in chat).
+  players-can-team-up: true
+  # Teammates who teleport away (/home, /tpa) or get far ahead: their test players catch up, like a /tpa.
+  companions-teleport: true
+  # They fight off monsters going for their real teammates.
+  fight-monsters: true
+  # They hunt animals for food (never named, tame or penned-in ones).
+  hunting: true
+  # They get hungry and eat what they carry.
+  hunger: true
+
 ai:
-  # Where test players with "/testplayer ai <name> on" think:
+  # Easiest: /testplayer ai link ... in game (it checks the link works, and asks for API keys in chat so they're
+  # never typed in a command). Where test players with an AI think:
   #   ollama    - an Ollama this server can reach (ollama-url below). Free. Not available on Minehut.
-  #   openai    - any OpenAI-compatible API with a key: OpenAI, OpenRouter, Groq, Together, LM Studio...
+  #   openai    - any OpenAI-compatible API: OpenAI, OpenRouter, Groq, Together... with a key, or a local
+  #               server (LM Studio, llama.cpp: base-url on this machine or your network) with no key and no caps
   #   anthropic - Claude, with an Anthropic API key
-  # A test player given a staff member's name (/testplayer ai <name> on <staff>) always thinks on that person's
-  # own PC instead, through the website (their connector, free). That's how to use your own models on Minehut.
+  #   pc        - a staff member's own PC through the website (their connector, free): pc-staff below.
+  #               That's how to use your own local models on Minehut.
+  #   none      - no AI: test players play on their own routines
+  # A test player given a staff member's name (/testplayer ai <name> on <staff>) always thinks on that person's PC.
   provider: ollama
+  # provider pc: the staff member (their name on the website) whose PC does the thinking.
+  pc-staff: ""
   # The model (empty = qwen2.5:3b for Ollama, claude-haiku-5-5 for Claude; OpenAI-style APIs need one set).
   model: ""
   ollama-url: "http://127.0.0.1:11434"

@@ -140,7 +140,7 @@ final class TestPlayers {
         m.getPersistentDataContainer().set(key, PersistentDataType.STRING, tp.id);
         m.customName(Component.text(tp.name));
         m.setCustomNameVisible(true);
-        m.setDescription(Component.text(tp.model != null && tp.ai ? "test player · " + tp.model : "test player", NamedTextColor.GRAY));
+        m.setDescription(Component.text(tp.model != null && tp.ai ? "test player · " + plugin.llm().labelFor(tp) : "test player", NamedTextColor.GRAY));
         m.setInvulnerable(s().invulnerable());
         m.setRemoveWhenFarAway(false);
         m.setCanPickupItems(false);
@@ -150,7 +150,7 @@ final class TestPlayers {
     /** The AI model changed: update the label under the name. */
     void relabel(TestPlayer tp) {
         Mannequin m = tp.entity();
-        if (m != null) m.setDescription(Component.text(tp.model != null && tp.ai ? "test player · " + tp.model : "test player", NamedTextColor.GRAY));
+        if (m != null) m.setDescription(Component.text(tp.model != null && tp.ai ? "test player · " + plugin.llm().labelFor(tp) : "test player", NamedTextColor.GRAY));
         dirty = true;
     }
 
@@ -350,6 +350,7 @@ final class TestPlayers {
     }
 
     private void step(TestPlayer tp, Mannequin m) {
+        if (tp.prey != null && ticks % 4 == 0) plugin.life().fight(tp, m, System.currentTimeMillis()); // chasing: keep up with it
         Location loc = m.getLocation();
         if (tp.lastKnown != null && tp.lastKnown.getWorld() == loc.getWorld()) tp.blocksMoved += hdist(tp.lastKnown, loc);
         tp.lastKnown = loc;
@@ -362,7 +363,7 @@ final class TestPlayers {
             tp.progressMark = loc;
         }
 
-        double speed = tp.sprint ? s().sprintSpeed() : s().walkSpeed();
+        double speed = tp.sprint || tp.prey != null ? s().sprintSpeed() : s().walkSpeed(); // sprints after what it's hunting
         switch (tp.mode) {
             case IDLE -> brake(m);
             case GOTO -> {
@@ -625,6 +626,13 @@ final class TestPlayers {
             if (tp.goal != null) c.set("goal", tp.goal);
             if (tp.personality != null) c.set("personality", tp.personality);
             c.set("deaths", tp.deaths);
+            if (tp.free) {
+                c.set("free", true);
+                c.set("buddy", tp.buddy);
+                c.set("auto", tp.auto);
+                c.set("food", tp.food);
+                if (tp.backAt > 0) c.set("back-at", tp.backAt);
+            }
             for (Map.Entry<org.bukkit.Material, Integer> e : tp.items.entrySet()) c.set("items." + e.getKey().name(), e.getValue());
         }
         try {
@@ -662,6 +670,11 @@ final class TestPlayers {
             tp.goal = c.getString("goal");
             tp.personality = c.getString("personality");
             tp.deaths = c.getInt("deaths", 0);
+            tp.free = c.getBoolean("free", false);
+            tp.buddy = c.getBoolean("buddy", false);
+            tp.auto = c.getBoolean("auto", false);
+            tp.food = c.getInt("food", 20);
+            tp.backAt = c.getLong("back-at", 0);
             ConfigurationSection inv = c.getConfigurationSection("items");
             if (inv != null) for (String k : inv.getKeys(false)) {
                 org.bukkit.Material mat = org.bukkit.Material.matchMaterial(k);

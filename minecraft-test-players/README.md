@@ -9,11 +9,21 @@ itself. Nothing logs in: they have no Minecraft account, don't take a player slo
 
 ## Install
 
-1. Put `ModdedrealmsTestPlayers-1.1.0.jar` in the server's `plugins` folder. It needs **Paper** (or a Paper
+1. Put `ModdedrealmsTestPlayers-1.2.0.jar` in the server's `plugins` folder. It needs **Paper** (or a Paper
    fork) 1.21.11 or newer; it also compiles cleanly against Paper 26.1 and 26.3. Spigot doesn't have the
    mannequin API. On Minehut, upload it with the file manager.
 2. Restart the server once. This creates `plugins/ModdedrealmsTestPlayers/config.yml`.
 3. Optional: fill in the `website` section (below) and run `/testplayer reload`.
+
+## Quick start: players that play like real players
+
+```
+/testplayer ai link ollama qwen2.5:7b      (or: ai link pc <your website name>, or ai link openai / anthropic ...)
+/testplayer populate 8                      (8 players join at spawn and play survival, solo and in small teams)
+```
+
+Or keep the server populated by itself: `free.keep-online: 8` in config.yml. In game, any player can team up
+with one: walk up to it and `/teamup <name>` (or say "<name> team up?" in chat).
 
 ## Commands
 
@@ -22,7 +32,12 @@ A `<target>` is one name, a prefix ending in `*` (`Load*`) or `all`.
 
 | Command | What it does |
 |---|---|
-| `spawn <name> [count] [idle\|wander\|walk]` | Spawn one test player, or a numbered batch (`spawn Load 50 wander` makes Load1 to Load50) spread around you |
+| `spawn <name> [count] [idle\|wander\|walk\|free\|team]` | Spawn one test player, or a numbered batch (`spawn Load 50 wander` makes Load1 to Load50) spread around you. `free`: each plays survival on its own; `team`: they play together |
+| `populate <count>` | Players with made-up player names join at the world spawn and play survival, solo and in small teams |
+| `free <target> [team]` | Make test players play survival like normal players (on their own, or in that team) |
+| `team create <name> [targets]` / `team add <team> <targets\|real player>` / `team kick ...` | Free players' teams, and putting a real player on one |
+| `team info [team]` / `team list` / `team settle <team>` / `team remove <team>` | How the teams are doing; `settle` puts a team's base where you stand |
+| `ai link <provider> ...` / `ai test` | Link an AI from in game (see "AI models"), and check it answers |
 | `despawn <target>` / `start <target>` | Take out of the world / put back where they were |
 | `remove <target>` | Forget them completely |
 | `move <target> <x y z \| here \| player>` | Walk somewhere (it finds a route: up steps, around cliffs and water) |
@@ -50,7 +65,62 @@ A `<target>` is one name, a prefix ending in `*` (`Load*`) or `all`.
 
 A typical load test: `spawn Load 100 wander`, `spawn Far 20 walk`, then watch `/testplayer stats` (or spark).
 
+## Free players: survival like a normal player
+
+Free players don't need a town, a zone or orders. Like anyone joining a server they start at spawn with
+nothing, and go from there:
+
+1. **Basics.** Punch a tree, craft wooden tools, mine stone they can see (hillsides, caves) for stone tools.
+   They get hungry: they hunt animals (never named, tamed or penned-in ones), cook the meat in a furnace they
+   made, and eat, with the sounds.
+2. **A base.** The team's leader walks out at least `base-min-distance-from-spawn` (150) blocks from spawn
+   and finds a spot with nothing player-built within about 40 blocks, away from other bases and towns, not in
+   water or on a cliff. There they build a campfire, a hut each, a house, a farm, a lookout tower and lamps,
+   from wood and stone they gathered, and dig a mine. `free.build-bases: false` keeps them roaming instead.
+3. **Life.** Then they do what players do: mine for iron and better tools, chop, hunt, farm, go exploring
+   (and find nether portals), take trips to the nether, go to spawn to trade with players, meet at the campfire
+   at dusk, and either mine through the night or go to bed.
+
+**Solo or in teams.** `populate` and `keep-online` mix both: some play alone, and some newcomers form a team
+of 2 to 4. In a team each one has a role: the leader does a bit of everything, the others become a miner, a
+lumberjack, a scout (who explores and goes to the nether with a guard), a guard or a farmer. So some explore
+and some stay home.
+
+**Teaming up with real players.** `/teamup <name>` (within 24 blocks of it), or "<name> team up?" in chat to
+one without an AI. Then on that team:
+
+- Two of its test players stick with you: they keep up (and catch up like a `/tpa` if you teleport away),
+  fight off monsters going for you, follow you through nether portals, and when you stop to build or mine they
+  chop and mine nearby. The rest carry on with their jobs. `/teamup come` brings up to 3 along, `/teamup free`
+  lets them go back to their own things.
+- Right-click a teammate to open its bag, like a shared chest: take what you need, leave what you want to
+  share. Crouch and right-click for its trades.
+- In chat: "<name> give me some logs" (or iron, food, cobblestone...), "<name> come with me", "<name> do your
+  own thing". With an AI it also answers in its own words and makes its own choices.
+- `/teamup info` shows your team and base; `/teamup leave` leaves it. Admins: `/testplayer team add <team> <player>`.
+
+**Coming and going.** With `free.keep-online`, they play a session (40 to 150 minutes), log off and come back
+20 to 120 minutes later where they left off, like real players. More join when the count drops.
+
 ## AI models
+
+### Linking an AI from in game
+
+| Command | Where it thinks | Cost |
+|---|---|---|
+| `/testplayer ai link ollama [url] [model]` | An Ollama this server can reach. Lists its models and tells you if yours needs `ollama pull`. | free |
+| `/testplayer ai link lmstudio [url] [model]` | LM Studio, llama.cpp or any OpenAI-style server on this machine or your network. No key, no caps. | free |
+| `/testplayer ai link pc <website name> [model]` | Your own PC through the website's connector. Works on Minehut. | free |
+| `/testplayer ai link openai\|openrouter\|groq\|together\|anthropic [model]` | A paid API, with the spending caps below. | your key |
+| `/testplayer ai link off` | Nothing: they play on their own routines. | |
+
+For a paid API you're asked to paste the key in chat. That message is taken out of chat before anyone sees it,
+so it's never shown or logged, and it's only stored in `config.yml`. Keys are never accepted as command
+arguments, because servers log every command. If you type one, it's refused and you're told to make a new key.
+`/testplayer ai test` sends one small request to check the link works. New free players get their AI switched on
+by themselves when one is linked (`free.ai-by-default`); `/testplayer ai all on` does it for everyone.
+
+### What the AI does
 
 `/testplayer ai Load1 on` lets an AI decide what Load1 does: chop a tree, go mining, head off exploring, take a
 trip to the nether, hang out at the campfire, follow a player, build. It's told what it carries, what its town
@@ -66,7 +136,7 @@ happens (jobs, trips, trading); the AI adds choices and conversation. Where it t
 
 ### API keys without surprise bills
 
-Put the key in `ai.api.key` (keep `config.yml` private). It's never shown in game, on the website or in logs,
+Link it with `/testplayer ai link ...`, or put the key in `ai.api.key` (keep `config.yml` private). It's never shown in game, on the website or in logs,
 and error messages have it masked. Spending has hard caps that can't be exceeded:
 
 - `max-requests-per-hour` (120) and `max-tokens-per-day` (200,000), counted from what the API reports and saved
@@ -201,7 +271,8 @@ don't show in the player count). Minehut has no Ollama, so for an AI either put 
 1. In `config.yml` set `website.enabled: true`, `website.manager-key` (the website's `BOT_MANAGER_KEY`) and a
    `website.host-name` like `minehut`, then `/testplayer reload`.
 2. Start the connector on your PC (Bots page, "Run the AI on your PC", then "Get my connector token").
-3. `/testplayer ai <target> on <your website name>`: the model runs on your PC's GPU.
+3. `/testplayer ai link pc <your website name>`: every test player with an AI now thinks on your PC's GPU (or
+   `/testplayer ai <target> on <your website name>` for just some).
 
 Keep `ai.max-concurrent` low (2) and stay within your Minehut plan's RAM: each test player holds
 `chunk-radius` chunks (49 at radius 3, shared when they're close together).
@@ -240,9 +311,14 @@ counts), and its test players appear with the bots. From there staff can:
   on foot can still trap them (`bring` or `move` fixes that; long trips bring them home after 5 minutes).
 - They keep chunks loaded and ticking (`chunk-radius`), but mobs don't spawn around them the way they do
   around real players, and they don't send network traffic. For network or login load, use real clients.
-- They don't fight, and build only the structures above (no free-form building). They mine only in their
-  town's mine and the nether, and break natural blocks (trees, leaves, dirt, stone) only when gathering or
-  when one is in their way.
+- They fight only animals they hunt and monsters going for their real teammates, and build only the
+  structures above (no free-form building). They mine only in a town or base mine, the nether, and natural
+  stone and ore they can see that has nothing player-built near it. They break natural blocks (trees, leaves,
+  dirt, stone) only when gathering or when one is in their way.
+- Mobs don't attack them, so they don't need armour or shelter. Hunger never hurts them: it only sends them
+  off to hunt or farm.
+- They aren't real accounts: they don't show in the tab list or player count, and their chat has the `[Test]`
+  prefix.
 - Town buildings in progress are picked up after a restart; a `/testplayer build` order starts over.
   Inventories, finished builds and `undo` are kept.
 
@@ -252,4 +328,4 @@ counts), and its test players appear with the bots. From there staff can:
 mvn package
 ```
 
-The jar is written to `target/`. Copy it over `ModdedrealmsTestPlayers-1.1.0.jar` here when releasing.
+The jar is written to `target/`. Copy it over `ModdedrealmsTestPlayers-1.2.0.jar` here when releasing.

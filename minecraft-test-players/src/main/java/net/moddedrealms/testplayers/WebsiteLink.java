@@ -55,6 +55,11 @@ final class WebsiteLink {
         return status;
     }
 
+    /** Set up and running (so a staff member's PC can be asked to think). */
+    boolean connected() {
+        return running;
+    }
+
     void start() {
         stop();
         Settings s = plugin.settings();
@@ -461,7 +466,7 @@ final class WebsiteLink {
         perf.addProperty("heapMaxMb", rt.maxMemory() / 1048576);
         snap.add("perf", perf);
         JsonArray towns = new JsonArray();
-        for (Town t : plugin.towns().all()) {
+        for (Town t : plugin.towns().townsOnly()) {
             JsonObject o = new JsonObject();
             o.addProperty("name", t.name);
             o.addProperty("stage", t.stage());

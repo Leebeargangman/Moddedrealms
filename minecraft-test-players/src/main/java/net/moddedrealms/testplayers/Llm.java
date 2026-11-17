@@ -63,6 +63,8 @@ final class Llm {
     private double pricePerMillionIn;
     private double pricePerMillionOut;
     private double maxDollarsPerDay;
+    private String relayStaff;      // provider "pc": think on this staff member's computer through the website
+    private volatile boolean ollamaUp; // the last check found Ollama answering
 
     // Usage
     private final Deque<Long> recentRequests = new ArrayDeque<>();
@@ -98,11 +100,66 @@ final class Llm {
         pricePerMillionIn = Math.max(0, a.getDouble("price-per-million-input-tokens", 0));
         pricePerMillionOut = Math.max(0, a.getDouble("price-per-million-output-tokens", 0));
         maxDollarsPerDay = Math.max(0, a.getDouble("max-dollars-per-day", 0));
+        relayStaff = c.getString("pc-staff", "").trim();
         apiPlayers.clear();
+        if (provider.equals("ollama")) checkOllama();
     }
 
     boolean paid() {
-        return provider.equals("openai") || provider.equals("anthropic");
+        return (provider.equals("openai") || provider.equals("anthropic")) && !localApi();
+    }
+
+    /** An OpenAI-style server on this machine or the local network (LM Studio, llama.cpp, vLLM...): free, no key. */
+    boolean localApi() {
+        if (!provider.equals("openai")) return false;
+        try {
+            String h = URI.create(apiBaseUrl).getHost();
+            return h != null && (h.equals("localhost") || h.startsWith("127.") || h.startsWith("10.") || h.startsWith("192.168.") || h.matches("^172\\.(1[6-9]|2\\d|3[01])\\..*"));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Is an AI linked that can answer? (So new free players get their AI switched on: free.ai-by-default.)
+     * A paid API needs its key; Ollama has to have answered the last check; a PC needs a staff name.
+     */
+    boolean ready() {
+        return switch (provider) {
+            case "openai", "anthropic" -> localApi() || !apiKey.isEmpty() && apiEnabled && !modelFor(new TestPlayer("x")).isEmpty();
+            case "ollama" -> ollamaUp;
+            case "pc" -> !relayStaff.isEmpty() && plugin.link().connected();
+            default -> false;
+        };
+    }
+
+    /** Ask Ollama what models it has (in the background). Completes with the names, or fails. */
+    CompletableFuture<java.util.List<String>> ollamaModels(String url) {
+        HttpRequest r = HttpRequest.newBuilder(URI.create(url.replaceAll("/+$", "") + "/api/tags")).timeout(Duration.ofSeconds(8)).GET().build();
+        return http.sendAsync(r, HttpResponse.BodyHandlers.ofString()).thenApply(res -> {
+            if (res.statusCode() / 100 != 2) throw new IllegalStateException("HTTP " + res.statusCode());
+            java.util.List<String> names = new java.util.ArrayList<>();
+            JsonArray models = JsonParser.parseString(res.body()).getAsJsonObject().getAsJsonArray("models");
+            if (models != null) for (JsonElement m : models) names.add(m.getAsJsonObject().get("name").getAsString());
+            return names;
+        });
+    }
+
+    /** Models an OpenAI-style API lists (LM Studio and the like), for checking a local link. */
+    CompletableFuture<java.util.List<String>> apiModels() {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiBaseUrl + "/models")).timeout(Duration.ofSeconds(8)).GET();
+        if (!apiKey.isEmpty()) b.header("Authorization", "Bearer " + apiKey);
+        return http.sendAsync(b.build(), HttpResponse.BodyHandlers.ofString()).thenApply(res -> {
+            if (res.statusCode() / 100 != 2) throw new IllegalStateException("HTTP " + res.statusCode());
+            java.util.List<String> names = new java.util.ArrayList<>();
+            JsonArray data = JsonParser.parseString(res.body()).getAsJsonObject().getAsJsonArray("data");
+            if (data != null) for (JsonElement m : data) names.add(m.getAsJsonObject().get("id").getAsString());
+            return names;
+        });
+    }
+
+    private void checkOllama() {
+        ollamaModels(plugin.settings().ollamaUrl()).whenComplete((names, err) -> ollamaUp = err == null);
     }
 
     String provider() {
@@ -131,7 +188,9 @@ final class Llm {
         if (tp.staff != null) return tp.staff + "'s PC";
         return switch (provider) {
             case "anthropic" -> "the Claude API";
-            case "openai" -> "the API at " + URI.create(apiBaseUrl).getHost();
+            case "openai" -> (localApi() ? "the local AI server at " : "the API at ") + URI.create(apiBaseUrl).getHost();
+            case "pc" -> relayStaff.isEmpty() ? "a PC (set ai.pc-staff)" : relayStaff + "'s PC";
+            case "none" -> "nothing (no AI linked)";
             default -> "Ollama at " + plugin.settings().ollamaUrl();
         };
     }
@@ -143,8 +202,10 @@ final class Llm {
     CompletableFuture<String> chat(TestPlayer tp, String system, String user, JsonObject schema) {
         String model = modelFor(tp);
         long timeoutMs = plugin.settings().aiTimeoutSeconds() * 1000L;
-        if (tp.staff != null) return ollamaStyle(plugin.link().relay(tp.staff, ollamaRequest(model, system, user, schema), timeoutMs));
-        if (!paid()) return ollamaStyle(post(plugin.settings().ollamaUrl() + "/api/chat", ollamaRequest(model, system, user, schema), timeoutMs, null));
+        String staff = tp.staff != null ? tp.staff : provider.equals("pc") && !relayStaff.isEmpty() ? relayStaff : null;
+        if (staff != null) return ollamaStyle(plugin.link().relay(staff, ollamaRequest(model, system, user, schema), timeoutMs));
+        if (provider.equals("none") || provider.equals("pc")) return CompletableFuture.failedFuture(new Skipped("no AI linked (/testplayer ai link)"));
+        if (provider.equals("ollama")) return ollamaStyle(post(plugin.settings().ollamaUrl() + "/api/chat", ollamaRequest(model, system, user, schema), timeoutMs, null));
         if (model.isEmpty()) return CompletableFuture.failedFuture(new Skipped("set ai.model in config.yml (the model name your API uses)"));
         String no = budgetSaysNo(tp);
         if (no != null) return CompletableFuture.failedFuture(new Skipped(no));
@@ -192,10 +253,11 @@ final class Llm {
     private synchronized String budgetSaysNo(TestPlayer tp) {
         rollDay();
         if (!apiEnabled) return "the AI API is paused (/testplayer api on)";
-        if (apiKey.isEmpty()) return "no API key set (ai.api.key in config.yml)";
+        if (localApi()) return null; // a model on your own machine: nothing to pay for
+        if (apiKey.isEmpty()) return "no API key set (/testplayer ai link)";
         long now = System.currentTimeMillis();
         while (!recentRequests.isEmpty() && now - recentRequests.peekFirst() > 3_600_000) recentRequests.removeFirst();
-        if (!apiPlayers.contains(tp.id)) {
+        if (!tp.id.startsWith("~") && !apiPlayers.contains(tp.id)) { // "~check" (/testplayer ai test) doesn't take a place
             if (apiPlayers.size() >= maxApiPlayers) return "only " + maxApiPlayers + " test players may use the API at once (ai.api.max-players)";
             apiPlayers.add(tp.id);
         }
@@ -248,7 +310,12 @@ final class Llm {
         rollDay();
         long now = System.currentTimeMillis();
         while (!recentRequests.isEmpty() && now - recentRequests.peekFirst() > 3_600_000) recentRequests.removeFirst();
-        if (!paid()) return provider.equals("ollama") ? "Ollama (free) at " + plugin.settings().ollamaUrl() : provider;
+        if (!paid()) return switch (provider) {
+            case "ollama" -> "Ollama (free) at " + plugin.settings().ollamaUrl() + (ollamaUp ? "" : " - not answering");
+            case "openai" -> "local AI server (free) at " + apiBaseUrl;
+            case "pc" -> relayStaff.isEmpty() ? "a staff PC: none set" : relayStaff + "'s PC through the website (free)" + (plugin.link().connected() ? "" : " - website not connected");
+            default -> "no AI linked (/testplayer ai link)";
+        };
         String s = (apiEnabled ? "" : "PAUSED, ") + (apiKey.isEmpty() ? "no key set, " : "key set, ") + provider + " " + (defaultModel.isEmpty() ? "" : defaultModel + ", ")
                 + String.format(Locale.ROOT, "%,d of %,d tokens today, %d of %d requests this hour, %d of %d test players on it",
                         tokensToday, maxTokensPerDay, recentRequests.size(), maxRequestsPerHour, apiPlayers.size(), maxApiPlayers);
@@ -288,7 +355,7 @@ final class Llm {
 
     private CompletableFuture<JsonObject> post(String url, JsonObject body, long timeoutMs, String auth) {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMillis(timeoutMs)).header("Content-Type", "application/json");
-        if ("openai".equals(auth)) b.header("Authorization", "Bearer " + apiKey);
+        if ("openai".equals(auth) && !apiKey.isEmpty()) b.header("Authorization", "Bearer " + apiKey);
         if ("anthropic".equals(auth)) b.header("x-api-key", apiKey).header("anthropic-version", "2023-06-01");
         return http.sendAsync(b.POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body))).build(), HttpResponse.BodyHandlers.ofString()).thenApply(res -> {
             if (res.statusCode() / 100 != 2) {
