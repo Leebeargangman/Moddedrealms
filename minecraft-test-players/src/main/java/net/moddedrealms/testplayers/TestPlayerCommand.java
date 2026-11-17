@@ -22,7 +22,7 @@ import org.bukkit.entity.Player;
 final class TestPlayerCommand implements TabExecutor {
 
     private static final List<String> SUBS = List.of("spawn", "despawn", "start", "remove", "move", "follow", "wander", "walk", "stop",
-            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "list", "info", "stats", "reload", "help");
+            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "api", "list", "info", "stats", "reload", "help");
     private static final List<String> TARGETED = List.of("despawn", "start", "remove", "move", "follow", "wander", "walk", "stop", "sprint", "bring", "ai", "goal",
             "personality", "build", "undo", "job");
 
@@ -176,13 +176,16 @@ final class TestPlayerCommand implements TabExecutor {
                 players.say(tp, String.join(" ", Arrays.copyOfRange(a, 2, a.length)));
             }
             case "ai" -> {
-                need(a, 3, "ai <target> <model|on|off> [staff member, to use their computer]");
+                need(a, 3, "ai <target> <on|off|model> [staff member, to use their computer]");
                 List<TestPlayer> list = players.select(a[1]);
                 String v = a[2];
                 for (TestPlayer tp : list) {
-                    if (v.equalsIgnoreCase("off")) tp.ai = false;
-                    else if (v.equalsIgnoreCase("on")) {
-                        if (tp.model == null) throw new IllegalArgumentException(tp.name + " has no model yet: /testplayer ai " + tp.name + " <model>, e.g. qwen2.5:3b");
+                    if (v.equalsIgnoreCase("off")) {
+                        tp.ai = false;
+                        plugin.llm().release(tp);
+                    } else if (v.equalsIgnoreCase("on")) {
+                        if (tp.model == null) tp.model = "default"; // config.yml ai.model, or the provider's default
+                        if (a.length > 3) tp.staff = a[3];
                         tp.ai = true;
                     } else {
                         if (!v.matches("^[\\w.:/-]{1,64}$")) throw new IllegalArgumentException("That isn't a model name (e.g. qwen2.5:3b).");
@@ -195,7 +198,9 @@ final class TestPlayerCommand implements TabExecutor {
                 }
                 TestPlayer first = list.getFirst();
                 ok(sender, v.equalsIgnoreCase("off") ? "AI off for " + count(list) + "."
-                        : count(list) + " now controlled by " + first.model + (first.staff != null ? " on " + first.staff + "'s computer (through the website)" : " on " + plugin.settings().ollamaUrl()) + ".");
+                        : count(list) + " now thinking with " + plugin.llm().labelFor(first) + " on " + plugin.llm().placeFor(first) + ".");
+                if (!v.equalsIgnoreCase("off") && first.staff == null && plugin.llm().paid())
+                    sender.sendMessage(Component.text("API budget: " + plugin.llm().usage(), NamedTextColor.GRAY));
             }
             case "goal" -> {
                 need(a, 3, "goal <target> <text...|clear>");
@@ -248,6 +253,13 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, "Removed " + n + " blocks built by " + count(list) + ".");
             }
             case "zone" -> zone(sender, a);
+            case "api" -> {
+                if (a.length > 1 && (a[1].equalsIgnoreCase("on") || a[1].equalsIgnoreCase("off"))) {
+                    plugin.llm().setApiEnabled(a[1].equalsIgnoreCase("on"));
+                    ok(sender, "AI API " + (a[1].equalsIgnoreCase("on") ? "on" : "paused: test players carry on without it") + ".");
+                }
+                sender.sendMessage(Component.text("AI: " + plugin.llm().usage(), NamedTextColor.GRAY));
+            }
             case "town" -> town(sender, a);
             case "job" -> {
                 need(a, 3, "job <target> <" + String.join("|", Town.JOB_BUILDS.keySet()) + "|auto>");
@@ -314,7 +326,18 @@ final class TestPlayerCommand implements TabExecutor {
                     t.jobs.values().forEach(j -> jobs.merge(j, 1, Integer::sum));
                     line(sender, "Citizens", t.jobs.size() + (jobs.isEmpty() ? "" : ": " + jobs.entrySet().stream().map(e -> e.getValue() + " " + e.getKey()).collect(java.util.stream.Collectors.joining(", "))));
                     line(sender, "Roads waiting", String.valueOf(t.roads.size()));
+                    line(sender, "Storage chest", t.storage == null ? "none yet" : t.storage.getBlockX() + " " + t.storage.getBlockY() + " " + t.storage.getBlockZ());
+                    line(sender, "Mine", t.mineDx == 0 && t.mineDz == 0 ? "not started" : "entrance " + t.mineX + " " + t.mineY + " " + t.mineZ + ", " + t.mineShafts + " shafts dug");
+                    line(sender, "Nether portals known", t.portals.isEmpty() ? "none (explorers look for them; or /testplayer town portal " + t.name + ")"
+                            : t.portals.stream().map(l -> l.getBlockX() + " " + l.getBlockZ()).collect(java.util.stream.Collectors.joining(", ")));
                 }
+            }
+            case "portal" -> {
+                need(a, 3, "town portal <town>   (standing next to a lit nether portal)");
+                Town t = towns.get(a[2]);
+                if (t == null) throw new IllegalArgumentException("No town called " + a[2] + ".");
+                towns.addPortal(t, player(sender).getLocation());
+                ok(sender, t.name + "'s explorers now know about this portal (" + t.portals.size() + " known). Scouts take trips through it.");
             }
             case "list" -> {
                 if (towns.all().isEmpty()) {
@@ -330,7 +353,7 @@ final class TestPlayerCommand implements TabExecutor {
                 towns.remove(t);
                 ok(sender, "Removed " + t.name + ". Its buildings stay; /testplayer undo <citizens> removes what they built.");
             }
-            default -> throw new IllegalArgumentException("Usage: /testplayer town found|join|leave|info|list|remove");
+            default -> throw new IllegalArgumentException("Usage: /testplayer town found|join|leave|info|list|portal|remove");
         }
     }
 
@@ -388,7 +411,8 @@ final class TestPlayerCommand implements TabExecutor {
                 {"sprint <target> <on|off>", ""},
                 {"bring <target> / tp <name>", "teleport them to you / you to it"},
                 {"say <name> <text>", "chat as the test player"},
-                {"ai <target> <model|on|off> [staff]", "let an AI model control them"},
+                {"ai <target> <on|off|model> [staff]", "let an AI model drive them (staff: on that person's PC)"},
+                {"api [on|off]", "the paid AI API's budget and usage; off pauses it"},
                 {"goal <target> <text|clear>", "a goal their AI works toward"},
                 {"personality <target> <preset|random|text|clear>", "who they are: builder, explorer, leader, joker, nervous, grumpy, friendly"},
                 {"build <target> <structure> [material]", "build a hut, house, tower, wall or campfire (inside a build zone)"},
@@ -396,6 +420,7 @@ final class TestPlayerCommand implements TabExecutor {
                 {"zone add <name> <radius> / zone list / zone remove <name>", "where test players may build"},
                 {"town found <name> [radius] / town join <town> <target> [job]", "a town they build and live in"},
                 {"town info|list|leave|remove ... / job <target> <job|auto>", "towns and their citizens' jobs"},
+                {"town portal <town>", "tell a town's explorers about the nether portal you're next to"},
                 {"list / info <name> / stats", "what they're doing, server performance"},
                 {"reload", "re-read config.yml"}}) {
             s.sendMessage(Component.text(c + line[0], NamedTextColor.YELLOW).append(Component.text(line[1].isEmpty() ? "" : "  " + line[1], NamedTextColor.GRAY)));
@@ -435,8 +460,15 @@ final class TestPlayerCommand implements TabExecutor {
             line(s, "In the world for", Math.round((System.currentTimeMillis() - tp.spawnedAt) / 60000.0) + " min");
         }
         line(s, "Moved", Math.round(tp.blocksMoved) + " blocks");
+        if (tp.town != null) line(s, "Town", tp.town + ", " + tp.job + (tp.trip != null ? " (on a trip: " + tp.trip + ")" : ""));
+        line(s, "Carrying", Items.describe(tp, 10));
+        if (tp.path != null && tp.pathIndex < tp.path.size()) {
+            Path.Step next = tp.path.get(tp.pathIndex);
+            Path.Step end = tp.path.getLast();
+            line(s, "Route", "step " + (tp.pathIndex + 1) + " of " + tp.path.size() + ", next " + next.x() + " " + next.y() + " " + next.z() + ", ends " + end.x() + " " + end.y() + " " + end.z());
+        } else if (tp.pathRetryAt > System.currentTimeMillis() && tp.mode != TestPlayer.Mode.IDLE) line(s, "Route", "none found, heading straight there");
         if (!tp.lastResult.isEmpty()) line(s, "Last result", tp.lastResult);
-        line(s, "AI", tp.model == null ? "none" : tp.model + (tp.staff != null ? " on " + tp.staff + "'s computer" : "") + (tp.ai ? "" : " (paused)"));
+        line(s, "AI", !tp.ai ? "none" : plugin.llm().labelFor(tp) + " on " + plugin.llm().placeFor(tp) + (tp.aiNote != null ? " (" + tp.aiNote + ")" : ""));
         if (tp.personality != null) line(s, "Personality", tp.personality);
         if (tp.goal != null) line(s, "Goal", tp.goal);
         int built = plugin.builder().buildCount(tp);
@@ -454,7 +486,7 @@ final class TestPlayerCommand implements TabExecutor {
         line(s, "Players", Bukkit.getOnlinePlayers().size() + " real, " + players.spawnedCount() + " test (" + players.all().size() + " defined)");
         int ai = 0;
         for (TestPlayer tp : players.all()) if (tp.ai && tp.model != null && tp.entity() != null) ai++;
-        line(s, "AI", ai + " controlled by a model, " + plugin.brain().thinking() + " thinking now");
+        line(s, "AI", ai + " controlled by a model, " + plugin.brain().thinking() + " thinking now; " + plugin.llm().usage());
         int loaded = 0;
         int entities = 0;
         List<String> perWorld = new ArrayList<>();
@@ -539,8 +571,8 @@ final class TestPlayerCommand implements TabExecutor {
         if (a.length == 1) return starting(SUBS.stream(), a[0]);
         String sub = a[0].toLowerCase(Locale.ROOT);
         if (sub.equals("town")) {
-            if (a.length == 2) return starting(Stream.of("found", "join", "leave", "info", "list", "remove"), a[1]);
-            if (a.length == 3 && List.of("join", "info", "remove").contains(a[1].toLowerCase(Locale.ROOT))) return starting(plugin.towns().all().stream().map(t -> t.name), a[2]);
+            if (a.length == 2) return starting(Stream.of("found", "join", "leave", "info", "list", "portal", "remove"), a[1]);
+            if (a.length == 3 && List.of("join", "info", "remove", "portal").contains(a[1].toLowerCase(Locale.ROOT))) return starting(plugin.towns().all().stream().map(t -> t.name), a[2]);
             if (a.length == 4 && a[1].equalsIgnoreCase("join")) return starting(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), a[3]);
             if (a.length == 5 && a[1].equalsIgnoreCase("join")) return starting(Town.JOB_BUILDS.keySet().stream(), a[4]);
             if (a.length == 3 && a[1].equalsIgnoreCase("leave")) return starting(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), a[2]);
@@ -562,7 +594,7 @@ final class TestPlayerCommand implements TabExecutor {
                 case "follow" -> starting(Bukkit.getOnlinePlayers().stream().map(Player::getName), a[2]);
                 case "walk" -> starting(Stream.of("north", "south", "east", "west", "north-east", "north-west", "south-east", "south-west"), a[2]);
                 case "sprint" -> starting(Stream.of("on", "off"), a[2]);
-                case "ai" -> starting(Stream.of("off", "on", "qwen2.5:0.5b", "qwen2.5:1.5b", "qwen2.5:3b", "qwen2.5:7b", "llama3.2:3b"), a[2]);
+                case "ai" -> starting(Stream.of("on", "off", "qwen2.5:3b", "qwen2.5:7b", "claude-haiku-5-5"), a[2]);
                 case "goal" -> starting(Stream.of("clear"), a[2]);
                 case "personality" -> starting(Stream.concat(Personalities.PRESETS.keySet().stream(), Stream.of("random", "clear")), a[2]);
                 case "build" -> starting(Builder.STRUCTURES.stream(), a[2]);

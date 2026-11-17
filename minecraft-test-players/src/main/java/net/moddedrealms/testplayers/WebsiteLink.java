@@ -484,7 +484,7 @@ final class WebsiteLink {
             b.addProperty("server", Bukkit.getName() + " " + Bukkit.getMinecraftVersion());
             b.addProperty("state", m != null ? "online" : tp.wanted ? "starting" : "stopped");
             b.add("offlineReason", null);
-            b.addProperty("model", tp.model == null ? "rules only" : tp.model + (tp.staff != null ? " (on " + tp.staff + "'s PC)" : ""));
+            b.addProperty("model", !tp.ai ? "rules only" : plugin.llm().labelFor(tp) + " (" + plugin.llm().placeFor(tp) + ")");
             b.addProperty("mode", "test");
             b.addProperty("queue", "game");
             b.addProperty("autonomous", tp.ai);

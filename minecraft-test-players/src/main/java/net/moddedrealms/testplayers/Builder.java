@@ -246,6 +246,8 @@ final class Builder {
         int next;
         double credit;
         long blockedSince;
+        boolean missing;    // out of materials
+        boolean free;       // an admin's order with survival.admin-builds-free: no materials needed
 
         Job(String structure, Location center) {
             this.structure = structure;
@@ -299,6 +301,40 @@ final class Builder {
 
     List<Zone> zones() {
         return new ArrayList<>(zones.values());
+    }
+
+    boolean inZone(World w, int x, int z) {
+        for (Zone zn : zones.values()) if (zn.contains(w, x, z)) return true;
+        return false;
+    }
+
+    /** Building and out of materials: it has to fetch or gather some (see Towns.supply). */
+    boolean missing(TestPlayer tp) {
+        Job j = jobs.get(tp.id);
+        return j != null && j.missing;
+    }
+
+    void setMissing(TestPlayer tp) {
+        Job j = jobs.get(tp.id);
+        if (j != null) j.missing = true;
+    }
+
+    /** What the rest of its build needs, roughly: {logs, cobblestone}. */
+    int[] needs(TestPlayer tp) {
+        Job j = jobs.get(tp.id);
+        if (j == null) return new int[] {0, 0};
+        return Items.rawNeeds(j.types.subList(Math.min(j.next, j.types.size()), j.types.size()));
+    }
+
+    /** Back to its build after fetching materials. */
+    void resume(TestPlayer tp) {
+        Job j = jobs.get(tp.id);
+        if (j == null) return;
+        j.missing = false;
+        tp.mode = TestPlayer.Mode.BUILD;
+        tp.bestDist = Double.MAX_VALUE;
+        tp.ticksSinceBetter = 0;
+        tp.buildStatus = j.label + " (" + j.next + "/" + j.blocks.size() + ")";
     }
 
     Zone zoneAt(Location l) {
@@ -402,6 +438,7 @@ final class Builder {
             String where = zoneAt(l) == null ? "it isn't inside a build zone" : "there's no clear, flat enough spot near it (move it to flatter ground)";
             throw new IllegalArgumentException(tp.name + " can't build a " + s + " here: " + where + ".");
         }
+        job.free = plugin.getConfig().getBoolean("survival.admin-builds-free", false);
         begin(tp, job, p.wall(), "building a " + s);
         return "Building a " + mat + " " + s + " at " + job.center.getBlockX() + " " + job.center.getBlockY() + " " + job.center.getBlockZ()
                 + " (" + job.blocks.size() + " blocks).";
@@ -444,6 +481,18 @@ final class Builder {
         job.plot = index;
         begin(tp, job, p.of(pl.structure.equals("farm") ? Role.CROP : Role.WALL), "building the " + town.name + " " + pl.structure);
         return true;
+    }
+
+    /** The planned footprint of a town plot, a block wider all round: {minX, minZ, maxX, maxZ}. */
+    int[] footprint(Town.Plot pl) {
+        Template t = TEMPLATES.get(pl.structure);
+        if (t == null) return null;
+        boolean swap = pl.rot % 2 == 1;
+        int fw = swap ? t.d() : t.w();
+        int fd = swap ? t.w() : t.d();
+        int minX = pl.x - fw / 2 - 1;
+        int minZ = pl.z - fd / 2 - 1;
+        return new int[] {minX, minZ, minX + fw + 1, minZ + fd + 1};
     }
 
     /** Pave a dirt path from one spot to another (grass and dirt only, inside the town's zone). False if there's nothing to pave. */
@@ -529,7 +578,7 @@ final class Builder {
                 hi = Math.max(hi, top.getY());
             }
         }
-        if (hi - lo > 2) return null; // up to two blocks of slope, filled in with a foundation
+        if (hi - lo > 3) return null; // up to three blocks of slope, filled in with a foundation
         if (t.groundWork() && hi != lo) return null; // farmland and water need level ground
         int baseY = hi + 1;
         Job job = new Job(structure, new Location(w, cx + 0.5, baseY, cz + 0.5));
@@ -632,7 +681,7 @@ final class Builder {
     /** It's standing close to the next block: place it when the build speed allows. */
     void work(TestPlayer tp, Mannequin m) {
         Job j = jobs.get(tp.id);
-        if (j == null || j.next >= j.blocks.size()) return;
+        if (j == null || j.next >= j.blocks.size() || j.missing) return;
         j.credit = Math.min(j.credit + plugin.getConfig().getDouble("building.blocks-per-second", 3) / 20.0, 2);
         if (j.credit < 1) return;
         Block b = j.blocks.get(j.next);
@@ -654,6 +703,23 @@ final class Builder {
             return;
         }
         j.blockedSince = 0;
+        if (!j.free && plugin.getConfig().getBoolean("survival.enabled", true)) {
+            // Like a player: what it places comes out of its inventory, crafted from what it carries.
+            Material use = Items.provide(tp, type);
+            if (use == null) {
+                j.missing = true;
+                tp.buildStatus = j.label + ": out of wood (" + j.next + "/" + j.blocks.size() + ")";
+                return;
+            }
+            if (use == Items.SKIP) {
+                j.next++;
+                return;
+            }
+            if (use != type) {
+                type = use;
+                j.types.set(j.next, use);
+            }
+        }
         j.credit -= 1;
         b.setType(type, true);
         j.next++;
