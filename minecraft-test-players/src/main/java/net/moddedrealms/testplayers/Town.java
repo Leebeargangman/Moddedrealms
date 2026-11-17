@@ -26,6 +26,8 @@ final class Town {
             "guard", List.of("tower"),
             "roadworker", List.of("lamp"),
             "scout", List.of(),
+            "lumberjack", List.of(),
+            "miner", List.of(),
             "entertainer", List.of());
 
     static final class Plot {
@@ -37,6 +39,8 @@ final class Town {
         String state = "planned"; // planned, building, built, skipped
         String by;              // the test player building it
         boolean resume;         // it was started before: finishing it may reuse its own blocks
+        int clears;             // times someone cleared trees off it so it would fit
+        long busyUntil;         // someone's clearing it: leave it to them until then
         Location built;         // where it ended up (it can be nudged off the plan)
 
         Plot(String structure, String material, int x, int z, int rot) {
@@ -59,6 +63,11 @@ final class Town {
     final Deque<Location[]> roads = new ArrayDeque<>();  // {from, to} waiting to be paved
     String roadBy;                                       // who is paving one now
     String stageAnnounced = "camp";
+    long revivedAt = System.currentTimeMillis(); // last time skipped plots were given another go
+    // The town mine: a staircase down from (mineX, mineY, mineZ) heading (mineDx, mineDz), mineStep blocks dug.
+    int mineX, mineY, mineZ, mineDx, mineDz, mineStep, mineShafts;
+    Location storage;                                    // the town's storage chest, once someone has made one
+    final List<Location> portals = new ArrayList<>();    // nether portals its explorers know about
 
     Town(String name, String world, int cx, int cz, int radius) {
         this.name = name;
@@ -148,7 +157,7 @@ final class Town {
         List<String> mine = JOB_BUILDS.getOrDefault(job, List.of());
         for (int i = 0; i < plots.size(); i++) {
             Plot p = plots.get(i);
-            if (p.state.equals("planned") && mine.contains(p.structure)) return i;
+            if (p.state.equals("planned") && mine.contains(p.structure) && p.busyUntil < System.currentTimeMillis()) return i;
         }
         return -1;
     }

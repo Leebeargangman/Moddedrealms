@@ -1,18 +1,10 @@
 package net.moddedrealms.testplayers;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
@@ -28,26 +20,34 @@ import org.bukkit.entity.Player;
 final class Brain {
 
     private static final String SYSTEM = """
-            You play a simulated player (a "test player") on a Minecraft server, living in a small community with
-            the other test players. Stay in character: your personality shapes what you choose and how you talk.
-            Keep busy most of the time, and be brief in chat. You can't break blocks, fight or use items.
+            You play a simulated player (a "test player") on a survival Minecraft server, living with the other
+            test players. Stay in character: your personality shapes what you choose and how you talk. Act like a
+            real player: keep busy, gather what you need, help friends, be brief and casual in chat.
+            It's survival: you only have what you carry. Wood comes from chopping trees, stone and ore from mining,
+            and everything you build uses up your own materials (out of wood, you go and chop more).
             Pick one action:
+            - chop: chop down the nearest tree for logs
+            - mine: dig in your town's mine for stone and ore (only if you live in a town)
+            - explore: head off in "direction" (north, south-west...) to see what's out there, then come back
+            - nether: go through a nether portal your town knows about, collect stuff there and come back
+            - work: get on with your town job
+            - campfire: hang out with the others at the town campfire
             - wander: walk around randomly within "radius" blocks of where you are
             - goto: walk to "x", "z" (and "y" if you know it)
             - follow: follow the player or test player named "player"
-            - walk: walk straight on in "direction" (north, south, east, west, north-east...) to explore new chunks
             - idle: stand still
             - build: build a "structure" (hut, house, tower, wall or campfire) out of "material" (wood, spruce,
-              stone, brick or cherry) next to you; only inside a build zone, and it takes a minute or two
-            "say" is what you say in chat: when someone talked to you, answer them there (one short, friendly
-            sentence); otherwise leave it "". Only use player names you can see in the context. Reply with ONLY JSON.""";
+              stone, brick or cherry) next to you; only inside a build zone, and it takes a few minutes
+            Players can right-click you to trade for what you carry. "say" is what you say in chat: when someone
+            talked to you, answer them there (one short sentence); otherwise usually leave it "". Only use player
+            names you can see in the context. Reply with ONLY JSON.""";
 
     private static final JsonObject SCHEMA = JsonParser.parseString("""
             {"type": "object",
              "properties": {
                "thought": {"type": "string", "maxLength": 200},
                "say": {"type": "string", "maxLength": 200},
-               "action": {"type": "string", "enum": ["wander", "goto", "follow", "walk", "idle", "build"]},
+               "action": {"type": "string", "enum": ["chop", "mine", "explore", "nether", "work", "campfire", "wander", "goto", "follow", "idle", "build"]},
                "structure": {"type": "string", "enum": ["hut", "house", "tower", "wall", "campfire"]},
                "material": {"type": "string", "enum": ["wood", "spruce", "stone", "brick", "cherry"]},
                "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
@@ -58,8 +58,6 @@ final class Brain {
              "required": ["thought", "say", "action"]}""").getAsJsonObject();
 
     private final TestPlayersPlugin plugin;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-    private final Gson gson = new Gson();
     private int inFlight;
 
     Brain(TestPlayersPlugin plugin) {
@@ -73,47 +71,32 @@ final class Brain {
     /** Called every second for each test player in the world. */
     void maybeThink(TestPlayer tp) {
         Settings s = plugin.settings();
-        if (!tp.ai || tp.model == null || tp.thinking || inFlight >= s.aiMaxConcurrent()) return;
+        if (!tp.ai || tp.thinking || inFlight >= s.aiMaxConcurrent()) return;
         if (System.currentTimeMillis() < tp.nextThinkAt) return;
-        // Busy building (or walking to build): let it finish, unless someone talks to it. Citizens keep
-        // thinking (their job decides what they do, the AI decides what they say).
+        // Busy (building, on a trip, at work): it still thinks now and then, less often, so it can talk and
+        // change its mind about a chore. Someone talking to it always gets an answer.
         if (busy(tp) && tp.inbox.isEmpty() && tp.town == null) return;
         Mannequin m = tp.entity();
         if (m == null) return;
 
-        JsonObject request = new JsonObject();
-        request.addProperty("model", tp.model);
-        request.addProperty("stream", false);
-        request.add("format", SCHEMA);
-        request.addProperty("keep_alive", "30m");
-        JsonObject options = new JsonObject();
-        options.addProperty("temperature", 0.6);
-        options.addProperty("num_ctx", 4096);
-        options.addProperty("num_predict", 200);
-        request.add("options", options);
-        JsonArray messages = new JsonArray();
-        messages.add(message("system", SYSTEM));
-        messages.add(message("user", observe(tp, m)));
-        request.add("messages", messages);
-
         tp.thinking = true;
         inFlight++;
-        long timeoutMs = s.aiTimeoutSeconds() * 1000L;
-        CompletableFuture<JsonObject> answer = tp.staff != null ? plugin.link().relay(tp.staff, request, timeoutMs) : ollama(s.ollamaUrl(), request, timeoutMs);
-        answer.whenComplete((body, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.llm().chat(tp, SYSTEM, observe(tp, m), SCHEMA).whenComplete((text, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
             inFlight--;
             tp.thinking = false;
-            tp.nextThinkAt = System.currentTimeMillis() + s.aiIntervalSeconds() * 1000L;
+            tp.nextThinkAt = System.currentTimeMillis() + s.aiIntervalSeconds() * 1000L * (busy(tp) ? 3 : 1);
             if (err != null) {
                 Throwable cause = err.getCause() != null ? err.getCause() : err;
-                tp.thought = "AI unavailable: " + cause.getMessage();
+                // The budget or the setup said no: it carries on with its own routine and tries later.
+                tp.aiNote = cause instanceof Llm.Skipped ? cause.getMessage() : "AI unavailable: " + cause.getMessage();
+                if (cause instanceof Llm.Skipped) tp.nextThinkAt = System.currentTimeMillis() + 30_000;
                 return;
             }
+            tp.aiNote = null;
             try {
-                JsonObject d = JsonParser.parseString(body.getAsJsonObject("message").get("content").getAsString()).getAsJsonObject();
-                act(tp, d);
+                act(tp, Llm.parse(text));
             } catch (RuntimeException e) {
-                tp.thought = "AI gave an answer I couldn't use";
+                tp.aiNote = "the AI gave an answer I couldn't use";
             }
         }));
     }
@@ -136,25 +119,6 @@ final class Brain {
         heard(tp, from + " (test player)", text);
     }
 
-    private CompletableFuture<JsonObject> ollama(String url, JsonObject request, long timeoutMs) {
-        HttpRequest req = HttpRequest.newBuilder(URI.create(url + "/api/chat"))
-                .timeout(Duration.ofMillis(timeoutMs))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(request)))
-                .build();
-        return http.sendAsync(req, HttpResponse.BodyHandlers.ofString()).thenApply(res -> {
-            if (res.statusCode() != 200) throw new IllegalStateException("Ollama answered HTTP " + res.statusCode() + ": " + res.body().substring(0, Math.min(200, res.body().length())));
-            return JsonParser.parseString(res.body()).getAsJsonObject();
-        });
-    }
-
-    private static JsonObject message(String role, String content) {
-        JsonObject o = new JsonObject();
-        o.addProperty("role", role);
-        o.addProperty("content", content);
-        return o;
-    }
-
     /** What the test player knows right now, as text for the model. */
     private String observe(TestPlayer tp, Mannequin m) {
         Location l = m.getLocation();
@@ -165,11 +129,14 @@ final class Brain {
         if (town != null) {
             lines.add("YOUR TOWN: you live in " + town.name + " (a " + town.stage() + ": " + town.builtOf("house", "hut") + " homes, "
                     + town.count("built") + " of " + town.plots.size() + " buildings done, " + town.jobs.size() + " citizens). Your job is " + tp.job
-                    + " and you're doing it now (" + tp.doing() + "); your action is ignored while you work, so just say what fits, in character.");
+                    + " and you're " + tp.doing() + ". \"work\" carries on with it; pick something else when you feel like it (a trip, chopping, the campfire)."
+                    + (town.portals.isEmpty() ? " Nobody has found a nether portal yet." : " Your town knows " + town.portals.size() + " nether portal(s).")
+                    + (town.storage != null ? " There's a storage chest by the campfire." : ""));
         }
         lines.add("You are " + tp.name + " at x=" + l.getBlockX() + " y=" + l.getBlockY() + " z=" + l.getBlockZ() + " in " + l.getWorld().getName()
                 + ", " + (l.getWorld().isDayTime() ? "day" : "night") + ". You are " + tp.doing() + ".");
         if (!tp.lastResult.isEmpty()) lines.add("Last result: " + tp.lastResult);
+        lines.add("You carry: " + Items.describe(tp, 8));
         lines.add("Ground height 16 blocks away: " + terrain(l));
         List<String> players = new ArrayList<>();
         List<String> others = new ArrayList<>();
@@ -229,8 +196,15 @@ final class Brain {
         Mannequin m = tp.entity();
         if (m == null) return;
         try {
-            // While building it only answers chat: a new action would leave the build half done.
-            if (!busy(tp) && tp.town == null) switch (action) {
+            // While building or on a trip it only answers chat: a new action would leave things half done.
+            boolean chore = tp.mode == TestPlayer.Mode.WORK && tp.trip == null && tp.pendingBuild == null && !plugin.builder().building(tp);
+            if (busy(tp) && !(chore && List.of("explore", "nether", "campfire", "chop", "mine").contains(action) && !tp.doing().startsWith(action))) {
+                // carry on (a build or a trip isn't dropped halfway; a chore can be)
+            } else if (List.of("chop", "mine", "explore", "nether", "work", "campfire").contains(action)) {
+                tp.lastResult = plugin.towns().order(tp, action, str(d, "direction"));
+            } else if (tp.town != null && !List.of("follow", "goto").contains(action)) {
+                tp.lastResult = plugin.towns().order(tp, "work", "");
+            } else switch (action) {
                 case "wander" -> players.wander(tp, num(d, "radius", 24));
                 case "goto" -> {
                     Location l = m.getLocation();
@@ -267,7 +241,7 @@ final class Brain {
     }
 
     private static boolean busy(TestPlayer tp) {
-        return tp.mode == TestPlayer.Mode.BUILD || tp.pendingBuild != null;
+        return tp.mode == TestPlayer.Mode.BUILD || tp.mode == TestPlayer.Mode.WORK || tp.pendingBuild != null || tp.trip != null;
     }
 
     /** The nearest player or other test player within 32 blocks (for "follow" without a name), or "". */
