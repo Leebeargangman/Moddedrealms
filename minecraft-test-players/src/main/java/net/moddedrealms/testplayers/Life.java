@@ -113,6 +113,7 @@ final class Life implements Listener, TabExecutor {
     private int formingSize;
     private long formingAt;
     private long lastPopulate;
+    private long combatTicks;
 
     Life(TestPlayersPlugin plugin) {
         this.plugin = plugin;
@@ -774,7 +775,8 @@ final class Life implements Listener, TabExecutor {
     void fight(TestPlayer tp, Mannequin m, long now) {
         Entity e = Bukkit.getEntity(tp.prey);
         boolean stuck = tp.mode == TestPlayer.Mode.IDLE && tp.lastResult.startsWith("stuck");
-        if (!(e instanceof LivingEntity le) || le.isDead() || !le.isValid() || e.getWorld() != m.getWorld() || now > tp.preyUntil || stuck) {
+        boolean gone = e instanceof Player p && (p.getGameMode() == org.bukkit.GameMode.CREATIVE || p.getGameMode() == org.bukkit.GameMode.SPECTATOR || !p.isOnline());
+        if (!(e instanceof LivingEntity le) || le.isDead() || !le.isValid() || e.getWorld() != m.getWorld() || now > tp.preyUntil || stuck || gone) {
             // Couldn't get to it (up a cliff, across water): leave that one alone for a while.
             if (e != null && e.isValid() && !(e instanceof LivingEntity l2 && l2.isDead())) {
                 cantCatch.put(e.getUniqueId(), now + 300_000);
@@ -834,6 +836,119 @@ final class Life implements Listener, TabExecutor {
 
     private static String pretty(String name) {
         return name.toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    // ------------------------------------------------------------ combat: getting hurt, fighting back, healing
+
+    private boolean combat(String key, boolean def) {
+        return plugin.getConfig().getBoolean("combat." + key, def);
+    }
+
+    /** Something hurt it (combat is on): hit back, or run if a player is winning. */
+    void attacked(TestPlayer tp, Mannequin m, Entity by, double damage) {
+        long now = System.currentTimeMillis();
+        tp.hurtAt = now;
+        LivingEntity attacker = by instanceof org.bukkit.entity.Projectile pr && pr.getShooter() instanceof LivingEntity s ? s : by instanceof LivingEntity le ? le : null;
+        if (attacker == null || attacker == m) return;
+        boolean player = attacker instanceof Player;
+        String name = player ? ((Player) attacker).getName() : pretty(attacker.getType().name());
+        if (attacker instanceof Mannequin) return; // test players don't fight each other
+        tp.lastResult = "got hit by " + name;
+        if (player && tp.ai && tp.model != null && now - tp.toldHurtAt > 20_000) {
+            tp.toldHurtAt = now;
+            plugin.brain().heard(tp, name, "(" + name + " just attacked you! You have " + Math.round(m.getHealth() - damage) + " of 20 health.)");
+        }
+        if (!combat("fight-back", true) || player && !combat("fight-back-players", true)) return;
+        if (player && m.getHealth() - damage < 7) {
+            // Losing: run for it, like a player would.
+            Vector away = m.getLocation().toVector().subtract(attacker.getLocation().toVector()).setY(0);
+            if (away.lengthSquared() < 0.01) away = new Vector(1, 0, 0);
+            away.normalize().multiply(28);
+            tp.prey = null;
+            players().goTo(tp, m.getLocation().clone().add(away));
+            tp.buildStatus = "running away from " + name;
+            tp.jobUntil = now + 15_000;
+            return;
+        }
+        if (tp.prey == null || !tp.prey.equals(attacker.getUniqueId())) startFight(tp, attacker, now, (player ? "fighting " : "fighting off a ") + name);
+    }
+
+    /** Every second, with combat on: heal slowly when not hurt for a bit (and fed), and get noticed by monsters. */
+    private void combatTick(long now) {
+        boolean mobs = combat("mobs-attack", true);
+        boolean aggro = mobs && ++combatTicks % 2 == 0;
+        for (TestPlayer tp : plugin.players().all()) {
+            Mannequin m = tp.entity();
+            if (m == null) continue;
+            double max = m.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH) != null ? m.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue() : 20;
+            if (m.getHealth() < max && now - tp.hurtAt > 4_000 && now - tp.healAt > 3_000 && (!tp.free || tp.food > 6)) {
+                tp.healAt = now;
+                m.setHealth(Math.min(max, m.getHealth() + 1));
+            }
+            if (!aggro || m.getWorld().getDifficulty() == org.bukkit.Difficulty.PEACEFUL) continue;
+            // Monsters go for it like they go for a player (they don't by themselves: it isn't one).
+            for (Entity e : m.getNearbyEntities(16, 8, 16)) {
+                if (e instanceof Monster mob && mob.getTarget() == null && !mob.isDead() && mob.hasLineOfSight(m)) mob.setTarget(m);
+            }
+        }
+    }
+
+    /** Died: drop what it carried (unless keepInventory), say how in chat, and start over hungry-free. */
+    void died(TestPlayer tp, Mannequin m) {
+        Location at = m.getLocation();
+        String how = deathMessage(m);
+        boolean keep = Boolean.TRUE.equals(at.getWorld().getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY));
+        if (combat("drop-items", true) && !keep && !tp.items.isEmpty()) {
+            int stacks = 0;
+            for (Map.Entry<Material, Integer> e : new ArrayList<>(tp.items.entrySet())) {
+                Material mat = e.getKey();
+                if (!mat.isItem()) continue;
+                for (int left = e.getValue(); left > 0 && stacks < 120; stacks++) {
+                    int k = Math.min(left, mat.getMaxStackSize());
+                    Item it = at.getWorld().dropItemNaturally(at, new ItemStack(mat, k));
+                    it.setPickupDelay(20);
+                    left -= k;
+                }
+            }
+            tp.items.clear();
+        }
+        tp.prey = null;
+        tp.pendingGive = null;
+        tp.food = 20;
+        tp.lastResult = "died: " + how;
+        if (combat("death-messages", true)) {
+            Bukkit.broadcast(Component.text(plugin.settings().chatPrefix(), NamedTextColor.GRAY).append(Component.text(tp.name + " " + how, NamedTextColor.WHITE)));
+        }
+        plugin.link().death(tp, at, how);
+        if (tp.ai && tp.model != null) plugin.brain().heard(tp, "(game)", "(You died: you " + how + ". You lost what you carried" + (keep ? " - no, keepInventory is on, you kept it" : "") + " and are back at your " + (tp.town != null ? "base" : "spawn") + ".)");
+    }
+
+    /** "was slain by Zombie", "fell from a high place"... like the game's own death messages. */
+    private String deathMessage(Mannequin m) {
+        org.bukkit.event.entity.EntityDamageEvent last = m.getLastDamageCause();
+        if (last instanceof org.bukkit.event.entity.EntityDamageByEntityEvent byEntity) {
+            Entity d = byEntity.getDamager();
+            Entity src = d instanceof org.bukkit.entity.Projectile pr && pr.getShooter() instanceof Entity s ? s : d;
+            String who = src instanceof Player p ? p.getName() : src.customName() != null ? net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(src.customName()) : pretty(src.getType().name());
+            if (d instanceof org.bukkit.entity.Projectile) return "was shot by " + who;
+            if (last.getCause() == org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) return "was blown up by " + who;
+            return "was slain by " + who;
+        }
+        if (last == null) return "died";
+        return switch (last.getCause()) {
+            case FALL -> "fell from a high place";
+            case LAVA -> "tried to swim in lava";
+            case FIRE, FIRE_TICK -> "burned to death";
+            case DROWNING -> "drowned";
+            case SUFFOCATION -> "suffocated in a wall";
+            case VOID -> "fell out of the world";
+            case BLOCK_EXPLOSION, ENTITY_EXPLOSION -> "blew up";
+            case STARVATION -> "starved to death";
+            case FREEZE -> "froze to death";
+            case CONTACT -> "was pricked to death";
+            case MAGIC, POISON -> "was killed by magic";
+            default -> "died";
+        };
     }
 
     // ------------------------------------------------------------ playing with real teammates
@@ -1260,6 +1375,7 @@ final class Life implements Listener, TabExecutor {
     void tick() {
         long now = System.currentTimeMillis();
         for (TestPlayer tp : plugin.players().all()) if (tp.free && tp.entity() != null) hunger(tp, now);
+        if (!plugin.settings().invulnerable()) combatTick(now);
         if (now - lastPopulate < 5_000) return;
         lastPopulate = now;
         int keep = Math.max(0, cfgInt("keep-online", 0));
@@ -1346,6 +1462,11 @@ final class Life implements Listener, TabExecutor {
         if (!cfg("ai-by-default", true) || !plugin.llm().ready()) return;
         if (tp.model == null) tp.model = "default";
         tp.ai = true;
+    }
+
+    /** A made-up name that looks like a player's (Ash427, xMossx, pebble_digs...), not taken here. */
+    String randomName() {
+        return playerName();
     }
 
     private String playerName() {

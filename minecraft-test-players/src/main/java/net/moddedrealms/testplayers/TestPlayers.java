@@ -147,6 +147,14 @@ final class TestPlayers {
         if (s().skinFromName()) m.setProfile(ResolvableProfile.resolvableProfile().name(tp.name).build());
     }
 
+    /** combat on or off (invulnerable in config.yml): every test player in the world now. */
+    void applyInvulnerable() {
+        for (TestPlayer tp : players.values()) {
+            Mannequin m = tp.entity();
+            if (m != null) m.setInvulnerable(s().invulnerable());
+        }
+    }
+
     /** The AI model changed: update the label under the name. */
     void relabel(TestPlayer tp) {
         Mannequin m = tp.entity();
@@ -201,7 +209,7 @@ final class TestPlayers {
         tp.deaths++;
         tp.body = null;
         tp.respawnAt = System.currentTimeMillis() + RESPAWN_MS;
-        tp.lastResult = "died";
+        if (!tp.lastResult.startsWith("died")) tp.lastResult = "died";
         chunks.release(tp);
         dirty = true;
     }
@@ -209,7 +217,18 @@ final class TestPlayers {
     /** Where to spawn near loc: loc itself if a player could stand there, else on top of the ground. */
     private static Location standable(Location loc) {
         Block feet = loc.getBlock();
-        if (feet.isPassable() && feet.getRelative(BlockFace.UP).isPassable()) return loc;
+        if (feet.isPassable() && feet.getRelative(BlockFace.UP).isPassable()) {
+            // In the air (a spawn point above the ground, the top of a tree): down to what's below, so it
+            // doesn't fall (and, with combat on, die and come back to the same spot over and over).
+            Block b = feet;
+            for (int i = 0; i < 80 && b.getY() > loc.getWorld().getMinHeight() && b.getRelative(BlockFace.DOWN).isPassable() && !b.getRelative(BlockFace.DOWN).isLiquid(); i++) {
+                b = b.getRelative(BlockFace.DOWN);
+            }
+            if (b.getRelative(BlockFace.DOWN).isPassable() && !b.getRelative(BlockFace.DOWN).isLiquid()) b = loc.getWorld().getHighestBlockAt(loc).getRelative(BlockFace.UP);
+            Location at = b.getLocation().add(loc.getX() - loc.getBlockX(), 0, loc.getZ() - loc.getBlockZ());
+            at.setYaw(loc.getYaw());
+            return at;
+        }
         Location top = loc.getWorld().getHighestBlockAt(loc).getLocation().add(0.5, 1, 0.5);
         top.setYaw(loc.getYaw());
         return top;

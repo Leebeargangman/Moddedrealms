@@ -22,7 +22,7 @@ import org.bukkit.entity.Player;
 final class TestPlayerCommand implements TabExecutor {
 
     private static final List<String> SUBS = List.of("spawn", "despawn", "start", "remove", "move", "follow", "wander", "walk", "stop",
-            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "free", "team", "populate", "api", "list", "info", "stats", "reload", "help");
+            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "free", "team", "populate", "combat", "api", "list", "info", "stats", "reload", "help");
     private static final List<String> TARGETED = List.of("despawn", "start", "remove", "move", "follow", "wander", "walk", "stop", "sprint", "bring", "ai", "goal",
             "personality", "build", "undo", "job", "free");
 
@@ -54,11 +54,14 @@ final class TestPlayerCommand implements TabExecutor {
                 int count = a.length > 2 ? integer(a[2], 1, plugin.settings().maxPlayers()) : 1;
                 String mode = a.length > 3 ? a[3].toLowerCase(Locale.ROOT) : "idle";
                 if (!List.of("idle", "wander", "walk", "free", "team").contains(mode)) throw new IllegalArgumentException("Mode is idle, wander, walk, free (each plays on its own) or team (they play together).");
-                List<String> names = players.batchNames(a[1], count);
+                List<String> names = new ArrayList<>();
+                if (a[1].equalsIgnoreCase("random")) {
+                    for (int i = 0; i < count; i++) names.add(plugin.life().randomName());
+                } else names = players.batchNames(a[1], count);
                 int room = plugin.settings().maxPlayers() - players.all().size();
                 if (names.size() > room) throw new IllegalArgumentException("Only room for " + room + " more (max-players is " + plugin.settings().maxPlayers() + ").");
                 Location center = origin(sender);
-                Town team = mode.equals("team") ? plugin.towns().foundCamp(uniqueTeam(a[1]), center) : null;
+                Town team = mode.equals("team") ? plugin.towns().foundCamp(uniqueTeam(a[1].equalsIgnoreCase("random") ? names.getFirst() : a[1]), center) : null;
                 for (int i = 0; i < names.size(); i++) {
                     TestPlayer tp = players.create(names.get(i));
                     // Spread a batch out on a sunflower spiral, about 3 blocks apart.
@@ -301,6 +304,17 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, count(list) + (team != null ? " now play survival as team " + team.name : " now play survival on their own") + ": tools, a base away from spawn, mining, exploring, the nether.");
             }
             case "team" -> team(sender, a);
+            case "combat" -> {
+                if (a.length > 1) {
+                    boolean on = onOff(a[1]);
+                    plugin.getConfig().set("invulnerable", !on);
+                    plugin.saveConfig();
+                    plugin.reload();
+                    players.applyInvulnerable();
+                }
+                ok(sender, plugin.settings().invulnerable() ? "Combat off: nothing can hurt test players. /testplayer combat on"
+                        : "Combat on: test players can be hurt and die, fight back, and drop what they carry when they die. /testplayer combat off");
+            }
             case "populate" -> {
                 need(a, 2, "populate <count>   (free players join around the world spawn, solo and in small teams)");
                 int n = integer(a[1], 1, 100);
@@ -548,6 +562,8 @@ final class TestPlayerCommand implements TabExecutor {
         for (String[] line : new String[][] {
                 {"spawn <name> [count] [idle|wander|walk|free|team]", "spawn one, or a numbered batch around you (free/team: they play survival)"},
                 {"populate <count>", "players join at spawn and play survival, solo and in small teams"},
+                {"spawn random [count] [mode]", "test players with made-up player names (Ash427, xMossx...)"},
+                {"combat <on|off>", "whether test players can be attacked and die"},
                 {"free <target> [team]", "make test players play survival like normal players"},
                 {"team create|add|kick|settle|info|list|remove ...", "free players' teams; add a real player to one (or they use /teamup)"},
                 {"ai link <ollama|lmstudio|pc|openai|openrouter|groq|anthropic|off> / ai test", "link an AI (local, your PC, or an API key with spending caps)"},
@@ -608,6 +624,7 @@ final class TestPlayerCommand implements TabExecutor {
             Location l = m.getLocation();
             line(s, "Position", l.getBlockX() + " " + l.getBlockY() + " " + l.getBlockZ() + " in " + l.getWorld().getName());
             line(s, "Doing", tp.doing() + (tp.sprint ? ", sprinting" : ""));
+            line(s, "Health", Math.round(m.getHealth()) + "/20" + (plugin.settings().invulnerable() ? " (can't be hurt: /testplayer combat on)" : ""));
             line(s, "In the world for", Math.round((System.currentTimeMillis() - tp.spawnedAt) / 60000.0) + " min");
         }
         line(s, "Moved", Math.round(tp.blocksMoved) + " blocks");
@@ -735,6 +752,7 @@ final class TestPlayerCommand implements TabExecutor {
             if (a.length == 3 && a[1].equalsIgnoreCase("leave")) return starting(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), a[2]);
             return List.of();
         }
+        if (sub.equals("combat")) return a.length == 2 ? starting(Stream.of("on", "off"), a[1]) : List.of();
         if (sub.equals("populate")) return a.length == 2 ? starting(Stream.of("5", "10", "20"), a[1]) : List.of();
         if (sub.equals("team")) {
             if (a.length == 2) return starting(Stream.of("create", "add", "kick", "settle", "info", "list", "remove"), a[1]);
@@ -759,6 +777,7 @@ final class TestPlayerCommand implements TabExecutor {
         if (a.length == 3) {
             return switch (sub) {
                 case "spawn" -> starting(Stream.of("1", "4", "10", "50", "100"), a[2]);
+
                 case "free" -> starting(plugin.towns().camps().stream().map(t -> t.name), a[2]);
                 case "move" -> starting(Stream.concat(Stream.of("here"), Bukkit.getOnlinePlayers().stream().map(Player::getName)), a[2]);
                 case "follow" -> starting(Bukkit.getOnlinePlayers().stream().map(Player::getName), a[2]);
