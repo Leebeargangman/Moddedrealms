@@ -30,7 +30,9 @@ const config = {
   discordInvite: (env.DISCORD_INVITE_CODE || "AA3a3H3ECk").trim(),
 
   // Minecraft server + live data
-  mcAddress: (env.MC_SERVER_ADDRESS || "moddedrealms.minehut.gg").trim().toLowerCase(),
+  mcAddress: (env.MC_SERVER_ADDRESS || "play.moddedrealms.net").trim().toLowerCase(),
+  // The server's name on Minehut, for its live player count (the address is our own domain, pointed at Minehut).
+  minehutName: (env.MINEHUT_SERVER_NAME || "moddedrealms").trim().toLowerCase(),
   mcMaxPlayers: toInt(env.MC_MAX_PLAYERS, 0),
   youtubeChannelId: (env.YOUTUBE_CHANNEL_ID || "UC408m1zoIwbW5JXeOkqSlxA").trim(),
 

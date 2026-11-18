@@ -277,8 +277,9 @@ async function loadPing() {
 }
 
 async function loadMinecraftStatus() {
-  const minehut = config.mcAddress.match(/^([a-z0-9_-]+)\.minehut\.(?:gg|com)$/);
-  const [hutResult, pingResult] = await Promise.allSettled([minehut ? loadMinehutState(minehut[1]) : Promise.resolve(null), loadPing()]);
+  const onMinehut = config.mcAddress.match(/^([a-z0-9_-]+)\.minehut\.(?:gg|com)$/);
+  const hutName = onMinehut ? onMinehut[1] : config.minehutName;
+  const [hutResult, pingResult] = await Promise.allSettled([hutName ? loadMinehutState(hutName) : Promise.resolve(null), loadPing()]);
   const hut = hutResult.status === "fulfilled" ? hutResult.value : null;
   const ping = pingResult.status === "fulfilled" ? pingResult.value : null;
   if (!hut && !ping) throw new Error("no Minecraft status source answered");
