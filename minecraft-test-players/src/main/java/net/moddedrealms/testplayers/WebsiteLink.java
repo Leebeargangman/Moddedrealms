@@ -13,7 +13,10 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
@@ -102,7 +105,15 @@ final class WebsiteLink {
         if (!running || gen != generation) return;
         HttpRequest req = request("/api/botlink/poll").timeout(Duration.ofSeconds(40)).GET().build();
         http.sendAsync(req, HttpResponse.BodyHandlers.ofString()).whenComplete((res, err) -> {
-            if (!running || gen != generation) return;
+            if (gen != generation) {
+                // The link restarted while this poll was out: still carry out anything it brought, then stop.
+                if (err == null && res.statusCode() == 200) {
+                    JsonArray late = JsonParser.parseString(res.body()).getAsJsonObject().getAsJsonArray("items");
+                    if (late != null && !late.isEmpty()) Bukkit.getScheduler().runTask(plugin, () -> late.forEach(i -> handle(i.getAsJsonObject())));
+                }
+                return;
+            }
+            if (!running) return;
             long retryTicks = 0;
             if (err != null) {
                 status = "can't reach the website (" + err.getClass().getSimpleName() + ")";
@@ -139,9 +150,10 @@ final class WebsiteLink {
             JsonElement result = run(command, args, staff);
             reply.addProperty("ok", true);
             reply.add("result", result);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (RuntimeException e) {
+            // Bad input from the page (a number that isn't one...) is an answer, not a crash.
             reply.addProperty("ok", false);
-            reply.addProperty("error", e.getMessage());
+            reply.addProperty("error", e instanceof IllegalArgumentException || e instanceof IllegalStateException ? e.getMessage() : "that didn't work (" + e.getClass().getSimpleName() + ")");
         }
         events.add(reply);
         plugin.getLogger().info("[website] " + who + ": " + command + (args.has("bot") ? " " + str(args, "bot") : ""));
@@ -153,12 +165,22 @@ final class WebsiteLink {
         switch (command) {
             case "createBot" -> {
                 String name = str(args, "name");
-                if (name.isEmpty()) name = players.batchNames("Test", 2).getFirst(); // the first free TestN
+                if (name.isEmpty() || name.equalsIgnoreCase("random")) name = plugin.life().randomName(); // a made-up player name
                 TestPlayer tp = players.create(name);
-                applyAi(tp, args.has("ai") && args.get("ai").isJsonObject() ? args.getAsJsonObject("ai") : new JsonObject(), who);
+                if (args.has("ai") && args.get("ai").isJsonObject()) applyAi(tp, args.getAsJsonObject("ai"), who);
+                else plugin.life().aiByDefault(tp);
                 if (args.has("goal") && !str(args, "goal").isEmpty()) tp.goal = cleanGoal(str(args, "goal"));
                 if (!str(args, "personality").isEmpty()) tp.personality = Personalities.resolve(str(args, "personality"));
-                players.spawn(tp, spawnPoint());
+                Location at = spawnPoint();
+                tp.home = at;
+                // Free (the default): it plays survival like a normal player, on its own or in the team named.
+                if (!args.has("free") || args.get("free").getAsBoolean()) {
+                    if (tp.personality == null) tp.personality = Personalities.resolve("random");
+                    Town team = str(args, "team").isEmpty() ? null : plugin.towns().get(str(args, "team"));
+                    if (team == null && !str(args, "team").isEmpty()) team = plugin.towns().foundCamp(str(args, "team"), at);
+                    plugin.life().makeFree(tp, team);
+                }
+                players.spawn(tp, at);
                 JsonObject o = new JsonObject();
                 o.addProperty("id", tp.id);
                 o.addProperty("name", tp.name);
@@ -200,6 +222,59 @@ final class WebsiteLink {
                 JsonObject a = args.has("args") && args.get("args").isJsonObject() ? args.getAsJsonObject("args") : new JsonObject();
                 reply(tp, who, order(tp, str(args, "action"), a));
                 return text("ordered");
+            }
+            case "setAi" -> {
+                return text(plugin.aiLink().applyFromWebsite(args, who));
+            }
+            case "testAi" -> {
+                plugin.aiLink().testForWebsite(who);
+                return text("asking " + plugin.llm().placeFor(new TestPlayer("x")) + "...");
+            }
+            case "setApiPaused" -> {
+                boolean paused = args.has("paused") && args.get("paused").getAsBoolean();
+                plugin.llm().setApiEnabled(!paused);
+                return text(paused ? "AI API paused: test players carry on without it" : "AI API on");
+            }
+            case "populate" -> {
+                int n = args.has("count") ? args.get("count").getAsInt() : 5;
+                if (n < 1 || n > 50) throw new IllegalArgumentException("Pick 1 to 50.");
+                int room = plugin.settings().maxPlayers() - players.all().size();
+                if (n > room) throw new IllegalArgumentException("Only room for " + room + " more (max-players is " + plugin.settings().maxPlayers() + ").");
+                long now = System.currentTimeMillis();
+                List<String> names = new ArrayList<>();
+                for (int i = 0; i < n; i++) names.add(plugin.life().newcomer(spawnPoint(), now, false).name);
+                return text(n + " joined at spawn: " + String.join(", ", names));
+            }
+            case "setFree" -> {
+                var c = plugin.getConfig();
+                if (args.has("keepOnline")) c.set("free.keep-online", Math.max(0, Math.min(200, args.get("keepOnline").getAsInt())));
+                String[][] flags = {{"sessions", "free.sessions"}, {"buildBases", "free.build-bases"}, {"teamUp", "free.players-can-team-up"},
+                    {"aiByDefault", "free.ai-by-default"}, {"hunger", "free.hunger"}, {"mobsAttack", "combat.mobs-attack"},
+                    {"fightBack", "combat.fight-back"}, {"fightBackPlayers", "combat.fight-back-players"}, {"dropItems", "combat.drop-items"},
+                    {"deathMessages", "combat.death-messages"}};
+                for (String[] f : flags) if (args.has(f[0])) c.set(f[1], args.get(f[0]).getAsBoolean());
+                if (args.has("combat")) c.set("invulnerable", !args.get("combat").getAsBoolean());
+                plugin.saveConfig();
+                plugin.reload();
+                players.applyInvulnerable();
+                return text("saved");
+            }
+            case "makeFree" -> {
+                TestPlayer tp = bot(args);
+                Town team = str(args, "team").isEmpty() ? null : plugin.towns().get(str(args, "team"));
+                if (team != null && !team.camp) throw new IllegalArgumentException(team.name + " is a town, not a team.");
+                plugin.life().makeFree(tp, team);
+                return text(tp.name + " plays survival" + (team != null ? " with team " + team.name : " on its own"));
+            }
+            case "removeCamp" -> {
+                Town t = plugin.towns().get(str(args, "team"));
+                if (t == null || !t.camp) throw new IllegalArgumentException("No team called " + str(args, "team") + ".");
+                for (String id : new ArrayList<>(t.jobs.keySet())) {
+                    TestPlayer tp = players.get(id);
+                    if (tp != null) plugin.life().makeFree(tp, null);
+                }
+                if (plugin.towns().get(t.name) != null) plugin.towns().remove(t);
+                return text("team " + t.name + " split up");
             }
             default -> throw new IllegalArgumentException("Test players can't do \"" + command + "\" (they have no Minecraft account or inventory).");
         }
@@ -377,6 +452,28 @@ final class WebsiteLink {
         events.add(ev);
     }
 
+    /** The answer to "Test the link" on the Bots page. */
+    void aiTest(boolean ok, String text, String who) {
+        if (!running) return;
+        JsonObject ev = new JsonObject();
+        ev.addProperty("type", "aiTest");
+        ev.addProperty("ok", ok);
+        ev.addProperty("text", text);
+        ev.addProperty("who", who);
+        events.add(ev);
+    }
+
+    /** A test player died (shown in its chat box). */
+    void death(TestPlayer tp, Location at, String how) {
+        if (!running) return;
+        JsonObject ev = new JsonObject();
+        ev.addProperty("type", "death");
+        ev.addProperty("bot", tp.id);
+        ev.addProperty("where", at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ() + " (" + at.getWorld().getName() + ")");
+        ev.addProperty("cause", how);
+        events.add(ev);
+    }
+
     /** Someone in the game spoke to a test player (shown in its chat box). */
     void heard(TestPlayer tp, String from, String text) {
         if (!running) return;
@@ -478,6 +575,50 @@ final class WebsiteLink {
             towns.add(o);
         }
         snap.add("towns", towns);
+        snap.add("ai", plugin.llm().status());
+        var c = plugin.getConfig();
+        JsonObject free = new JsonObject();
+        free.addProperty("keepOnline", c.getInt("free.keep-online", 0));
+        free.addProperty("sessions", c.getBoolean("free.sessions", true));
+        free.addProperty("buildBases", c.getBoolean("free.build-bases", true));
+        free.addProperty("teamUp", c.getBoolean("free.players-can-team-up", true));
+        free.addProperty("aiByDefault", c.getBoolean("free.ai-by-default", true));
+        free.addProperty("hunger", c.getBoolean("free.hunger", true));
+        free.addProperty("combat", !s.invulnerable());
+        free.addProperty("mobsAttack", c.getBoolean("combat.mobs-attack", true));
+        free.addProperty("fightBack", c.getBoolean("combat.fight-back", true));
+        free.addProperty("fightBackPlayers", c.getBoolean("combat.fight-back-players", true));
+        free.addProperty("dropItems", c.getBoolean("combat.drop-items", true));
+        free.addProperty("deathMessages", c.getBoolean("combat.death-messages", true));
+        snap.add("free", free);
+        JsonArray camps = new JsonArray();
+        for (Town t : plugin.towns().camps()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("name", t.name);
+            o.addProperty("stage", t.stage());
+            o.addProperty("settled", t.settled);
+            o.addProperty("x", t.cx);
+            o.addProperty("z", t.cz);
+            o.addProperty("built", t.count("built"));
+            o.addProperty("planned", t.plots.size());
+            JsonArray members = new JsonArray();
+            for (Map.Entry<String, String> e : t.jobs.entrySet()) {
+                TestPlayer tp = players.get(e.getKey());
+                if (tp == null) continue;
+                JsonObject mo = new JsonObject();
+                mo.addProperty("id", tp.id);
+                mo.addProperty("name", tp.name);
+                mo.addProperty("job", e.getValue());
+                mo.addProperty("online", tp.entity() != null);
+                members.add(mo);
+            }
+            o.add("members", members);
+            JsonArray humans = new JsonArray();
+            t.humans.forEach(humans::add);
+            o.add("humans", humans);
+            camps.add(o);
+        }
+        snap.add("camps", camps);
 
         JsonArray bots = new JsonArray();
         for (TestPlayer tp : players.all()) {
@@ -497,9 +638,10 @@ final class WebsiteLink {
             b.addProperty("thought", tp.thought);
             if (tp.personality != null) b.addProperty("personality", tp.personality);
             if (tp.town != null) {
-                b.addProperty("town", tp.town);
+                b.addProperty(tp.free ? "team" : "town", tp.town);
                 b.addProperty("job", tp.job);
             }
+            b.addProperty("free", tp.free);
             if (tp.goal != null) {
                 JsonObject g = new JsonObject();
                 g.addProperty("text", tp.goal);
@@ -519,7 +661,7 @@ final class WebsiteLink {
                 b.add("position", pos);
                 b.addProperty("dimension", l.getWorld().getName());
                 b.addProperty("health", m.getHealth());
-                b.addProperty("food", 20);
+                b.addProperty("food", tp.free ? tp.food : 20);
             }
             b.add("inventory", new JsonObject());
             b.add("history", new JsonArray());

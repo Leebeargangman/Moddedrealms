@@ -147,6 +147,121 @@ final class AiLink implements Listener {
         }
     }
 
+    /**
+     * The AI & API form on the Bots page: provider, model, address, staff PC, a new key (or none to keep the one
+     * set) and the spending caps. Saves config.yml; returns what it did. The key is never echoed or logged.
+     */
+    String applyFromWebsite(JsonObject a, String who) {
+        var c = plugin.getConfig();
+        String which = str(a, "provider").toLowerCase(Locale.ROOT);
+        String model = str(a, "model");
+        String url = str(a, "url");
+        if (!model.isEmpty() && !model.matches("^[\\w.:/-]{1,80}$")) throw new IllegalArgumentException("That isn't a model name.");
+        if (!url.isEmpty() && !url.matches("^https?://[\\w.:\\[\\]-]+(/[\\w./-]*)?$")) throw new IllegalArgumentException("That isn't a web address (http://host:port).");
+        String label;
+        switch (which) {
+            case "ollama" -> {
+                c.set("ai.provider", "ollama");
+                if (!url.isEmpty()) c.set("ai.ollama-url", url.replaceAll("/+$", ""));
+                label = "Ollama";
+            }
+            case "lmstudio", "local" -> {
+                c.set("ai.provider", "openai");
+                c.set("ai.api.base-url", url.isEmpty() ? "http://127.0.0.1:1234/v1" : url.replaceAll("/+$", ""));
+                label = "the local AI server";
+            }
+            case "pc" -> {
+                String staff = str(a, "staff").isEmpty() ? who : str(a, "staff");
+                if (!staff.matches("^[\\w.-]{1,32}$")) throw new IllegalArgumentException("That isn't a website name.");
+                c.set("ai.provider", "pc");
+                c.set("ai.pc-staff", staff);
+                label = staff + "'s PC";
+            }
+            case "off", "none" -> {
+                c.set("ai.provider", "none");
+                label = "nothing";
+            }
+            default -> {
+                String[] p = PRESETS.get(which);
+                if (p == null) throw new IllegalArgumentException("Pick a provider: " + String.join(", ", PROVIDERS) + ".");
+                c.set("ai.provider", p[0]);
+                if (!p[1].isEmpty()) c.set("ai.api.base-url", p[1]);
+                if (model.isEmpty()) model = p[2];
+                label = p[3];
+            }
+        }
+        c.set("ai.model", model);
+        String key = str(a, "key");
+        if (!key.isEmpty()) {
+            if (key.contains(" ") || key.length() < 16 || key.length() > 400) throw new IllegalArgumentException("That doesn't look like an API key; nothing was saved.");
+            c.set("ai.api.key", key);
+            c.set("ai.api.enabled", true);
+        }
+        if (a.has("clearKey") && a.get("clearKey").getAsBoolean()) c.set("ai.api.key", "");
+        if (a.has("caps") && a.get("caps").isJsonObject()) {
+            JsonObject caps = a.getAsJsonObject("caps");
+            capInt(caps, "maxRequestsPerHour", "ai.api.max-requests-per-hour", 0, 100_000);
+            capInt(caps, "maxTokensPerDay", "ai.api.max-tokens-per-day", 0, 100_000_000);
+            capInt(caps, "maxPlayers", "ai.api.max-players", 0, 200);
+            capInt(caps, "minSecondsPerPlayer", "ai.api.min-seconds-per-player", 10, 3600);
+            capInt(caps, "maxAnswerTokens", "ai.api.max-answer-tokens", 50, 1000);
+            capNum(caps, "maxDollarsPerDay", "ai.api.max-dollars-per-day");
+            capNum(caps, "pricePerMillionIn", "ai.api.price-per-million-input-tokens");
+            capNum(caps, "pricePerMillionOut", "ai.api.price-per-million-output-tokens");
+        }
+        save();
+        plugin.getLogger().info("AI link changed on the website by " + who + ": " + label + (model.isEmpty() ? "" : " (" + model + ")") + (key.isEmpty() ? "" : ", new API key"));
+        return "Linked to " + label + (model.isEmpty() ? "" : " with " + plugin.llm().modelFor(new TestPlayer("x"))) + (key.isEmpty() ? "" : ", key saved") + ". " + plugin.llm().usage();
+    }
+
+    private void capInt(JsonObject caps, String k, String path, long lo, long hi) {
+        if (!caps.has(k) || caps.get(k).isJsonNull()) return;
+        try {
+            long v = caps.get(k).getAsLong();
+            plugin.getConfig().set(path, Math.max(lo, Math.min(hi, v)));
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException(k + " should be a number.");
+        }
+    }
+
+    private void capNum(JsonObject caps, String k, String path) {
+        if (!caps.has(k) || caps.get(k).isJsonNull()) return;
+        try {
+            plugin.getConfig().set(path, Math.max(0, Math.min(10_000, caps.get(k).getAsDouble())));
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException(k + " should be a number.");
+        }
+    }
+
+    /** The link test, with the answer going to the Bots page instead of a player. */
+    void testForWebsite(String who) {
+        TestPlayer probe = new TestPlayer("~check");
+        probe.model = "default";
+        long t0 = System.currentTimeMillis();
+        JsonObject schema = JsonParser.parseString("{\"type\":\"object\",\"properties\":{\"reply\":{\"type\":\"string\",\"maxLength\":60}},\"required\":[\"reply\"]}").getAsJsonObject();
+        String where = plugin.llm().placeFor(probe);
+        plugin.llm().chat(probe, "You are checking a connection. Reply with ONLY JSON.", "Say hi to the Minecraft server in a few words, as \"reply\".", schema)
+                .whenComplete((text, err) -> sync(() -> {
+                    plugin.llm().release(probe);
+                    if (err != null) {
+                        plugin.link().aiTest(false, "No answer from " + where + ": " + cause(err), who);
+                        return;
+                    }
+                    String reply = text;
+                    try {
+                        reply = Llm.parse(text).get("reply").getAsString();
+                    } catch (RuntimeException ignored) {
+                        // shown as it came
+                    }
+                    if (reply.length() > 80) reply = reply.substring(0, 80);
+                    plugin.link().aiTest(true, where + " answered in " + String.format(Locale.ROOT, "%.1f", (System.currentTimeMillis() - t0) / 1000.0) + "s: \"" + reply + "\"", who);
+                }));
+    }
+
+    private static String str(JsonObject o, String k) {
+        return o != null && o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsString().trim() : "";
+    }
+
     private static boolean looksLikeKey(String s) {
         return s.matches("^(sk-|sk_|gsk_|xai-|AIza|or-).{12,}") || s.length() >= 40 && !s.contains("/") && !s.startsWith("http");
     }

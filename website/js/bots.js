@@ -115,6 +115,11 @@
     }
     if (ev.type === "result" && !ev.ok) MR.toast(ev.error);
     if (ev.type === "linkCode" && ev.who === state.me.username) showLinkCode(ev);
+    if (ev.type === "aiTest" && ev.manager === tpHost) {
+      var out = $("[data-ai-test-result]");
+      out.textContent = (ev.ok ? "✓ " : "✗ ") + ev.text;
+      out.className = "small " + (ev.ok ? "ai-test-ok" : "ai-test-bad");
+    }
     state.events.push(ev);
     if (state.events.length > 600) state.events.shift();
     if (selected && (ev.bot === selected.bot || ev.type === "team")) renderChat();
@@ -189,6 +194,7 @@
     renderAccounts();
     renderConnectors();
     renderHosts();
+    renderTestPlayers();
   }
 
   /** No host connected: say which ones are off and how to start one. */
@@ -256,6 +262,7 @@
     if (b.stats) kvRow(dl, "Deaths", b.stats.deaths);
     if (b.stats && b.stats.blocksMoved != null) kvRow(dl, "Walked", b.stats.blocksMoved + " blocks");
     if (b.town) kvRow(dl, "Town / job", b.town + " · " + b.job);
+    if (b.team) kvRow(dl, "Team / role", b.team + " · " + b.job);
     if (b.stats && b.stats.builds) kvRow(dl, "Built", b.stats.builds + (b.stats.builds === 1 ? " thing" : " things"));
     if (b.personality) {
       var bp = b.personality;
@@ -266,7 +273,7 @@
     renderGoal(b, false); // never refill the box here: it would wipe what someone is typing
 
     var actions = $("[data-detail-actions]");
-    var key = selected.bot + "|" + b.state;
+    var key = selected.bot + "|" + b.state + "|" + !!b.free;
     if (actions.getAttribute("data-key") === key) return;
     actions.setAttribute("data-key", key);
     actions.replaceChildren();
@@ -274,6 +281,11 @@
     if (b.state === "stopped") actions.appendChild(button("Start", "btn-primary", function () { command(m, "startBot", { bot: b.id }); }));
     else actions.appendChild(button("Stop bot", "btn-ghost", function () { command(m, "stopBot", { bot: b.id }); }));
     if (b.state === "offline") actions.appendChild(button("Rejoin now", "btn-primary", function () { command(m, "rejoin", { bot: b.id }); }));
+    if (isTestHost(state.managers[m]) && !b.free) {
+      actions.appendChild(button("Play survival", "btn-ghost", function () {
+        command(m, "makeFree", { bot: b.id }, function (ev) { if (ev.ok) MR.toast(ev.result); });
+      }));
+    }
     if (b.state === "online") {
       actions.appendChild(button("Come to me", "btn-ghost", comeToMe));
       actions.appendChild(button("Stop task", "btn-ghost", function () { say("stop"); }));
@@ -743,6 +755,217 @@
     });
   }
 
+  /* ---------- Test players: AI & API, free players, teams ---------- */
+
+  var tpHost = null; // the test player server the card shows
+  var aiForm = $("[data-ai-form]");
+  var freeForm = $("[data-free-form]");
+  var filled = { ai: null, free: null }; // which server each form was last filled from
+  var MODEL_DEFAULTS = { ollama: "qwen2.5:7b", pc: "qwen2.5:7b", lmstudio: "", openai: "gpt-4o-mini", openrouter: "meta-llama/llama-3.1-8b-instruct",
+    groq: "llama-3.1-8b-instant", together: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo", anthropic: "claude-haiku-5-5", off: "" };
+  var CAPS = ["maxRequestsPerHour", "maxTokensPerDay", "maxPlayers", "minSecondsPerPlayer", "maxAnswerTokens", "maxDollarsPerDay", "pricePerMillionIn", "pricePerMillionOut"];
+  var FLAGS = ["sessions", "buildBases", "teamUp", "aiByDefault", "hunger", "combat", "mobsAttack", "fightBack", "fightBackPlayers", "dropItems", "deathMessages"];
+
+  function testHosts() {
+    return onlineHosts().filter(isTestHost);
+  }
+
+  function meter(label, used, max, fmt) {
+    var row = el("div", "meter");
+    var f = fmt || function (n) { return Number(n).toLocaleString(); };
+    row.appendChild(el("span", null, label + ": " + f(used) + (max ? " of " + f(max) : "")));
+    if (max) {
+      var bar = el("div", "meter-bar" + (used / max > 0.8 ? " is-high" : ""));
+      var fill = el("span");
+      fill.style.width = Math.min(100, Math.round((used / max) * 100)) + "%";
+      bar.appendChild(fill);
+      row.appendChild(bar);
+    }
+    return row;
+  }
+
+  function showAiFields() {
+    var v = aiForm.elements.provider.value;
+    $$("[data-ai-for]", aiForm).forEach(function (x) {
+      x.hidden = x.getAttribute("data-ai-for").split(" ").indexOf(v) < 0;
+    });
+    aiForm.elements.url.placeholder = v === "lmstudio" ? "http://127.0.0.1:1234/v1" : "http://127.0.0.1:11434";
+  }
+
+  function fillAi(ai) {
+    var f = aiForm.elements;
+    var prov = ai.provider === "local" ? "lmstudio" : ai.provider === "none" ? "off" : ai.provider;
+    if (prov === "openai") {
+      // Which OpenAI-style service, from its address.
+      var u = String(ai.baseUrl || "");
+      prov = /openrouter/.test(u) ? "openrouter" : /groq/.test(u) ? "groq" : /together/.test(u) ? "together" : "openai";
+    }
+    f.provider.value = prov || "ollama";
+    f.model.value = ai.model || "";
+    f.url.value = prov === "lmstudio" ? ai.baseUrl || "" : prov === "ollama" ? ai.ollamaUrl || "" : "";
+    f.staff.value = ai.pcStaff || (state.me && state.me.username) || "";
+    f.key.value = "";
+    CAPS.forEach(function (k) {
+      if (ai.caps && ai.caps[k] != null) f[k].value = ai.caps[k];
+    });
+    aiForm.removeAttribute("data-dirty");
+    showAiFields();
+  }
+
+  function fillFree(free) {
+    freeForm.elements.keepOnline.value = free.keepOnline || 0;
+    FLAGS.forEach(function (k) { freeForm.elements[k].checked = !!free[k]; });
+    freeForm.removeAttribute("data-dirty");
+  }
+
+  function renderTestPlayers() {
+    var card = $("[data-tp]");
+    var list = testHosts();
+    card.hidden = !list.length;
+    if (!list.length) return;
+    if (!tpHost || !list.some(function (m) { return m.name === tpHost; })) tpHost = list[0].name;
+    var sel = $("[data-tp-host]");
+    var names = list.map(function (m) { return m.name; }).join(",");
+    if (sel.getAttribute("data-key") !== names) {
+      sel.replaceChildren();
+      list.forEach(function (m) { sel.appendChild(option(m.name, m.name, tpHost)); });
+      sel.setAttribute("data-key", names);
+    }
+    sel.hidden = list.length < 2;
+    var s = state.managers[tpHost].snapshot;
+    var ai = s.ai || {};
+    var free = s.free || {};
+    var p = s.perf || {};
+    var bots = s.bots || [];
+    var freeCount = bots.filter(function (b) { return b.free; }).length;
+    $("[data-tp-summary]").textContent = tpHost + ": " + (p.testPlayers || 0) + " test players in the world (" + freeCount + " playing survival), " + (p.players || 0) + " real players, TPS " + p.tps + ". "
+      + (free.combat ? "They can be attacked and die." : "They can't be hurt.") + (free.keepOnline ? " Keeping " + free.keepOnline + " online." : "");
+
+    if (!s.ai) {
+      $("[data-ai-status]").textContent = "This server's plugin is older than 1.3.0: update it to set up its AI here.";
+      aiForm.hidden = true;
+    } else {
+      aiForm.hidden = false;
+      var tags = [tag(ai.ready ? "linked" : "not linked", ai.ready ? "green" : "yellow")];
+      if (ai.paid) tags.push(tag(ai.enabled ? "API on" : "API paused", ai.enabled ? "blue" : "grey"));
+      $("[data-ai-tag]").replaceChildren.apply($("[data-ai-tag]"), tags);
+      // The summary only adds something when there's a problem ("- not answering", "- website not connected").
+      $("[data-ai-status]").textContent = (ai.provider === "none" ? "No AI linked: test players play on their own routines." : "Thinking on " + ai.place + (ai.model ? " with " + ai.model : "") + ".")
+        + (!ai.paid && / - /.test(ai.summary || "") ? " " + ai.summary.split(" - ").pop() + "." : "");
+      var usage = $("[data-ai-usage]");
+      usage.replaceChildren();
+      if (ai.paid && ai.usage && ai.caps) {
+        usage.appendChild(meter("Tokens today", ai.usage.tokensToday, ai.caps.maxTokensPerDay));
+        usage.appendChild(meter("Requests this hour", ai.usage.requestsHour, ai.caps.maxRequestsPerHour));
+        usage.appendChild(meter("Test players on the API", ai.usage.players, ai.caps.maxPlayers));
+        if (ai.caps.pricePerMillionIn || ai.caps.pricePerMillionOut) {
+          usage.appendChild(meter("Spent today", ai.usage.dollarsToday, ai.caps.maxDollarsPerDay, function (n) { return "$" + Number(n).toFixed(3); }));
+        }
+      }
+      $("[data-ai-keynote]").textContent = ai.keySet ? "A key is set (hidden). Paste a new one to replace it." : "No key set yet.";
+      $("[data-ai-pause]").hidden = !ai.paid;
+      $("[data-ai-pause]").textContent = ai.enabled ? "Pause the API" : "Turn the API back on";
+      var admin = !!(state.me && state.me.admin);
+      $("button[type=submit]", aiForm).disabled = !admin;
+      $("button[type=submit]", aiForm).title = admin ? "" : "Only admins can change the AI link";
+      if (filled.ai !== tpHost || !aiForm.hasAttribute("data-dirty")) {
+        fillAi(ai);
+        filled.ai = tpHost;
+      }
+    }
+    if (s.free && (filled.free !== tpHost || !freeForm.hasAttribute("data-dirty"))) {
+      fillFree(free);
+      filled.free = tpHost;
+    }
+    renderCamps(s);
+  }
+
+  function renderCamps(s) {
+    var box = $("[data-camps]");
+    var camps = s.camps || [];
+    var key = JSON.stringify([tpHost, camps]);
+    if (box.getAttribute("data-key") === key) return;
+    box.setAttribute("data-key", key);
+    box.replaceChildren();
+    if (!camps.length) return box.appendChild(el("p", "muted small", "No teams yet. Players who join form them, or start one with Team in New bot."));
+    camps.forEach(function (c) {
+      var row = el("div", "camp-row");
+      var head = el("div", "bot-card-head");
+      head.appendChild(el("strong", null, c.name));
+      head.appendChild(tag(c.stage, c.settled ? "green" : "yellow"));
+      head.appendChild(button("Split up", "btn-ghost", function () {
+        if (!window.confirm("Split up " + c.name + "? Its test players play solo; what it built stays.")) return;
+        command(tpHost, "removeCamp", { team: c.name }, function (ev) { if (ev.ok) MR.toast(ev.result); });
+      }));
+      row.appendChild(head);
+      var who = c.members.map(function (x) { return x.name + " (" + x.job + (x.online ? "" : ", offline") + ")"; }).concat(c.humans.map(function (h) { return h + " (real player)"; }));
+      row.appendChild(el("small", null, who.join(", ") || "nobody"));
+      row.appendChild(el("p", "muted small", c.settled ? "Base at " + c.x + " " + c.z + ": " + c.built + " of " + c.planned + " built" : "No base yet: looking for a spot"));
+      box.appendChild(row);
+    });
+  }
+
+  $("[data-tp-host]").addEventListener("change", function (e) {
+    tpHost = e.target.value;
+    filled.ai = filled.free = null;
+    $("[data-ai-test-result]").textContent = "";
+    renderTestPlayers();
+  });
+  aiForm.addEventListener("input", function () { aiForm.setAttribute("data-dirty", ""); });
+  freeForm.addEventListener("input", function () { freeForm.setAttribute("data-dirty", ""); });
+  aiForm.elements.provider.addEventListener("change", function () {
+    var f = aiForm.elements;
+    var v = f.provider.value;
+    var known = Object.keys(MODEL_DEFAULTS).map(function (k) { return MODEL_DEFAULTS[k]; });
+    if (!f.model.value || known.indexOf(f.model.value) >= 0) f.model.value = MODEL_DEFAULTS[v] || "";
+    showAiFields();
+  });
+  aiForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = aiForm.elements;
+    var paidNow = ["openai", "openrouter", "groq", "together", "anthropic"].indexOf(f.provider.value) >= 0;
+    var cur = ((state.managers[tpHost] || {}).snapshot || {}).ai || {};
+    if (paidNow && !cur.paid && !window.confirm("Test players start using " + f.provider.options[f.provider.selectedIndex].text + " right away. It costs money, within the caps below. Go ahead?")) return;
+    var args = { provider: f.provider.value, model: f.model.value.trim(), url: f.url.value.trim(), staff: f.staff.value.trim(), caps: {} };
+    if (f.key.value.trim()) args.key = f.key.value.trim();
+    f.key.value = ""; // never left sitting in the page
+    CAPS.forEach(function (k) {
+      if (f[k].value !== "") args.caps[k] = Number(f[k].value);
+    });
+    command(tpHost, "setAi", args, function (ev) {
+      if (!ev.ok) return;
+      aiForm.removeAttribute("data-dirty");
+      MR.toast(ev.result);
+    });
+  });
+  $("[data-ai-test]").addEventListener("click", function () {
+    var out = $("[data-ai-test-result]");
+    out.className = "small muted";
+    out.textContent = "Asking…";
+    command(tpHost, "testAi", {}, function (ev) {
+      if (ev.ok) out.textContent = ev.result;
+    });
+  });
+  $("[data-ai-pause]").addEventListener("click", function () {
+    var ai = (state.managers[tpHost].snapshot || {}).ai || {};
+    command(tpHost, "setApiPaused", { paused: !!ai.enabled }, function (ev) { if (ev.ok) MR.toast(ev.result); });
+  });
+  freeForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var args = { keepOnline: Number(freeForm.elements.keepOnline.value) || 0 };
+    FLAGS.forEach(function (k) { args[k] = freeForm.elements[k].checked; });
+    command(tpHost, "setFree", args, function (ev) {
+      if (!ev.ok) return;
+      freeForm.removeAttribute("data-dirty");
+      MR.toast("Saved.");
+    });
+  });
+  $("[data-populate-form]").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var n = Number(e.target.elements.count.value) || 5;
+    command(tpHost, "populate", { count: n }, function (ev) { if (ev.ok) MR.toast(ev.result); });
+  });
+
   /** A Minecraft server running the test players plugin (minecraft-test-players), not a bot manager. */
   function isTestHost(m) {
     return !!(m && m.snapshot && m.snapshot.kind === "testplayers");
@@ -1077,8 +1300,12 @@
     form.appendChild(field("Name (shown here)", input("name", "e.g. Builder")));
     var serverField = field("Server", input("server", "host:port", "152.53.114.44:25576"));
     form.appendChild(serverField);
-    var testNote = el("p", "muted small", "A test player: a simulated player on that server. It needs no Minecraft account and appears at the server's spawn (website.spawn-at in the plugin's config).");
+    var testNote = el("p", "muted small", "A test player: a simulated player on that server. It needs no Minecraft account and appears at the server's spawn (website.spawn-at in the plugin's config). Leave the name empty for a made-up player name.");
     form.appendChild(testNote);
+    var playsField = field("Plays", select("plays", [["free", "Survival, like a normal player"], ["idle", "Stands still (for load tests)"]]));
+    form.appendChild(playsField);
+    var teamField = field("Team (optional: joins it, or starts it)", input("team", "e.g. Wolfpack"));
+    form.appendChild(teamField);
     form.appendChild(field("Personality (optional)", input("personality", "builder, explorer, leader, joker, nervous, grumpy, friendly, random, or your own words")));
     var freeWillField = el("label", "check");
     var freeWillBox = el("input");
@@ -1091,11 +1318,15 @@
     function showTestFields() {
       var test = isTestHost(state.managers[hostSel.value]);
       accField.hidden = serverField.hidden = freeWillField.hidden = test;
-      testNote.hidden = !test;
+      testNote.hidden = playsField.hidden = teamField.hidden = !test;
+      var linkOpt = $("option[value=link]", sourceSel);
+      if (test && !linkOpt) sourceSel.insertBefore(option("link", "The server's AI link (see AI & API)"), sourceSel.firstChild);
+      if (!test && linkOpt) linkOpt.remove();
+      if (test) sourceSel.value = "link";
     }
+    var sourceSel = select("source", [["vps", ""], ["connector", ""], ["off", "No AI (rules only)"]]);
     hostSel.addEventListener("change", showTestFields);
     showTestFields();
-    var sourceSel = select("source", [["vps", ""], ["connector", ""], ["off", "No AI (rules only)"]]);
     form.appendChild(field("AI runs on", sourceSel));
     var goalBox = el("textarea", "input");
     goalBox.name = "goal";
@@ -1104,7 +1335,8 @@
     goalBox.placeholder = "Optional: what it should always work toward";
     form.appendChild(field("Goal", goalBox));
     var pick = modelField(form, function () {
-      var place = sourceSel.value === "off" ? { missing: "No AI: the bot plays with its built-in rules only." } : aiPlace(sourceSel.value, hostSel.value);
+      var place = sourceSel.value === "off" ? { missing: "No AI: the bot plays with its built-in rules only." }
+        : sourceSel.value === "link" ? { missing: "Uses the server's AI link and its spending caps (AI & API in the Test players card)." } : aiPlace(sourceSel.value, hostSel.value);
       return { place: place, newClient: sourceSel.value === "vps" && !isTestHost(state.managers[hostSel.value]) };
     });
     function refreshAi() {
@@ -1128,6 +1360,11 @@
       if (source === "connector") ai.connector = state.me.username;
       var goal = f.goal.value.replace(/\s+/g, " ").trim();
       var args = { name: f.name.value.trim() || undefined, account: f.account.value, server: f.server.value.trim(), ai: ai, goal: goal || undefined };
+      if (isTestHost(state.managers[f.manager.value])) {
+        if (source === "link") delete args.ai; // the server's own AI link (and its spending caps)
+        args.free = f.plays.value === "free";
+        args.team = f.team.value.trim() || undefined;
+      }
       args.personality = isTestHost(state.managers[f.manager.value]) ? f.personality.value.trim() || undefined : personalityFrom(f) || undefined;
       command(f.manager.value, "createBot", args, function (ev) {
         if (ev.ok) {

@@ -4033,3 +4033,68 @@ button.row:hover {
 .bot-goal-step {
   margin: 6px 0 0;
 }
+
+/* Test players card (Bots page) */
+.tp-host {
+  width: auto;
+  max-width: 50%;
+  margin-left: auto;
+}
+
+.tp-sub {
+  margin: 4px 0 -8px;
+  font-size: 0.95rem;
+}
+
+.meters {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+
+.meter {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-2);
+}
+
+.meter-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--line-2);
+}
+
+.meter-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+
+.meter-bar.is-high > span {
+  background: var(--red-hi, #ff6b6b);
+}
+
+.camp-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.camp-row .bot-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.camp-row .bot-card-head strong {
+  flex: 1;
+}
+
+.ai-test-ok {
+  color: var(--green);
+}
+
+.ai-test-bad {
+  color: var(--red-hi, #ff6b6b);
+}

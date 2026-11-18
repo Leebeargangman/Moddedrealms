@@ -63,7 +63,10 @@ final class TestPlayer {
     java.util.UUID prey;    // the animal it's hunting, or the monster it's fighting off
     long preyUntil;
     long hitAt;
-    long huntTryAt;         // last time hunger sent it looking for food             // last swing at it (a player can swing about every 0.6 s)
+    long huntTryAt;
+    long hurtAt;            // last time something hurt it
+    long healAt;            // last time it healed a bit
+    long toldHurtAt;        // last time its AI was told someone attacked it         // last time hunger sent it looking for food             // last swing at it (a player can swing about every 0.6 s)
     String[] pendingGive;   // {player, material, count}: walking over to hand a teammate something
     long giveUntil;
     Location seekBase;      // walking out to find a spot for its team's base

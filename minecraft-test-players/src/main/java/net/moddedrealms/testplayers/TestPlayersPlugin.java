@@ -108,10 +108,14 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
 
     void reload() {
         reloadConfig();
+        Settings old = settings;
         settings = Settings.from(getConfig());
         llm.reload();
         builder.loadZones();
-        link.start();
+        // Only reconnect to the website when its settings changed: a reconnect drops commands on their way in.
+        boolean websiteChanged = old == null || old.websiteEnabled() != settings.websiteEnabled() || !old.websiteUrl().equals(settings.websiteUrl())
+                || !old.managerKey().equals(settings.managerKey()) || !old.hostName().equals(settings.hostName());
+        if (websiteChanged || !link.connected()) link.start();
     }
 
     Settings settings() {
@@ -162,11 +166,29 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onDamage(EntityDamageEvent e) {
+        if (!(e.getEntity() instanceof Mannequin m)) return;
+        TestPlayer tp = players.of(m);
+        if (tp == null) return;
         // Covers damage that ignores the invulnerable flag (the void, /kill aside).
-        if (settings.invulnerable() && e.getEntity() instanceof Mannequin m && players.of(m) != null
-                && e.getCause() != EntityDamageEvent.DamageCause.VOID && e.getCause() != EntityDamageEvent.DamageCause.KILL) {
-            e.setCancelled(true);
+        if (settings.invulnerable()) {
+            if (e.getCause() != EntityDamageEvent.DamageCause.VOID && e.getCause() != EntityDamageEvent.DamageCause.KILL) e.setCancelled(true);
+            return;
         }
+        // Just (re)spawned: a moment of grace, so a bad spawn spot can't kill it over and over.
+        if (System.currentTimeMillis() - tp.spawnedAt < 5_000 && e.getCause() != EntityDamageEvent.DamageCause.VOID && e.getCause() != EntityDamageEvent.DamageCause.KILL) {
+            e.setCancelled(true);
+            return;
+        }
+        if (e instanceof org.bukkit.event.entity.EntityDamageByEntityEvent by) {
+            org.bukkit.entity.Entity d = by.getDamager();
+            org.bukkit.entity.Entity src = d instanceof org.bukkit.entity.Projectile pr && pr.getShooter() instanceof org.bukkit.entity.Entity s ? s : d;
+            // No friendly fire between real players and their test player teammates, or between test players.
+            if (src instanceof org.bukkit.entity.Player p && life.teammates(p, tp) || src instanceof Mannequin && players.of(src) != null) {
+                e.setCancelled(true);
+                return;
+            }
+            life.attacked(tp, m, d, e.getFinalDamage());
+        } else tp.hurtAt = System.currentTimeMillis();
     }
 
     @EventHandler
@@ -176,6 +198,7 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         if (tp == null) return;
         e.getDrops().clear();
         e.setDroppedExp(0);
+        life.died(tp, m);
         players.died(tp);
     }
 

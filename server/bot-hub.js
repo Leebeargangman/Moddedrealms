@@ -30,7 +30,12 @@ const COMMANDS = new Set([
   "message", "order", "build", "inspectBuild",
   "addOffline", "linkMicrosoft", "removeAccount",
   "createCrowd", "updateCrowd", "updateCrowdMember", "startCrowd", "stopCrowd", "removeCrowd", "crowdOrder",
+  // Test player servers (minecraft-test-players): their AI link, free players and teams.
+  "setAi", "testAi", "setApiPaused", "populate", "setFree", "makeFree", "removeCamp",
 ]);
+// Changing where the AI runs or its API key can cost money: admins only. (Pausing the API only saves money.)
+const ADMIN_COMMANDS = new Set(["setAi"]);
+const isAdmin = (user) => Boolean(user && user.role === "admin");
 // Events worth keeping in the database (the rest are live status only).
 const KEEP = new Set(["chat", "said", "reply", "staff", "command", "team", "crowd", "death", "logoff", "build", "result", "linkCode", "error", "disconnect"]);
 
@@ -285,7 +290,7 @@ async function handleLlm(req, res, pathname) {
 function staffState(user) {
   return {
     ok: true,
-    me: { username: user.username, minecraft: user.mc_name || null },
+    me: { username: user.username, minecraft: user.mc_name || null, admin: isAdmin(user) },
     managers: [...managers.values()].map((m) => ({ name: m.name, online: Date.now() - m.lastSeen < ONLINE_MS, lastSeen: m.lastSeen, snapshot: m.snapshot })),
     connectors: [...connectors.values()].map((c) => ({ name: c.name, models: c.models, mem: c.mem || null, gpu: c.gpu || null, online: Date.now() - c.lastSeen < ONLINE_MS, mine: c.userId === user.id })),
     builds: q.builds.all(),
@@ -317,7 +322,10 @@ async function command(req, res, user) {
   if (!m || Date.now() - m.lastSeen > ONLINE_MS) return sendJson(res, 409, { ok: false, error: "That bot host isn't connected right now." });
   const cmd = String(body.command || "");
   if (!COMMANDS.has(cmd)) return sendJson(res, 400, { ok: false, error: "Unknown command." });
+  if (ADMIN_COMMANDS.has(cmd) && !isAdmin(user)) return sendJson(res, 403, { ok: false, error: "Only admins can change the AI link (node server/manage.js admin add <username> on the VPS)." });
   const args = body.args && typeof body.args === "object" && !Array.isArray(body.args) ? body.args : {};
+  // An API key passes straight through to that server (over HTTPS) and is never stored, logged or shown here.
+  if (cmd === "setAi" && args.key !== undefined) args.key = String(args.key).trim().slice(0, 400);
   if (typeof args.text === "string") args.text = cleanText(args.text).slice(0, 500);
   const id = newId();
   const staff = { name: user.username, minecraft: user.mc_name || null };

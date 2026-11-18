@@ -9,7 +9,7 @@ itself. Nothing logs in: they have no Minecraft account, don't take a player slo
 
 ## Install
 
-1. Put `ModdedrealmsTestPlayers-1.2.0.jar` in the server's `plugins` folder. It needs **Paper** (or a Paper
+1. Put `ModdedrealmsTestPlayers-1.3.0.jar` in the server's `plugins` folder. It needs **Paper** (or a Paper
    fork) 1.21.11 or newer; it also compiles cleanly against Paper 26.1 and 26.3. Spigot doesn't have the
    mannequin API. On Minehut, upload it with the file manager.
 2. Restart the server once. This creates `plugins/ModdedrealmsTestPlayers/config.yml`.
@@ -33,6 +33,8 @@ A `<target>` is one name, a prefix ending in `*` (`Load*`) or `all`.
 | Command | What it does |
 |---|---|
 | `spawn <name> [count] [idle\|wander\|walk\|free\|team]` | Spawn one test player, or a numbered batch (`spawn Load 50 wander` makes Load1 to Load50) spread around you. `free`: each plays survival on its own; `team`: they play together |
+| `spawn random [count] [mode]` | Test players with made-up player names (Ash427, xMossx, pebble_digs...) instead of Load1, Load2... |
+| `combat <on\|off>` | Whether test players can be attacked and die (see "Combat") |
 | `populate <count>` | Players with made-up player names join at the world spawn and play survival, solo and in small teams |
 | `free <target> [team]` | Make test players play survival like normal players (on their own, or in that team) |
 | `team create <name> [targets]` / `team add <team> <targets\|real player>` / `team kick ...` | Free players' teams, and putting a real player on one |
@@ -101,6 +103,16 @@ one without an AI. Then on that team:
 
 **Coming and going.** With `free.keep-online`, they play a session (40 to 150 minutes), log off and come back
 20 to 120 minutes later where they left off, like real players. More join when the count drops.
+
+## Combat: they can be attacked and die
+
+With `invulnerable: false` (the default from 1.3.0; `/testplayer combat on|off`, or the Bots page) test
+players get hurt like players: by mobs, players, falls, lava, drowning. Monsters go for them like they go for
+players. They fight back with their best sword or axe (never against their own teammates; a test player
+losing to a player runs for it), heal slowly when they've eaten, and wear the armour they've made. When one
+dies, chat says how ("[Test] Ash427 was slain by Zombie"), it drops everything it carried (unless
+`keepInventory` is on) and it respawns at its base, or where it started, a few seconds later. Friendly fire
+between real players and their test player teammates is off. Settings are under `combat:` in config.yml.
 
 ## AI models
 
@@ -292,6 +304,23 @@ things now and then, which tends to be part of the fun. Everything they say in c
 
 ## The Bots page
 
+A server with this plugin gets a **Test players** card on the Bots page, so everything can be done from the
+website:
+
+- **AI & API.** Pick where they think: your PC through the connector, Ollama, LM Studio, or a paid API
+  (OpenAI, OpenRouter, Groq, Together, Claude). Set the model, paste an API key, and set the spending caps
+  (requests per hour, tokens per day, test players on the API at once, seconds between requests, answer
+  length, dollars per day with your API's prices). It shows live meters of what's been used, and has **Test
+  the link** and **Pause the API** buttons. The key goes straight to the server over HTTPS and is only kept in
+  its config.yml: it's never shown on the page, in game or in a log. Only website admins can change the AI
+  link (`node server/manage.js admin add <username>`); staff can test it and pause the API.
+- **Players.** Add players at spawn (made-up names, solo and in teams), how many to keep online, sessions,
+  bases, team-up, hunger, and the combat switches.
+- **Teams and bases.** Every team with its members and roles, real players on it, and how far its base has
+  got; **Split up** breaks a team up.
+- **New bot** on a test player server makes one with a made-up name (or the name you give), playing survival
+  (or standing still, for load tests), optionally in a team, using the server's AI link.
+
 With `website.enabled: true`, `website.url` and `website.manager-key` set to the website's `BOT_MANAGER_KEY`,
 the server appears under **Bot hosts** as `website.host-name` (tagged "test players", with TPS, MSPT and chunk
 counts), and its test players appear with the bots. From there staff can:
@@ -315,8 +344,8 @@ counts), and its test players appear with the bots. From there staff can:
   structures above (no free-form building). They mine only in a town or base mine, the nether, and natural
   stone and ore they can see that has nothing player-built near it. They break natural blocks (trees, leaves,
   dirt, stone) only when gathering or when one is in their way.
-- Mobs don't attack them, so they don't need armour or shelter. Hunger never hurts them: it only sends them
-  off to hunt or farm.
+- Hunger never hurts them: it only sends them off to hunt or farm. With combat on, monsters only find them
+  where monsters are: mobs don't spawn around test players the way they do around real players.
 - They aren't real accounts: they don't show in the tab list or player count, and their chat has the `[Test]`
   prefix.
 - Town buildings in progress are picked up after a restart; a `/testplayer build` order starts over.
@@ -328,4 +357,4 @@ counts), and its test players appear with the bots. From there staff can:
 mvn package
 ```
 
-The jar is written to `target/`. Copy it over `ModdedrealmsTestPlayers-1.2.0.jar` here when releasing.
+The jar is written to `target/`. Copy it over `ModdedrealmsTestPlayers-1.3.0.jar` here when releasing.

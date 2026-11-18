@@ -305,6 +305,44 @@ final class Llm {
         saveUsage();
     }
 
+    /** The AI link and its budget for the Bots page (never the key itself: only whether one is set). */
+    synchronized JsonObject status() {
+        rollDay();
+        long now = System.currentTimeMillis();
+        while (!recentRequests.isEmpty() && now - recentRequests.peekFirst() > 3_600_000) recentRequests.removeFirst();
+        JsonObject o = new JsonObject();
+        TestPlayer any = new TestPlayer("x");
+        o.addProperty("provider", provider.equals("openai") && localApi() ? "local" : provider);
+        o.addProperty("model", modelFor(any));
+        o.addProperty("place", placeFor(any));
+        o.addProperty("ready", ready());
+        o.addProperty("paid", paid());
+        o.addProperty("keySet", !apiKey.isEmpty());
+        o.addProperty("enabled", apiEnabled);
+        o.addProperty("baseUrl", apiBaseUrl);
+        o.addProperty("ollamaUrl", plugin.settings().ollamaUrl());
+        o.addProperty("pcStaff", relayStaff);
+        o.addProperty("summary", usage());
+        JsonObject u = new JsonObject();
+        u.addProperty("tokensToday", tokensToday);
+        u.addProperty("requestsHour", recentRequests.size());
+        u.addProperty("requestsToday", requestsToday);
+        u.addProperty("players", apiPlayers.size());
+        u.addProperty("dollarsToday", Math.round(dollarsToday() * 1000) / 1000.0);
+        o.add("usage", u);
+        JsonObject c = new JsonObject();
+        c.addProperty("maxRequestsPerHour", maxRequestsPerHour);
+        c.addProperty("maxTokensPerDay", maxTokensPerDay);
+        c.addProperty("maxPlayers", maxApiPlayers);
+        c.addProperty("minSecondsPerPlayer", minSecondsPerPlayer);
+        c.addProperty("maxAnswerTokens", maxAnswerTokens);
+        c.addProperty("maxDollarsPerDay", maxDollarsPerDay);
+        c.addProperty("pricePerMillionIn", pricePerMillionIn);
+        c.addProperty("pricePerMillionOut", pricePerMillionOut);
+        o.add("caps", c);
+        return o;
+    }
+
     /** "1,234 of 200,000 tokens today, 3 of 120 requests this hour" (never the key). */
     synchronized String usage() {
         rollDay();

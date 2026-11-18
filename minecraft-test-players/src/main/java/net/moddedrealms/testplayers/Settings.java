@@ -28,7 +28,7 @@ record Settings(
                 clamp(c.getInt("chunk-radius", 3), 1, 16),
                 Math.max(0.01, c.getDouble("walk-speed", 0.22)),
                 Math.max(0.01, c.getDouble("sprint-speed", 0.28)),
-                c.getBoolean("invulnerable", true),
+                c.getBoolean("invulnerable", false),
                 c.getBoolean("skin-from-name", false),
                 c.getBoolean("respawn-on-start", true),
                 c.getString("chat-prefix", "[Test] "),

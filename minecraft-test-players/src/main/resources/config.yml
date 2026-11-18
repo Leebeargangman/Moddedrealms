@@ -15,9 +15,21 @@ chunk-radius: 3
 walk-speed: 0.22
 sprint-speed: 0.28
 
-# Mobs, lava and players can't hurt test players. Set to false to test combat or deaths
-# (a test player that dies comes back at its home spot after a few seconds).
-invulnerable: true
+# false: test players can be hurt like players (mobs, players, falls, lava...). They fight back, drop what they
+# carry when they die (unless keepInventory is on) and respawn at their base or where they started a few seconds
+# later. true: nothing can hurt them (for pure load tests). In game: /testplayer combat on|off
+invulnerable: false
+
+combat:
+  # Hostile mobs go for test players like they go for players.
+  mobs-attack: true
+  # Hit back when something attacks them (never their teammates); a test player losing to a player runs.
+  fight-back: true
+  fight-back-players: true
+  # Drop what they carry when they die (keepInventory is respected).
+  drop-items: true
+  # "[Test] Ash427 was slain by Zombie" in chat.
+  death-messages: true
 
 # Look up the skin of the Minecraft account with the same name as the test player.
 # Off by default: spawning 100 test players would mean 100 lookups at Mojang.
