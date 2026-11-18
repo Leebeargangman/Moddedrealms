@@ -238,7 +238,7 @@ Your `.env` settings and saved submissions are kept.
 ## Editing content
 
 - **Text**: edit `website/index.html` and `website/support.html`. Each homepage section is marked with a comment like `<!-- ============ BATTLES ============ -->`.
-- **Server IP, Discord, YouTube and Modrinth links**: search for `moddedrealms.minehut.gg`, `discord.gg/AA3a3H3ECk`, `@Moddedrealms` and `modrinth.com` in the HTML files. If you change the IP, also update `MC_SERVER_ADDRESS` in `.env` so the live player count keeps working.
+- **Server IP, Discord, YouTube and Modrinth links**: search for `play.moddedrealms.net`, `discord.gg/AA3a3H3ECk`, `@Moddedrealms` and `modrinth.com` in the HTML files. If you change the IP, also update `MC_SERVER_ADDRESS` in `.env` so the live player count keeps working.
 - **Colors and fonts**: the variables at the top of `website/css/style.css` (`--green`, `--yellow`, and so on).
 - **Images**: add new images to `website/image/` and reference them from the HTML. For fast loading, convert large screenshots to WebP around 1600px wide (the site's versions are in `website/image/web/`).
 - **Videos**: the "Latest videos" section updates itself from your YouTube channel. The featured "Trench warfare" video is set in `index.html`.
