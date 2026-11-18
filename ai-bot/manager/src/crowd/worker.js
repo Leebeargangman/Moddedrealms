@@ -8,10 +8,20 @@
 import mineflayer from 'mineflayer'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { normalize, line, mayRefuse, dislikes, likes, promptText } from '../agent/personality.js'
+import { settleStep, settlerJob } from './settle.js'
 
 const { pathfinder, Movements, goals } = pathfinderPkg
-const ACTIVITY = { follow: 'follow', wander: 'explore', gather: 'follow', stop: 'stay' }
-const JOIN_GAP_MS = 1500     // one bot joins at a time, so the server isn't hit with a burst of logins
+const ACTIVITY = { follow: 'follow', wander: 'explore', gather: 'follow', stop: 'stay', settle: 'build' }
+const JOKES = [
+  "why did the creeper cross the road? to get to the other ssssside",
+  "I'd tell you a joke about gravel, but it'd fall flat",
+  'my hut has no door. very open plan, very modern',
+  "I asked a tree for some wood. it said I'd have to punch it first",
+  'what do you call a sheep that knows karate? lamb chop!'
+]
+// One bot joins at a time. Servers throttle logins from one address (Bukkit's connection-throttle: 4 s), so
+// joining faster gets bots kicked with "Connection throttled".
+const JOIN_GAP_MS = 4500
 const SAY_GAP_MS = 8000      // per bot
 const REFUSE_FOR_MS = 2 * 60e3
 
@@ -19,6 +29,7 @@ let spec = null
 let leader = null            // {name, x, y, z} of the leader bot, from the manager
 let mode = 'follow'
 let gatherAt = null
+let settleAt = null          // the camp, while settling
 let stopping = false
 const members = new Map()    // name -> Member
 const llmWaiting = new Map() // id -> {resolve, reject}
@@ -27,6 +38,26 @@ let nextAmbient = Date.now() + 30e3
 const recentChat = []        // last lines of real players' chat, for the AI
 
 const send = msg => { try { process.send(msg) } catch {} }
+
+// All joins (first ones and reconnects) go through one queue, JOIN_GAP_MS apart.
+const joinQueue = []
+let joining = false
+function queueJoin (m, delayMs = 0) {
+  setTimeout(() => {
+    if (stopping || joinQueue.includes(m)) return
+    joinQueue.push(m)
+    pumpJoins()
+  }, delayMs)
+}
+async function pumpJoins () {
+  if (joining) return
+  joining = true
+  while (joinQueue.length && !stopping) {
+    joinQueue.shift().connect()
+    await new Promise(resolve => setTimeout(resolve, JOIN_GAP_MS))
+  }
+  joining = false
+}
 const event = (text, extra = {}) => send({ type: 'event', event: { type: 'crowd', crowd: spec?.id, text, ...extra } })
 const rand = (a, b) => a + Math.random() * (b - a)
 const pick = list => list[Math.floor(Math.random() * list.length)]
@@ -53,7 +84,11 @@ class Member {
     this.lastSaid = 0
     this.fails = 0
     this.home = null
+    this.errand = null       // a settling errand in progress (a promise)
   }
+
+  get plot () { return spec.members?.[this.name]?.plot ?? null }
+  set plot (p) { if (spec.members?.[this.name]) spec.members[this.name].plot = p }
 
   get personality () { return spec.members?.[this.name]?.personality ?? null }
 
@@ -74,15 +109,18 @@ class Member {
       this.fails = 0
       this.home = bot.entity.position.clone()
       const moves = new Movements(bot)
-      // They walk around the world rather than change it, but like real players they may break leaves to get
-      // through a dense forest or down from a treetop. Nothing else.
+      // They walk around the world rather than change it, except that, like a player, they dig steps out of a
+      // hole in soft ground. (Not leaves: weighing a way through every tree canopy made planning crawl; a
+      // settler stuck on a treetop digs itself down instead.)
+      const soft = new Set(['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'red_sand', 'gravel', 'rooted_dirt', 'mud'])
       moves.canDig = true
-      moves.blocksCantBreak = new Set(Object.values(bot.registry.blocksByName).filter(b => !b.name.endsWith('_leaves')).map(b => b.id))
+      moves.blocksCantBreak = new Set(Object.values(bot.registry.blocksByName).filter(b => !soft.has(b.name)).map(b => b.id))
       moves.allow1by1towers = false
       moves.scafoldingBlocks = []
       bot.pathfinder.setMovements(moves)
-      bot.pathfinder.thinkTimeout = 2000
-      bot.pathfinder.tickTimeout = 5
+      bot.pathfinder.thinkTimeout = 5000 // forests take a while to plan through
+      // Planning time per game tick, shared out across the crowd (one process runs them all).
+      bot.pathfinder.tickTimeout = Math.max(8, Math.floor(40 / Math.max(1, members.size)))
       this.timer = setInterval(() => this.think(), rand(2500, 4500))
     })
     bot.on('chat', (from, text) => this.heard(from, text))
@@ -93,7 +131,8 @@ class Member {
       const pos = bot.entity.position
       this.stuckCount = this.stuckAt && pos.distanceTo(this.stuckAt) < 1 ? (this.stuckCount ?? 0) + 1 : 1
       this.stuckAt = pos.clone()
-      if (this.stuckCount < 3) {
+      // A settler on an errand only sidesteps: walking off blindly would cancel the errand's walk.
+      if (this.stuckCount < 3 || this.errand) {
         const side = Math.random() < 0.5 ? 'left' : 'right'
         bot.setControlState(side, true)
         bot.setControlState('jump', true)
@@ -117,11 +156,19 @@ class Member {
       clearInterval(this.timer)
       this.bot = null
       if (stopping) { this.state = 'stopped'; return }
-      this.fails++
       this.state = 'offline'
+      // Throttled for joining too soon after another bot: not a real failure, just wait for a turn.
+      if (/throttled/i.test(this.lastKick ?? '')) {
+        this.lastKick = null
+        this.doing = 'waiting for a turn to join'
+        queueJoin(this, 2000)
+        return
+      }
+      this.fails++
       this.doing = this.lastKick ? `kicked: ${this.lastKick.slice(0, 80)}` : this.lastError ? `disconnected: ${this.lastError.slice(0, 80)}` : 'disconnected'
+      this.lastKick = this.lastError = null
       // Back off, and give up after a few tries (the server may be full, whitelisted or online-mode).
-      if (this.fails <= 5) setTimeout(() => this.connect(), Math.min(15e3 * 2 ** (this.fails - 1), 4 * 60e3))
+      if (this.fails <= 5) queueJoin(this, Math.min(15e3 * 2 ** (this.fails - 1), 4 * 60e3))
       else this.doing += ' (gave up; restart the crowd to try again)'
     })
   }
@@ -146,6 +193,10 @@ class Member {
     const range = likes(p, 'explore') ? 14 : likes(p, 'follow') || likes(p, 'stay') ? 3 : 7
     const goal = target => {
       if (!bot.pathfinder.isMoving() || Math.random() < 0.15) bot.pathfinder.setGoal(target)
+    }
+    if (m === 'settle' && settleAt) {
+      settleStep(this, SETTLE_CTX)
+      return
     }
     if (m === 'stop') {
       bot.pathfinder.setGoal(null)
@@ -213,6 +264,8 @@ class Member {
       state: this.state,
       doing: Date.now() < this.refusedUntil ? `${this.doing} (refused to ${this.refusedWhat})` : this.doing,
       personality: p ? { preset: p.preset, text: p.text, enabled: p.enabled !== false, freeWill: !!p.freeWill, likes: p.likes, dislikes: p.dislikes } : null,
+      job: settleAt ? settlerJob(p) : null,
+      hut: this.plot ? { done: (this.hutSize ?? 0) - (this.hutLeft ?? this.hutSize ?? 0), size: this.hutSize ?? null } : null,
       position: pos ? { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) } : null
     }
   }
@@ -227,6 +280,7 @@ function order (newMode, at, by) {
   const before = mode
   mode = newMode
   if (newMode === 'gather') gatherAt = at ?? leader ?? gatherAt
+  if (newMode === 'settle') settleAt = at ?? leader ?? settleAt
   const activity = ACTIVITY[newMode]
   const refused = []
   let speakers = 0
@@ -270,22 +324,30 @@ function ambient () {
     .then(r => m.say(r.say)).catch(() => {})
 }
 
+// What settle.js needs from the crowd.
+const SETTLE_CTX = {
+  centre: () => settleAt,
+  index: m => [...members.keys()].indexOf(m.name),
+  takenPlots: m => [...members.values()].filter(o => o !== m && o.plot).map(o => o.plot),
+  savePlot: m => send({ type: 'plot', name: m.name, plot: m.plot }),
+  say: (m, text) => { if (text && m.personality?.enabled !== false) m.say(text) },
+  joke: m => { if (!spec.ai?.enabled && Date.now() - m.lastSaid > 60e3) m.say(pick(JOKES)) },
+  get ai () { return !!spec.ai?.enabled }
+}
+
 function status () {
-  send({ type: 'status', mode, gatherAt, leader: leader?.name ?? null, members: [...members.values()].map(m => m.status()) })
+  send({ type: 'status', mode, gatherAt, settleAt, leader: leader?.name ?? null, members: [...members.values()].map(m => m.status()) })
 }
 
 async function start () {
   mode = spec.mode ?? 'follow'
   gatherAt = spec.gather ?? null
+  settleAt = spec.settle ?? null
   const names = Object.keys(spec.members ?? {})
   for (const name of names) members.set(name, new Member(name))
   setInterval(status, 2000)
   setInterval(ambient, 5000)
-  for (const m of members.values()) {
-    if (stopping) return
-    m.connect()
-    await new Promise(resolve => setTimeout(resolve, JOIN_GAP_MS))
-  }
+  for (const m of members.values()) queueJoin(m)
 }
 
 process.on('message', msg => {

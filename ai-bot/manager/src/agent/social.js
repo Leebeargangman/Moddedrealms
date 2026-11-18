@@ -1,5 +1,6 @@
 import { chatJSON } from '../llm.js'
 import { promptText, mayRefuse, line } from './personality.js'
+import { isCrowdBot } from '../crowd/registry.js'
 import { SKILLS, ARGS_SCHEMA } from './skills.js'
 import { HOSTILE, RANGED, gearScore } from './combat.js'
 import { FOODS } from './body.js'
@@ -127,7 +128,7 @@ export class Social {
     if (this.isStaff(name)) return 'staff'
     const key = name.toLowerCase()
     if (this.agent.instance.team?.names().some(n => n.toLowerCase() === key)) return 'team'
-    if (this.friends.has(key)) return 'friend'
+    if (this.friends.has(key) || isCrowdBot(key)) return 'friend'
     const p = this.memory.data.players[key]
     if (!p) return 'unknown'
     if (p.trust <= HOSTILE_TRUST) return 'hostile'

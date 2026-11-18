@@ -362,6 +362,16 @@ final class WebsiteLink {
         events.add(ev);
     }
 
+    /** A town grew (village, town, city): show it in the Bots page's events. */
+    void townEvent(Town t, String text) {
+        if (!running) return;
+        JsonObject ev = new JsonObject();
+        ev.addProperty("type", "team");
+        ev.addProperty("text", text);
+        ev.addProperty("town", t.name);
+        events.add(ev);
+    }
+
     /** Someone in the game spoke to a test player (shown in its chat box). */
     void heard(TestPlayer tp, String from, String text) {
         if (!running) return;
@@ -450,6 +460,19 @@ final class WebsiteLink {
         perf.addProperty("heapUsedMb", (rt.totalMemory() - rt.freeMemory()) / 1048576);
         perf.addProperty("heapMaxMb", rt.maxMemory() / 1048576);
         snap.add("perf", perf);
+        JsonArray towns = new JsonArray();
+        for (Town t : plugin.towns().all()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("name", t.name);
+            o.addProperty("stage", t.stage());
+            o.addProperty("citizens", t.jobs.size());
+            o.addProperty("built", t.count("built"));
+            o.addProperty("planned", t.plots.size());
+            o.addProperty("homes", t.builtOf("house", "hut"));
+            o.addProperty("farms", t.builtOf("farm"));
+            towns.add(o);
+        }
+        snap.add("towns", towns);
 
         JsonArray bots = new JsonArray();
         for (TestPlayer tp : players.all()) {
@@ -461,13 +484,17 @@ final class WebsiteLink {
             b.addProperty("server", Bukkit.getName() + " " + Bukkit.getMinecraftVersion());
             b.addProperty("state", m != null ? "online" : tp.wanted ? "starting" : "stopped");
             b.add("offlineReason", null);
-            b.addProperty("model", tp.model == null ? "rules only" : tp.model + (tp.staff != null ? " (on " + tp.staff + "'s PC)" : ""));
+            b.addProperty("model", !tp.ai ? "rules only" : plugin.llm().labelFor(tp) + " (" + plugin.llm().placeFor(tp) + ")");
             b.addProperty("mode", "test");
             b.addProperty("queue", "game");
             b.addProperty("autonomous", tp.ai);
             b.addProperty("task", tp.doing());
             b.addProperty("thought", tp.thought);
             if (tp.personality != null) b.addProperty("personality", tp.personality);
+            if (tp.town != null) {
+                b.addProperty("town", tp.town);
+                b.addProperty("job", tp.job);
+            }
             if (tp.goal != null) {
                 JsonObject g = new JsonObject();
                 g.addProperty("text", tp.goal);

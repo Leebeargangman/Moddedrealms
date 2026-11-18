@@ -45,6 +45,7 @@ final class TestPlayers {
     private final Map<String, TestPlayer> players = new LinkedHashMap<>();
     private long ticks;
     private boolean dirty;
+    private int pathSearches; // route searches this tick (they're capped)
 
     TestPlayers(TestPlayersPlugin plugin, ChunkTickets chunks) {
         this.plugin = plugin;
@@ -163,9 +164,10 @@ final class TestPlayers {
         }
         tp.body = null;
         chunks.release(tp);
-        plugin.builder().cancel(tp);
-        if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE;
+        stopTasks(tp);
+        if (tp.mode == TestPlayer.Mode.BUILD || tp.mode == TestPlayer.Mode.WORK) tp.mode = TestPlayer.Mode.IDLE;
         if (remove) {
+            if (tp.town != null) plugin.towns().leave(tp);
             players.remove(tp.id);
             plugin.builder().forget(tp);
         }
@@ -194,8 +196,8 @@ final class TestPlayers {
 
     /** It died: come back home in a few seconds. */
     void died(TestPlayer tp) {
-        plugin.builder().cancel(tp);
-        if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE;
+        stopTasks(tp);
+        if (tp.mode == TestPlayer.Mode.BUILD || tp.mode == TestPlayer.Mode.WORK) tp.mode = TestPlayer.Mode.IDLE;
         tp.deaths++;
         tp.body = null;
         tp.respawnAt = System.currentTimeMillis() + RESPAWN_MS;
@@ -215,9 +217,14 @@ final class TestPlayers {
 
     // ------------------------------------------------------------ orders (commands, the website and the AI)
 
-    void idle(TestPlayer tp) {
-        // Any new order ends a build in progress, or one it was on its way to.
+    /** Any new order ends a build or a job of work in progress (or a build it was on its way to). */
+    void stopTasks(TestPlayer tp) {
         plugin.builder().cancel(tp);
+        plugin.gather().stop(tp);
+    }
+
+    void idle(TestPlayer tp) {
+        stopTasks(tp);
         tp.pendingBuild = null;
         tp.mode = TestPlayer.Mode.IDLE;
         tp.target = null;
@@ -225,7 +232,7 @@ final class TestPlayers {
     }
 
     void goTo(TestPlayer tp, Location where) {
-        plugin.builder().cancel(tp);
+        stopTasks(tp);
         tp.pendingBuild = null;
         tp.mode = TestPlayer.Mode.GOTO;
         tp.target = where.clone();
@@ -238,7 +245,7 @@ final class TestPlayers {
 
     /** Follow a player, or another test player. */
     void follow(TestPlayer tp, String player) {
-        plugin.builder().cancel(tp);
+        stopTasks(tp);
         tp.pendingBuild = null;
         Player p = Bukkit.getPlayerExact(player);
         TestPlayer other = p == null ? get(player) : null;
@@ -250,7 +257,7 @@ final class TestPlayers {
     }
 
     void wander(TestPlayer tp, double radius) {
-        plugin.builder().cancel(tp);
+        stopTasks(tp);
         tp.pendingBuild = null;
         Mannequin m = tp.entity();
         tp.mode = TestPlayer.Mode.WANDER;
@@ -261,7 +268,7 @@ final class TestPlayers {
     }
 
     void walk(TestPlayer tp, float yaw) {
-        plugin.builder().cancel(tp);
+        stopTasks(tp);
         tp.pendingBuild = null;
         tp.mode = TestPlayer.Mode.WALK;
         tp.walkYaw = yaw;
@@ -316,6 +323,7 @@ final class TestPlayers {
 
     void tick() {
         ticks++;
+        pathSearches = 0;
         long now = System.currentTimeMillis();
         for (TestPlayer tp : players.values()) {
             if (!tp.wanted) continue;
@@ -427,6 +435,12 @@ final class TestPlayers {
                 steer(m, loc, tp.target.getX(), tp.target.getZ(), speed);
             }
             case BUILD -> {
+                if (plugin.builder().missing(tp)) {
+                    // Out of materials: fetch some from the town's storage, or go and chop a tree.
+                    brake(m);
+                    if (ticks % 20 == 0) plugin.towns().supply(tp, m);
+                    return;
+                }
                 Block next = plugin.builder().next(tp);
                 if (next == null) {
                     brake(m);
@@ -452,6 +466,7 @@ final class TestPlayers {
                     plugin.builder().work(tp, m);
                 }
             }
+            case WORK -> plugin.gather().step(tp, m, loc, speed);
             case WALK -> {
                 if (tp.stuckTicks >= 60) {
                     // Hit a wall or a cliff: turn a bit and carry on.
@@ -468,8 +483,43 @@ final class TestPlayers {
      * Walk toward (tx, tz), going around obstacles: after 2 s without progress (a cliff, a wall, a corner),
      * walk off to one side for a few seconds, then try the direct way again.
      */
-    private static void head(TestPlayer tp, Mannequin m, Location loc, double tx, double tz, double speed) {
+    private void head(TestPlayer tp, Mannequin m, Location loc, double tx, double tz, double speed) {
         long now = System.currentTimeMillis();
+        // A route over the blocks (up steps, around cliffs and water), searched now and then, a few per tick.
+        double far = Math.hypot(tx - loc.getX(), tz - loc.getZ());
+        // Far away: a route to a spot ~40 blocks along the way, then the next one.
+        double px = tx;
+        double pz = tz;
+        double reach = 1.2;
+        if (far > 56) {
+            px = Math.floor((loc.getX() + (tx - loc.getX()) / far * 40) / 8) * 8 + 4;
+            pz = Math.floor((loc.getZ() + (tz - loc.getZ()) / far * 40) / 8) * 8 + 4;
+            reach = 5;
+        }
+        long key = ((long) Math.floor(px) << 32) | ((long) Math.floor(pz) & 0xffffffffL);
+        boolean stale = tp.path == null || tp.pathKey != key || tp.pathIndex >= tp.path.size();
+        if (stale && far > 1.5 && now >= tp.pathRetryAt && pathSearches < 3) {
+            pathSearches++;
+            tp.path = Path.find(loc, px, Double.NaN, pz, reach, 3000);
+            tp.pathIndex = 0;
+            tp.pathKey = key;
+            tp.pathRetryAt = now + (tp.path == null ? 8_000 : 1_500);
+        }
+        if (tp.path != null && tp.pathKey == key && tp.pathIndex < tp.path.size()) {
+            Path.Step st = tp.path.get(tp.pathIndex);
+            while (tp.pathIndex < tp.path.size() - 1 && Math.hypot(st.x() + 0.5 - loc.getX(), st.z() + 0.5 - loc.getZ()) < 0.65
+                    && Math.abs(st.y() - loc.getY()) < 1.3) {
+                st = tp.path.get(++tp.pathIndex);
+            }
+            if (tp.pathIndex == tp.path.size() - 1 && Math.hypot(st.x() + 0.5 - loc.getX(), st.z() + 0.5 - loc.getZ()) < 0.4) tp.pathIndex++;
+            if (tp.stuckTicks >= 40) {
+                tp.path = null; // something moved into the way: find a new route
+                tp.stuckTicks = 0;
+            } else if (tp.pathIndex < tp.path.size()) {
+                steer(m, loc, st.x() + 0.5, st.z() + 0.5, speed);
+                return;
+            }
+        }
         if (tp.stuckTicks >= 40) {
             float direct = (float) Math.toDegrees(Math.atan2(-(tx - loc.getX()), tz - loc.getZ()));
             // Stuck again soon after a detour: that side didn't work, try the other one. Otherwise pick either.
@@ -483,6 +533,15 @@ final class TestPlayers {
             double rad = Math.toRadians(tp.detourYaw);
             steer(m, loc, loc.getX() - Math.sin(rad) * 8, loc.getZ() + Math.cos(rad) * 8, speed);
         } else steer(m, loc, tx, tz, speed);
+    }
+
+    /** Walk toward (tx, tz), going around obstacles (for jobs of work). */
+    void walkToward(TestPlayer tp, Mannequin m, Location loc, double tx, double tz, double speed) {
+        head(tp, m, loc, tx, tz, speed);
+    }
+
+    static void brakeNow(Mannequin m) {
+        brake(m);
     }
 
     private void finish(TestPlayer tp, String result) {
@@ -519,7 +578,7 @@ final class TestPlayers {
         }
         Vector v = m.getVelocity();
         double vy = v.getY();
-        if (m.isInWater() || m.isInLava()) vy = Math.max(vy, 0.12);
+        if (m.isInWater() || m.isInLava()) vy = blocked(w, loc, ax, az) ? 0.42 : Math.max(vy, 0.12); // jump out at the bank
         else if (m.isOnGround() && blocked(w, loc, ax, az)) vy = 0.42;
         m.setVelocity(new Vector(dx, vy, dz));
         float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
@@ -566,6 +625,7 @@ final class TestPlayers {
             if (tp.goal != null) c.set("goal", tp.goal);
             if (tp.personality != null) c.set("personality", tp.personality);
             c.set("deaths", tp.deaths);
+            for (Map.Entry<org.bukkit.Material, Integer> e : tp.items.entrySet()) c.set("items." + e.getKey().name(), e.getValue());
         }
         try {
             y.save(file);
@@ -590,7 +650,7 @@ final class TestPlayers {
             } catch (IllegalArgumentException e) {
                 tp.mode = TestPlayer.Mode.IDLE;
             }
-            if (tp.mode == TestPlayer.Mode.BUILD) tp.mode = TestPlayer.Mode.IDLE; // builds in progress aren't saved
+            if (tp.mode == TestPlayer.Mode.BUILD || tp.mode == TestPlayer.Mode.WORK) tp.mode = TestPlayer.Mode.IDLE; // builds and work in progress aren't saved
             tp.target = location(c, "target");
             tp.follow = c.getString("follow");
             tp.wanderRadius = c.getDouble("wander-radius", 24);
@@ -602,6 +662,11 @@ final class TestPlayers {
             tp.goal = c.getString("goal");
             tp.personality = c.getString("personality");
             tp.deaths = c.getInt("deaths", 0);
+            ConfigurationSection inv = c.getConfigurationSection("items");
+            if (inv != null) for (String k : inv.getKeys(false)) {
+                org.bukkit.Material mat = org.bukkit.Material.matchMaterial(k);
+                if (mat != null && inv.getInt(k) > 0) tp.items.put(mat, inv.getInt(k));
+            }
             if ((tp.mode == TestPlayer.Mode.GOTO && tp.target == null) || (tp.mode == TestPlayer.Mode.FOLLOW && tp.follow == null)) tp.mode = TestPlayer.Mode.IDLE;
             players.put(tp.id, tp);
             Location at = tp.lastKnown != null ? tp.lastKnown : tp.home;

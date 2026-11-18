@@ -164,7 +164,7 @@ export class Brain {
       goal ? goalText(goal) : '',
       directive ? `OWNER DIRECTIVE (your owner's standing order; it outranks the strategy above unless it would get you killed): ${directive}` : '',
       team ? `TEAM: you play together with ${team.names().filter(n => n !== this.agent.body.name).join(', ')} (leader ${team.leader()?.session?.name}). Stay near them, never fight them, share with them. Leader's directive: ${this.agent.memory.data.teamDirective ?? 'none yet'}` : '',
-      crowds.length ? `CROWD: you lead ${crowds.map(c => c.describe()).join('; ')}. They follow your lead: use the "crowd" action (mode follow, wander, gather or stop) to tell them what to do.` : '',
+      crowds.length ? `CROWD: you lead ${crowds.map(c => c.describe()).join('; ')}. They follow your lead: use the "crowd" action (mode follow, wander, gather, settle or stop) to tell them what to do; "settle" makes them found a settlement where you stand, chopping trees and building huts.` : '',
       `Settle distance: ${settleDistance(this.cfg.behavior)} blocks from spawn.`,
       `STATE: ${JSON.stringify(obs)}`,
       `RECENT ACTIONS:\n${history.slice(-6).map(h => `- ${h.action} ${JSON.stringify(h.args)} -> ${h.ok ? 'OK' : 'FAILED'}: ${h.result}`).join('\n') || '- none'}`,

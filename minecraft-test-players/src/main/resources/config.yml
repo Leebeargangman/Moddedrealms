@@ -40,14 +40,57 @@ building:
   # How long an AI test player waits after finishing a build before it may start another.
   cooldown-seconds: 120
 
+survival:
+  # Test players play survival: every block they place comes out of their inventory, crafted from what they
+  # gathered (logs they chopped, stone they mined, wheat they harvested) or traded. Out of wood, a builder goes
+  # and chops a tree. false = the old way, blocks from nowhere.
+  enabled: true
+  # true = builds an admin orders with /testplayer build (or the website) don't need materials.
+  admin-builds-free: false
+  # Explorers go through nether portals they find (or that you add with /testplayer town portal <town>).
+  nether-trips: true
+  # Right-click a test player to trade with it (what it really carries, for emeralds or swaps).
+  trading: true
+
 ai:
-  # Ollama for test players whose AI runs on this machine ("Bot host" on the Bots page).
+  # Where test players with "/testplayer ai <name> on" think:
+  #   ollama    - an Ollama this server can reach (ollama-url below). Free. Not available on Minehut.
+  #   openai    - any OpenAI-compatible API with a key: OpenAI, OpenRouter, Groq, Together, LM Studio...
+  #   anthropic - Claude, with an Anthropic API key
+  # A test player given a staff member's name (/testplayer ai <name> on <staff>) always thinks on that person's
+  # own PC instead, through the website (their connector, free). That's how to use your own models on Minehut.
+  provider: ollama
+  # The model (empty = qwen2.5:3b for Ollama, claude-haiku-5-5 for Claude; OpenAI-style APIs need one set).
+  model: ""
   ollama-url: "http://127.0.0.1:11434"
-  # Seconds between decisions for each test player with a model.
+  # Seconds between decisions for each test player with AI.
   interval-seconds: 20
-  # Most model requests at once, across all test players, so the AI doesn't slow down the test itself.
+  # Most model requests at once, across all test players.
   max-concurrent: 2
   timeout-seconds: 90
+
+  # Paid APIs (openai, anthropic). These limits can't be exceeded: when one is reached, test players carry on
+  # with their own routines (working, exploring, trading) without the AI until the hour or day rolls over.
+  api:
+    # Your API key. Keep this file private. It is never shown in game, on the website or in logs.
+    key: ""
+    # For openai: the API's address (OpenRouter: https://openrouter.ai/api/v1, Groq: https://api.groq.com/openai/v1).
+    base-url: "https://api.openai.com/v1"
+    # Pause the API without losing the key: /testplayer api off
+    enabled: true
+    # Hard caps. Tokens are counted from what the API reports, and saved across restarts (ai-usage.yml).
+    max-requests-per-hour: 120
+    max-tokens-per-day: 200000
+    # Longest answer, in tokens (a decision plus a chat line needs about 100-150).
+    max-answer-tokens: 220
+    # At most one request per test player this often.
+    min-seconds-per-player: 60
+    # Only this many test players use the API; the rest run on their own routines.
+    max-players: 4
+    # Optional: your API's prices, to also cap spending in dollars per day (0 = don't).
+    price-per-million-input-tokens: 0
+    price-per-million-output-tokens: 0
+    max-dollars-per-day: 0
 
 # Shows the test players on the Bots page of the website and lets staff control them from there,
 # like the AI bot hosts (PC, VPS).

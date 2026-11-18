@@ -7,6 +7,7 @@ import { Social } from './social.js'
 import { observe } from './state.js'
 import { gearScore } from './combat.js'
 import { sleep, withTimeout, isAbort } from '../util.js'
+import { crowdNames } from '../crowd/registry.js'
 
 // Things that make sense right where the bot stands, even inside spawn protection.
 const STAY_AT_SPAWN = new Set(['leave_spawn', 'escape_spawn', 'wait', 'eat', 'give', 'pick_up', 'come_to', 'follow_player'])
@@ -42,7 +43,7 @@ export class Agent extends EventEmitter {
       locate: name => instance.team?.locate(name) ?? null,
       team: () => instance.team ?? null,
       instance: () => instance,
-      allies: () => [cfg.social.owner, ...(cfg.social.staff ?? []), ...cfg.behavior.friendlyPlayers, ...(instance.team?.names() ?? [])].filter(Boolean).map(n => n.toLowerCase())
+      allies: () => [cfg.social.owner, ...(cfg.social.staff ?? []), ...cfg.behavior.friendlyPlayers, ...(instance.team?.names() ?? []), ...crowdNames()].filter(Boolean).map(n => n.toLowerCase())
     }
     this.social = new Social(this)
     this.ctx.social = this.social

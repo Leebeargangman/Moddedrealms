@@ -30,10 +30,15 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
     private ChunkTickets chunks;
     private TestPlayers players;
     private Brain brain;
+    private Llm llm;
     private Builder builder;
+    private Gather gather;
+    private Trading trading;
+    private Towns towns;
     private WebsiteLink link;
     private BukkitTask tickTask;
     private BukkitTask thinkTask;
+    private BukkitTask townTask;
 
     @Override
     public void onEnable() {
@@ -42,9 +47,14 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         chunks = new ChunkTickets(this);
         players = new TestPlayers(this, chunks);
         brain = new Brain(this);
+        llm = new Llm(this);
+        llm.reload();
         builder = new Builder(this);
         builder.loadZones();
         builder.load();
+        gather = new Gather(this);
+        trading = new Trading(this);
+        towns = new Towns(this);
         link = new WebsiteLink(this);
 
         PluginCommand cmd = getCommand("testplayer");
@@ -52,13 +62,16 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         cmd.setExecutor(handler);
         cmd.setTabCompleter(handler);
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(trading, this);
 
         players.removeStrays();
         players.load();
+        towns.load(); // after the test players, so their jobs come back too
         tickTask = Bukkit.getScheduler().runTaskTimer(this, players::tick, 1, 1);
         thinkTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (TestPlayer tp : players.all()) if (tp.entity() != null) brain.maybeThink(tp);
         }, 40, 20);
+        townTask = Bukkit.getScheduler().runTaskTimer(this, towns::tick, 60, 20);
         link.start();
         getLogger().info(players.all().size() + " test players known. Website link: " + link.status() + ".");
     }
@@ -68,6 +81,8 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         if (link != null) link.stop();
         if (tickTask != null) tickTask.cancel();
         if (thinkTask != null) thinkTask.cancel();
+        if (townTask != null) townTask.cancel();
+        if (towns != null) towns.save();
         if (players != null) {
             players.save(); // before removing the mannequins, so it remembers which were in the world and where
             players.despawnAllForShutdown();
@@ -79,6 +94,7 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
     void reload() {
         reloadConfig();
         settings = Settings.from(getConfig());
+        llm.reload();
         builder.loadZones();
         link.start();
     }
@@ -95,8 +111,24 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         return brain;
     }
 
+    Llm llm() {
+        return llm;
+    }
+
     Builder builder() {
         return builder;
+    }
+
+    Gather gather() {
+        return gather;
+    }
+
+    Trading trading() {
+        return trading;
+    }
+
+    Towns towns() {
+        return towns;
     }
 
     WebsiteLink link() {
@@ -130,6 +162,31 @@ public final class TestPlayersPlugin extends JavaPlugin implements Listener {
         if (e.getEntity() instanceof Mannequin m && e.getCause() != EntityRemoveEvent.Cause.DEATH) {
             TestPlayer tp = players.of(m);
             if (tp != null && tp.wanted) tp.lastKnown = m.getLocation();
+        }
+    }
+
+    /**
+     * Going through a portal can give the mannequin a new body on the other side: if one of ours turns up in
+     * another world, that's it, and it carries on there.
+     */
+    @EventHandler
+    public void onAdd(com.destroystokyo.paper.event.entity.EntityAddToWorldEvent e) {
+        if (!(e.getEntity() instanceof Mannequin m) || !players.isOurs(m)) return;
+        String id = m.getPersistentDataContainer().get(new org.bukkit.NamespacedKey(this, "test_player"), org.bukkit.persistence.PersistentDataType.STRING);
+        TestPlayer tp = players.get(id);
+        if (tp == null || tp.body == m || !tp.wanted) return;
+        if (tp.body == null || !tp.body.isValid() || tp.body.getWorld() != m.getWorld()) {
+            tp.body = m;
+            tp.lastKnown = m.getLocation();
+        }
+    }
+
+    /** Through a nether portal: like a player, it gets a portal on the other side to come back through. */
+    @EventHandler(ignoreCancelled = true)
+    public void onPortal(org.bukkit.event.entity.EntityPortalEvent e) {
+        if (e.getEntity() instanceof Mannequin m && players.of(m) != null) {
+            e.setCanCreatePortal(true);
+            getLogger().info(players.of(m).name + " went through a nether portal to " + (e.getTo() == null ? "?" : e.getTo().getWorld().getName() + " " + e.getTo().getBlockX() + " " + e.getTo().getBlockY() + " " + e.getTo().getBlockZ()));
         }
     }
 
