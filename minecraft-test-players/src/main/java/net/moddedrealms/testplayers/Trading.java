@@ -43,6 +43,11 @@ final class Trading implements Listener {
         if (tp == null || !plugin.getConfig().getBoolean("survival.trading", true)) return;
         e.setCancelled(true);
         Player p = e.getPlayer();
+        // A teammate gets its bag, like a shared chest (crouch to see its trades instead).
+        if (plugin.life().teammates(p, tp) && !p.isSneaking()) {
+            plugin.life().openBag(p, tp);
+            return;
+        }
         List<MerchantRecipe> recipes = recipes(tp);
         if (recipes.isEmpty()) {
             p.sendMessage(Component.text(tp.name + " has nothing to trade yet (carrying " + Items.describe(tp, 5) + ")."));

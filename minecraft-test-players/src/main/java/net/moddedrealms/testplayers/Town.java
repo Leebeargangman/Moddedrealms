@@ -18,17 +18,19 @@ import org.bukkit.World;
 final class Town {
 
     /** Jobs, and what each one builds. Scouts and entertainers don't build. */
-    static final Map<String, List<String>> JOB_BUILDS = Map.of(
-            "builder", List.of("house", "hut", "townhall", "well", "campfire", "stall", "tower", "lamp", "farm"),
-            "mayor", List.of("campfire", "well", "townhall"),
-            "farmer", List.of("farm"),
-            "trader", List.of("stall"),
-            "guard", List.of("tower"),
-            "roadworker", List.of("lamp"),
-            "scout", List.of(),
-            "lumberjack", List.of(),
-            "miner", List.of(),
-            "entertainer", List.of());
+    static final Map<String, List<String>> JOB_BUILDS = Map.ofEntries(
+            Map.entry("builder", List.of("house", "hut", "townhall", "well", "campfire", "stall", "tower", "lamp", "farm")),
+            Map.entry("mayor", List.of("campfire", "well", "townhall")),
+            Map.entry("farmer", List.of("farm")),
+            Map.entry("trader", List.of("stall")),
+            Map.entry("guard", List.of("tower")),
+            Map.entry("roadworker", List.of("lamp")),
+            Map.entry("scout", List.of()),
+            Map.entry("lumberjack", List.of()),
+            Map.entry("miner", List.of()),
+            Map.entry("entertainer", List.of()),
+            // A free player (see Life) doing a bit of everything for its own base, like a normal survival player.
+            Map.entry("settler", List.of("campfire", "hut", "house", "farm", "tower", "lamp")));
 
     static final class Plot {
         final String structure;
@@ -53,10 +55,15 @@ final class Town {
     }
 
     final String name;
-    final String world;
-    final int cx;
-    final int cz;
-    final int radius;
+    String world;
+    int cx;
+    int cz;
+    int radius;
+    // A team of free players (see Life) rather than a planned town. Until it settles, (cx, cz) is just where
+    // the team is (it follows its leader around) and nothing is planned; settling plans a small base there.
+    boolean camp;
+    boolean settled = true;
+    final java.util.Set<String> humans = new java.util.LinkedHashSet<>(); // real players on the team (names)
     final List<Plot> plots = new ArrayList<>();
     final Map<String, String> jobs = new HashMap<>();    // citizen id -> job
     final Map<String, Integer> homes = new HashMap<>();  // citizen id -> plot index of its house
@@ -115,6 +122,23 @@ final class Town {
         for (int i = 0; i < 4; i++) add("lamp", "spruce", ring(r1 - 4, i * 2, 8));
     }
 
+    /**
+     * A team's base, the way a few survival players set one up: a campfire, a hut each, then a house, a
+     * farm, a lookout tower and some lamps. Smaller than a town and grown in the same way.
+     */
+    void planCamp(int members) {
+        plots.clear();
+        String[] woods = {"wood", "spruce", "cherry", "wood"};
+        add("campfire", "wood", 0, 0);
+        int huts = Math.max(1, Math.min(4, members));
+        for (int i = 0; i < huts; i++) add("hut", woods[i], ring(9, i * 2 + 0.5, 8));
+        add("farm", "wood", ring(15, 5, 8));
+        add("house", "spruce", ring(13, 3, 8));
+        add("tower", "stone", ring(16, 7, 8));
+        add("lamp", "wood", ring(5, 1, 4));
+        add("lamp", "wood", ring(5, 3, 4));
+    }
+
     /** A point on a ring: slot (0..n, fractions allowed) of n evenly spaced slots. */
     private int[] ring(int r, double slot, int n) {
         double a = slot * 2 * Math.PI / n;
@@ -144,6 +168,7 @@ final class Town {
 
     /** camp, village, town or city, from what's been built. */
     String stage() {
+        if (camp) return !settled ? "team on the move" : builtOf("hut", "house") >= 2 ? "base" : "camp";
         int homes = builtOf("house", "hut");
         boolean hall = builtOf("townhall") > 0;
         if (homes >= 12 && hall && builtOf("tower") >= 3) return "city";
@@ -209,6 +234,10 @@ final class Town {
     }
 
     String summary() {
+        if (camp) {
+            String who = jobs.size() + " test player" + (jobs.size() == 1 ? "" : "s") + (humans.isEmpty() ? "" : " + " + String.join(", ", humans));
+            return name + ": " + who + ", " + (settled ? "base at " + cx + " " + cz + " (" + count("built") + "/" + plots.size() + " built)" : "no base yet");
+        }
         return name + ": " + stage() + ", " + jobs.size() + " citizens, " + count("built") + "/" + plots.size() + " buildings"
                 + (count("skipped") > 0 ? " (" + count("skipped") + " didn't fit)" : "");
     }

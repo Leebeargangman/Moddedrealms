@@ -22,9 +22,9 @@ import org.bukkit.entity.Player;
 final class TestPlayerCommand implements TabExecutor {
 
     private static final List<String> SUBS = List.of("spawn", "despawn", "start", "remove", "move", "follow", "wander", "walk", "stop",
-            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "api", "list", "info", "stats", "reload", "help");
+            "sprint", "bring", "tp", "say", "ai", "goal", "personality", "build", "undo", "zone", "town", "job", "free", "team", "populate", "api", "list", "info", "stats", "reload", "help");
     private static final List<String> TARGETED = List.of("despawn", "start", "remove", "move", "follow", "wander", "walk", "stop", "sprint", "bring", "ai", "goal",
-            "personality", "build", "undo", "job");
+            "personality", "build", "undo", "job", "free");
 
     private final TestPlayersPlugin plugin;
 
@@ -50,14 +50,15 @@ final class TestPlayerCommand implements TabExecutor {
         TestPlayers players = plugin.players();
         switch (sub) {
             case "spawn" -> {
-                need(a, 2, "spawn <name> [count] [idle|wander|walk]");
+                need(a, 2, "spawn <name> [count] [idle|wander|walk|free|team]");
                 int count = a.length > 2 ? integer(a[2], 1, plugin.settings().maxPlayers()) : 1;
                 String mode = a.length > 3 ? a[3].toLowerCase(Locale.ROOT) : "idle";
-                if (!List.of("idle", "wander", "walk").contains(mode)) throw new IllegalArgumentException("Mode is idle, wander or walk.");
+                if (!List.of("idle", "wander", "walk", "free", "team").contains(mode)) throw new IllegalArgumentException("Mode is idle, wander, walk, free (each plays on its own) or team (they play together).");
                 List<String> names = players.batchNames(a[1], count);
                 int room = plugin.settings().maxPlayers() - players.all().size();
                 if (names.size() > room) throw new IllegalArgumentException("Only room for " + room + " more (max-players is " + plugin.settings().maxPlayers() + ").");
                 Location center = origin(sender);
+                Town team = mode.equals("team") ? plugin.towns().foundCamp(uniqueTeam(a[1]), center) : null;
                 for (int i = 0; i < names.size(); i++) {
                     TestPlayer tp = players.create(names.get(i));
                     // Spread a batch out on a sunflower spiral, about 3 blocks apart.
@@ -72,10 +73,17 @@ final class TestPlayerCommand implements TabExecutor {
                     } else if (mode.equals("walk")) {
                         tp.mode = TestPlayer.Mode.WALK;
                         tp.walkYaw = at.getYaw();
+                    } else if (mode.equals("free") || mode.equals("team")) {
+                        if (tp.personality == null) tp.personality = Personalities.resolve("random");
+                        plugin.life().aiByDefault(tp);
+                        plugin.life().makeFree(tp, team);
                     }
                     players.spawn(tp, at);
                 }
-                ok(sender, "Spawning " + (names.size() == 1 ? names.getFirst() : names.size() + " test players (" + names.getFirst() + " to " + names.getLast() + ")") + ", " + mode + ".");
+                ok(sender, "Spawning " + (names.size() == 1 ? names.getFirst() : names.size() + " test players (" + names.getFirst() + " to " + names.getLast() + ")") + ", "
+                        + (mode.equals("free") ? "each playing survival on their own" : mode.equals("team") ? "playing survival as team " + team.name : mode) + ".");
+                if ((mode.equals("free") || mode.equals("team")) && !plugin.llm().ready())
+                    sender.sendMessage(Component.text("No AI linked, so they play on their own routines. /testplayer ai link to give them a brain.", NamedTextColor.GRAY));
             }
             case "despawn" -> {
                 need(a, 2, "despawn <target>");
@@ -176,7 +184,16 @@ final class TestPlayerCommand implements TabExecutor {
                 players.say(tp, String.join(" ", Arrays.copyOfRange(a, 2, a.length)));
             }
             case "ai" -> {
-                need(a, 3, "ai <target> <on|off|model> [staff member, to use their computer]");
+                if (a.length >= 2 && a[1].equalsIgnoreCase("link")) {
+                    plugin.aiLink().link(sender, a);
+                    return;
+                }
+                if (a.length >= 2 && a[1].equalsIgnoreCase("test")) {
+                    sender.sendMessage(Component.text("Asking " + plugin.llm().placeFor(new TestPlayer("x")) + "...", NamedTextColor.GRAY));
+                    plugin.aiLink().test(sender);
+                    return;
+                }
+                need(a, 3, "ai <target> <on|off|model> [staff member, to use their computer]   or   ai link ...   or   ai test");
                 List<TestPlayer> list = players.select(a[1]);
                 String v = a[2];
                 for (TestPlayer tp : list) {
@@ -271,6 +288,32 @@ final class TestPlayerCommand implements TabExecutor {
                 }
                 ok(sender, count(list) + (list.size() == 1 ? " is now a " + list.getFirst().job : " have new jobs") + ".");
             }
+            case "free" -> {
+                need(a, 2, "free <target> [team]");
+                List<TestPlayer> list = players.select(a[1]);
+                Town team = null;
+                if (a.length > 2) {
+                    team = plugin.towns().get(a[2]);
+                    if (team == null) team = plugin.towns().foundCamp(a[2], origin(sender));
+                    else if (!team.camp) throw new IllegalArgumentException(a[2] + " is a town; free players go in teams.");
+                }
+                for (TestPlayer tp : list) plugin.life().makeFree(tp, team);
+                ok(sender, count(list) + (team != null ? " now play survival as team " + team.name : " now play survival on their own") + ": tools, a base away from spawn, mining, exploring, the nether.");
+            }
+            case "team" -> team(sender, a);
+            case "populate" -> {
+                need(a, 2, "populate <count>   (free players join around the world spawn, solo and in small teams)");
+                int n = integer(a[1], 1, 100);
+                int room = plugin.settings().maxPlayers() - players.all().size();
+                if (n > room) throw new IllegalArgumentException("Only room for " + room + " more (max-players is " + plugin.settings().maxPlayers() + ").");
+                Location spawn = sender instanceof Player p ? p.getWorld().getSpawnLocation() : Bukkit.getWorlds().getFirst().getSpawnLocation();
+                long now = System.currentTimeMillis();
+                List<String> names = new ArrayList<>();
+                for (int i = 0; i < n; i++) names.add(plugin.life().newcomer(spawn, now, false).name);
+                ok(sender, n + " players joined at spawn: " + String.join(", ", names.subList(0, Math.min(10, names.size()))) + (n > 10 ? "..." : "") + ".");
+                sender.sendMessage(Component.text(plugin.llm().ready() ? "They think with " + plugin.llm().placeFor(new TestPlayer("x")) + " (" + plugin.llm().usage() + ")."
+                        : "No AI linked, so they play on their own routines. /testplayer ai link to give them a brain.", NamedTextColor.GRAY));
+            }
             case "list" -> list(sender);
             case "info" -> {
                 need(a, 2, "info <name>");
@@ -283,6 +326,109 @@ final class TestPlayerCommand implements TabExecutor {
             }
             default -> throw new IllegalArgumentException("Unknown subcommand. /testplayer help");
         }
+    }
+
+    private String uniqueTeam(String base) {
+        String n = base.length() > 20 ? base.substring(0, 20) : base;
+        String name = n;
+        for (int i = 2; plugin.towns().get(name) != null; i++) name = n + i;
+        return name;
+    }
+
+    /** /testplayer team create|add|kick|list|info|settle|remove: free players' teams (and real players on them). */
+    private void team(CommandSender sender, String[] a) {
+        Towns towns = plugin.towns();
+        Life life = plugin.life();
+        String op = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "list";
+        switch (op) {
+            case "create" -> {
+                need(a, 3, "team create <name> [test players]");
+                Town t = towns.foundCamp(a[2], origin(sender));
+                List<TestPlayer> list = a.length > 3 ? plugin.players().select(a[3]) : List.of();
+                for (TestPlayer tp : list) life.join(tp, t);
+                ok(sender, "Team " + t.name + " made" + (list.isEmpty() ? "" : " with " + count(list)) + ". /testplayer team add " + t.name + " <test players or a real player>");
+            }
+            case "add" -> {
+                need(a, 4, "team add <team> <test players | real player>");
+                Town t = camp(a[2]);
+                Player human = Bukkit.getPlayerExact(a[3]);
+                if (human != null && plugin.players().get(a[3]) == null) {
+                    life.leaveHuman(human.getName());
+                    t.humans.add(human.getName());
+                    towns.markDirty();
+                    ok(sender, human.getName() + " is on team " + t.name + " now.");
+                    human.sendMessage(Component.text("You're on team " + t.name + " (test players). /teamup info", NamedTextColor.GREEN));
+                    return;
+                }
+                List<TestPlayer> list = plugin.players().select(a[3]);
+                for (TestPlayer tp : list) life.join(tp, t);
+                ok(sender, count(list) + " joined team " + t.name + ".");
+            }
+            case "kick" -> {
+                need(a, 4, "team kick <team> <test players | real player>");
+                Town t = camp(a[2]);
+                if (t.humans.stream().anyMatch(h -> h.equalsIgnoreCase(a[3]))) {
+                    life.leaveHuman(a[3]);
+                    ok(sender, a[3] + " left team " + t.name + ".");
+                    return;
+                }
+                List<TestPlayer> list = plugin.players().select(a[3]).stream().filter(tp -> t.name.equalsIgnoreCase(tp.town)).toList();
+                for (TestPlayer tp : list) life.makeFree(tp, null);
+                ok(sender, count(list) + " left team " + t.name + " and play solo now.");
+            }
+            case "settle" -> {
+                need(a, 3, "team settle <team>   (makes its base where you stand)");
+                Town t = camp(a[2]);
+                towns.settle(t, player(sender).getLocation());
+                for (String id : t.jobs.keySet()) {
+                    TestPlayer tp = plugin.players().get(id);
+                    if (tp != null) tp.home = t.center();
+                }
+                ok(sender, t.name + "'s base is here now: " + t.plots.size() + " things planned (a hut each, a farm, a house, a lookout tower).");
+            }
+            case "info" -> {
+                List<Town> show = a.length > 2 ? List.of(camp(a[2])) : towns.camps();
+                if (show.isEmpty()) throw new IllegalArgumentException("No teams yet. /testplayer spawn <name> <count> team, or /testplayer populate <count>");
+                for (Town t : show) {
+                    sender.sendMessage(Component.text(t.name + " (" + t.stage() + ")", NamedTextColor.GOLD));
+                    List<String> who = new ArrayList<>();
+                    for (Map.Entry<String, String> e : t.jobs.entrySet()) {
+                        TestPlayer tp = plugin.players().get(e.getKey());
+                        if (tp != null) who.add(tp.name + " (" + e.getValue() + (tp.buddy ? ", with the real players" : "") + ")");
+                    }
+                    line(sender, "Test players", who.isEmpty() ? "none" : String.join(", ", who));
+                    line(sender, "Real players", t.humans.isEmpty() ? "none (/teamup <name> in game)" : String.join(", ", t.humans));
+                    line(sender, "Base", t.settled ? t.world + " " + t.cx + " " + t.cz + ", " + t.count("built") + "/" + t.plots.size() + " built" : "none yet (meeting at " + t.cx + " " + t.cz + ")");
+                    if (t.storage != null) line(sender, "Storage chest", t.storage.getBlockX() + " " + t.storage.getBlockY() + " " + t.storage.getBlockZ());
+                    if (t.mineDx != 0 || t.mineDz != 0) line(sender, "Mine", "entrance " + t.mineX + " " + t.mineY + " " + t.mineZ + ", " + t.mineShafts + " shafts");
+                    if (!t.portals.isEmpty()) line(sender, "Nether portals known", String.valueOf(t.portals.size()));
+                }
+            }
+            case "list" -> {
+                if (towns.camps().isEmpty()) {
+                    sender.sendMessage(Component.text("No teams yet. /testplayer spawn <name> <count> team, or /testplayer populate <count>", NamedTextColor.GRAY));
+                    return;
+                }
+                for (Town t : towns.camps()) sender.sendMessage(Component.text(t.summary(), NamedTextColor.GRAY));
+            }
+            case "remove" -> {
+                need(a, 3, "team remove <team>");
+                Town t = camp(a[2]);
+                for (String id : new ArrayList<>(t.jobs.keySet())) {
+                    TestPlayer tp = plugin.players().get(id);
+                    if (tp != null) life.makeFree(tp, null);
+                }
+                if (towns.get(t.name) != null) towns.remove(t);
+                ok(sender, "Team " + t.name + " split up: its test players play solo now. What it built stays.");
+            }
+            default -> throw new IllegalArgumentException("Usage: /testplayer team create|add|kick|settle|info|list|remove");
+        }
+    }
+
+    private Town camp(String name) {
+        Town t = plugin.towns().get(name);
+        if (t == null || !t.camp) throw new IllegalArgumentException("No team called " + name + ". /testplayer team list");
+        return t;
     }
 
     /** /testplayer town found|join|leave|info|list|remove: settlements that grow by themselves. */
@@ -301,8 +447,9 @@ final class TestPlayerCommand implements TabExecutor {
             case "join" -> {
                 need(a, 4, "town join <town> <target> [job]");
                 Town t = towns.get(a[2]);
-                if (t == null) throw new IllegalArgumentException("No town called " + a[2] + ". /testplayer town list");
+                if (t == null || t.camp) throw new IllegalArgumentException("No town called " + a[2] + ". /testplayer town list" + (t != null ? " (" + t.name + " is a team: /testplayer team add)" : ""));
                 List<TestPlayer> list = plugin.players().select(a[3]);
+                list.forEach(tp -> tp.free = false);
                 Map<String, Integer> jobs = new java.util.TreeMap<>();
                 for (TestPlayer tp : list) jobs.merge(towns.join(tp, t, a.length > 4 ? a[4].toLowerCase(Locale.ROOT) : null), 1, Integer::sum);
                 ok(sender, count(list) + " now live in " + t.name + ": " + jobs.entrySet().stream().map(e -> e.getValue() + " " + e.getKey()).collect(java.util.stream.Collectors.joining(", ")) + ".");
@@ -314,7 +461,7 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, count(list) + " left their town.");
             }
             case "info" -> {
-                List<Town> show = a.length > 2 ? List.of(java.util.Optional.ofNullable(towns.get(a[2])).orElseThrow(() -> new IllegalArgumentException("No town called " + a[2] + "."))) : towns.all();
+                List<Town> show = a.length > 2 ? List.of(java.util.Optional.ofNullable(towns.get(a[2])).orElseThrow(() -> new IllegalArgumentException("No town called " + a[2] + "."))) : towns.townsOnly();
                 if (show.isEmpty()) throw new IllegalArgumentException("No towns yet. /testplayer town found <name> [radius]");
                 for (Town t : show) {
                     sender.sendMessage(Component.text(t.name + " (" + t.stage() + ")", NamedTextColor.GOLD));
@@ -340,11 +487,11 @@ final class TestPlayerCommand implements TabExecutor {
                 ok(sender, t.name + "'s explorers now know about this portal (" + t.portals.size() + " known). Scouts take trips through it.");
             }
             case "list" -> {
-                if (towns.all().isEmpty()) {
+                if (towns.townsOnly().isEmpty()) {
                     sender.sendMessage(Component.text("No towns yet. /testplayer town found <name> [radius]", NamedTextColor.GRAY));
                     return;
                 }
-                for (Town t : towns.all()) sender.sendMessage(Component.text(t.summary(), NamedTextColor.GRAY));
+                for (Town t : towns.townsOnly()) sender.sendMessage(Component.text(t.summary(), NamedTextColor.GRAY));
             }
             case "remove" -> {
                 need(a, 3, "town remove <name>");
@@ -399,7 +546,11 @@ final class TestPlayerCommand implements TabExecutor {
         s.sendMessage(Component.text("Test players: simulated players for performance testing", NamedTextColor.GOLD));
         s.sendMessage(Component.text("<target> is a name, a prefix ending in * (Load*), or all", NamedTextColor.GRAY));
         for (String[] line : new String[][] {
-                {"spawn <name> [count] [idle|wander|walk]", "spawn one, or a numbered batch around you"},
+                {"spawn <name> [count] [idle|wander|walk|free|team]", "spawn one, or a numbered batch around you (free/team: they play survival)"},
+                {"populate <count>", "players join at spawn and play survival, solo and in small teams"},
+                {"free <target> [team]", "make test players play survival like normal players"},
+                {"team create|add|kick|settle|info|list|remove ...", "free players' teams; add a real player to one (or they use /teamup)"},
+                {"ai link <ollama|lmstudio|pc|openai|openrouter|groq|anthropic|off> / ai test", "link an AI (local, your PC, or an API key with spending caps)"},
                 {"despawn <target>", "take out of the world (start brings back)"},
                 {"start <target>", "put stopped test players back"},
                 {"remove <target>", "forget them completely"},
@@ -444,7 +595,7 @@ final class TestPlayerCommand implements TabExecutor {
             String where = m == null ? (tp.wanted ? "starting" : "stopped")
                     : m.getLocation().getBlockX() + " " + m.getLocation().getBlockY() + " " + m.getLocation().getBlockZ() + " " + m.getWorld().getName();
             s.sendMessage(Component.text(tp.name, m != null ? NamedTextColor.GREEN : NamedTextColor.GRAY)
-                    .append(Component.text("  " + where + "  " + (m != null ? tp.doing() : "") + (tp.ai && tp.model != null ? "  AI " + tp.model : "")
+                    .append(Component.text("  " + where + "  " + (m != null ? tp.doing() : "") + (tp.ai && tp.model != null ? "  AI " + plugin.llm().labelFor(tp) : "")
                             + (tp.personality != null ? "  (" + Personalities.label(tp.personality) + ")" : ""), NamedTextColor.GRAY)));
         }
     }
@@ -460,7 +611,13 @@ final class TestPlayerCommand implements TabExecutor {
             line(s, "In the world for", Math.round((System.currentTimeMillis() - tp.spawnedAt) / 60000.0) + " min");
         }
         line(s, "Moved", Math.round(tp.blocksMoved) + " blocks");
-        if (tp.town != null) line(s, "Town", tp.town + ", " + tp.job + (tp.trip != null ? " (on a trip: " + tp.trip + ")" : ""));
+        if (tp.free) {
+            Town t = plugin.towns().get(tp.town);
+            line(s, "Plays", "survival like a normal player: team " + (t == null ? "?" : t.name + (t.jobs.size() == 1 && t.humans.isEmpty() ? " (solo)" : "")) + ", " + tp.job
+                    + (tp.buddy ? ", sticks with its real teammates" : "") + (tp.trip != null ? " (on a trip: " + tp.trip + ")" : "") + (tp.auto ? ", comes and goes (keep-online)" : ""));
+            if (t != null) line(s, "Base", t.settled ? t.cx + " " + t.cz : "none yet");
+            line(s, "Food", tp.food + "/20");
+        } else if (tp.town != null) line(s, "Town", tp.town + ", " + tp.job + (tp.trip != null ? " (on a trip: " + tp.trip + ")" : ""));
         line(s, "Carrying", Items.describe(tp, 10));
         if (tp.path != null && tp.pathIndex < tp.path.size()) {
             Path.Step next = tp.path.get(tp.pathIndex);
@@ -578,6 +735,17 @@ final class TestPlayerCommand implements TabExecutor {
             if (a.length == 3 && a[1].equalsIgnoreCase("leave")) return starting(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), a[2]);
             return List.of();
         }
+        if (sub.equals("populate")) return a.length == 2 ? starting(Stream.of("5", "10", "20"), a[1]) : List.of();
+        if (sub.equals("team")) {
+            if (a.length == 2) return starting(Stream.of("create", "add", "kick", "settle", "info", "list", "remove"), a[1]);
+            if (a.length == 3 && !a[1].equalsIgnoreCase("create")) return starting(plugin.towns().camps().stream().map(t -> t.name), a[2]);
+            if (a.length == 4) return starting(Stream.concat(Stream.concat(Stream.of("all"), plugin.players().all().stream().map(tp -> tp.name)), Bukkit.getOnlinePlayers().stream().map(Player::getName)), a[3]);
+            return List.of();
+        }
+        if (sub.equals("ai") && a.length >= 2 && a[1].equalsIgnoreCase("link")) {
+            if (a.length == 3) return starting(AiLink.PROVIDERS.stream(), a[2]);
+            return List.of();
+        }
         if (sub.equals("zone")) {
             if (a.length == 2) return starting(Stream.of("add", "list", "remove"), a[1]);
             if (a.length == 3 && a[1].equalsIgnoreCase("remove")) return starting(plugin.builder().zones().stream().map(Builder.Zone::name), a[2]);
@@ -585,11 +753,13 @@ final class TestPlayerCommand implements TabExecutor {
         }
         if (a.length == 2 && (TARGETED.contains(sub) || List.of("tp", "say", "info").contains(sub))) {
             Stream<String> names = plugin.players().all().stream().map(tp -> tp.name);
+            if (sub.equals("ai")) names = Stream.concat(Stream.of("link", "test"), names);
             return starting(TARGETED.contains(sub) ? Stream.concat(Stream.of("all"), names) : names, a[1]);
         }
         if (a.length == 3) {
             return switch (sub) {
-                case "spawn" -> starting(Stream.of("1", "10", "50", "100"), a[2]);
+                case "spawn" -> starting(Stream.of("1", "4", "10", "50", "100"), a[2]);
+                case "free" -> starting(plugin.towns().camps().stream().map(t -> t.name), a[2]);
                 case "move" -> starting(Stream.concat(Stream.of("here"), Bukkit.getOnlinePlayers().stream().map(Player::getName)), a[2]);
                 case "follow" -> starting(Bukkit.getOnlinePlayers().stream().map(Player::getName), a[2]);
                 case "walk" -> starting(Stream.of("north", "south", "east", "west", "north-east", "north-west", "south-east", "south-west"), a[2]);
@@ -603,7 +773,7 @@ final class TestPlayerCommand implements TabExecutor {
                 default -> List.of();
             };
         }
-        if (a.length == 4 && sub.equals("spawn")) return starting(Stream.of("idle", "wander", "walk"), a[3]);
+        if (a.length == 4 && sub.equals("spawn")) return starting(Stream.of("free", "team", "idle", "wander", "walk"), a[3]);
         if (a.length == 4 && sub.equals("build")) return starting(Builder.MATERIALS.stream(), a[3]);
         return List.of();
     }

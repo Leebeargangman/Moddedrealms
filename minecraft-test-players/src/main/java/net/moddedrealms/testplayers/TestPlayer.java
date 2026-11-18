@@ -52,6 +52,22 @@ final class TestPlayer {
     Float tripYaw;          // which way its next trip out goes (its AI said), or null for anywhere
     String crewOf;          // a guard escorting this explorer
     long greetedAt;         // last time it waved at a real player
+    // Free players (see Life): normal survival players with no town plan, solo or in a team
+    boolean free;           // lives like a normal player: its own base, its own plans
+    boolean buddy;          // sticks with the real players on its team while they're online
+    boolean auto;           // spawned by free.keep-online: plays for a while, logs off, comes back later
+    long sessionUntil;      // auto: when it logs off...
+    long backAt;            // ...and when it comes back
+    int food = 20;          // hunger, like a player's: it eats what it carries, and hunts or farms when it runs low
+    long hungerAt;
+    java.util.UUID prey;    // the animal it's hunting, or the monster it's fighting off
+    long preyUntil;
+    long hitAt;
+    long huntTryAt;         // last time hunger sent it looking for food             // last swing at it (a player can swing about every 0.6 s)
+    String[] pendingGive;   // {player, material, count}: walking over to hand a teammate something
+    long giveUntil;
+    Location seekBase;      // walking out to find a spot for its team's base
+    int seekTries;
     String thought = "";
     boolean thinking;
     long nextThinkAt;
@@ -104,6 +120,7 @@ final class TestPlayer {
 
     String doing() {
         // A citizen shows its errand ("on patrol", "harvesting wheat") rather than how it's moving.
+        if (prey != null) return buildStatus;
         if (town != null && mode != Mode.BUILD && mode != Mode.WORK && buildStatus != null && !buildStatus.equals("building")) return buildStatus;
         return switch (mode) {
             case IDLE -> "idle";
