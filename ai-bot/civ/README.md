@@ -1,0 +1,87 @@
+# Claude civilisation (AI villagers)
+
+Up to 20 Mineflayer bots live together on a Minecraft server and build a village. Each bot's "mind" is
+**Claude Haiku 5.5** (`claude-haiku-5-5`). The whole design is about keeping API costs low and measured.
+
+> **Status: Phase 1** — one bot, the AI decision loop, the JSON action system, and token/cost logging.
+> Coming next: Phase 2 (3 bots, task board, bot-to-bot chat, rate limiter, 30-minute test mode with a
+> 20-bot projection), Phase 3 (20 bots, roles, village, progression, world log), Phase 4 (17:30–20:30
+> UK schedule, saving/loading, dashboard on the website's Bots page, pm2, optional Sonnet leader),
+> later Phase 5 (recording/streaming the bots).
+
+## How it keeps costs down
+
+| Rule | Where in the code |
+|---|---|
+| **No timer-based thinking.** The AI is only asked when something happens: a task finished or failed, the bot was attacked, health/hunger got low, someone spoke to it, night fell / morning came, or it was idle for 2 minutes. Walking, mining, chopping, crafting, eating, fighting and fleeing are plain code. | `src/bot/civbot.js` (events and reflexes), `src/bot/skills.js` (actions) |
+| **Cooldown:** at least 20 s between calls per bot. Events that arrive in between are batched into the next call. | `src/bot/brain.js` |
+| **Short JSON output:** `max_tokens` 150, the reply is one small JSON object. Structured outputs make the API guarantee the JSON shape; we still validate every field and fall back to a safe default (never retry in a loop). Thinking is turned off. | `src/ai/actions.js`, `src/ai/client.js` |
+| **Prompt caching:** the long, unchanging rules (~1,000 tokens) are a system prompt marked `cache_control`. It is identical for every bot, so all bots share one cache entry and pay 10% for it. | `src/ai/prompts.js` |
+| **Small context:** a memory summary (rewritten every 10 decisions), the last 5 events and a compact state line. Never a chat history. A warning is logged if a request goes over 5,000 input tokens. | `src/bot/brain.js`, `src/bot/state.js` |
+| **Budget cap:** $3.00/day (UK day). At 80% every cooldown doubles; at 100% bots stop calling the AI and use plain-code behaviour (or log off) until tomorrow. | `src/ai/client.js` |
+| **Backoff:** on 429/529/overloaded/connection errors all AI calls pause, 5 s doubling up to 5 min. | `src/ai/client.js` |
+
+Every call is logged to `data/usage.db` (SQLite) with time, bot, model, input / cache-read / cache-write /
+output tokens and cost in USD, using the pricing table in `config.json`:
+
+| Model | Input | Cache write (5 min) | Cache read | Output |
+|---|---:|---:|---:|---:|
+| claude-haiku-5-5 (prompts ≤ 100K) | $0.10 | $0.125 | $0.01 | $0.50 |
+| claude-sonnet-5-5 | $2.00 | $2.50 | $0.10 | $10.00 |
+
+(Per million tokens. Cache writes cost 1.25× input for the 5-minute cache.)
+
+## Setup
+
+1. **Node.js 22.13 or newer** (`node -v`). On Debian/Ubuntu: `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && sudo apt install -y nodejs`.
+2. **A Minecraft Java server in offline mode** (so bots don't need Microsoft accounts): `online-mode=false`
+   in `server.properties`, and `max-players` above your bot count. Put its address, port and version in
+   `config.json` → `server`. Our test server is **AITest201** (Paper 1.21.11, port 25576) on the VPS.
+3. Install and add your key:
+   ```bash
+   cd ai-bot/civ
+   npm ci
+   cp .env.example .env        # then edit .env: ANTHROPIC_API_KEY=sk-ant-...
+   ```
+   `.env` is in `.gitignore`; the key is never logged.
+
+## Run it
+
+```bash
+npm run mock          # free test: fake AI replies, 5 minutes (checks movement, events and logging)
+npm run test-run      # Phase 1 test: real AI, 1 bot, stops after 10 minutes and writes the report
+node src/index.js     # run until Ctrl+C
+npm run report        # token/cost totals of the last sessions
+```
+
+Flags: `--bots N` (or `"botCount"` in config.json), `--minutes M`, `--mock`, `--host H`, `--port P`.
+
+While running, a summary prints every 5 minutes (calls, tokens, cost today, average per call, per bot,
+cache hit rate, projection for the session and for 20 bots). On exit the report is written to
+`data/reports/session-<time>.md` (and `.json`). Bot memories are kept in `data/memory/<name>.json`.
+
+### Reading the console
+
+```
+18:35:10 [Alder] decided craft oak_planks x4  [in 157+936r+0w out 13 $0.000032]
+```
+`in 157` = uncached input tokens, `936r` = read from the cache, `0w` = written to the cache,
+`out 13` = output tokens, then the cost of that one call.
+
+## Files
+
+```
+config.json           every setting: bot count, server, AI, pricing, budget, village, the 20 villagers
+src/index.js          starts the bots (staggered), prints summaries, stops cleanly, writes the report
+src/config.js         loads config.json, .env and command-line flags
+src/ai/client.js      the only code that calls the API: budget, backoff, caching, usage logging
+src/ai/prompts.js     the cached system prompt and the memory prompt
+src/ai/actions.js     the JSON action list, schema, validation and safe fallback
+src/ai/mock.js        fake replies for --mock
+src/bot/civbot.js     one villager: Mineflayer body, events, reflexes
+src/bot/brain.js      when to call the AI (events, cooldown, batching) and what to send
+src/bot/skills.js     how each action is done, in plain code
+src/bot/state.js      the compact state summary
+src/usage/ledger.js   SQLite log of every API call
+src/usage/report.js   summaries, projections and the session report
+```

@@ -1,0 +1,89 @@
+{
+  "botCount": 1,
+
+  "server": {
+    "host": "127.0.0.1",
+    "port": 25576,
+    "version": "1.21.11",
+    "loginDelayMs": 4000
+  },
+
+  "ai": {
+    "model": "claude-haiku-5-5",
+    "maxTokens": 150,
+    "effort": "low",
+    "structuredOutput": true,
+    "cooldownMs": 20000,
+    "idleMs": 120000,
+    "memoryEveryDecisions": 10,
+    "memoryMaxTokens": 400,
+    "recentEvents": 5,
+    "warnInputTokens": 5000,
+    "requestTimeoutMs": 30000,
+    "backoff": { "firstMs": 5000, "maxMs": 300000 }
+  },
+
+  "leader": {
+    "enabled": false,
+    "model": "claude-sonnet-5-5",
+    "everyMinutes": 15
+  },
+
+  "pricing": {
+    "_comment": "US dollars per million tokens. cacheWrite is the 5-minute cache write (1.25x input). Haiku 5.5 prices are for prompts up to 100K tokens.",
+    "claude-haiku-5-5": { "input": 0.10, "output": 0.50, "cacheRead": 0.01, "cacheWrite": 0.125 },
+    "claude-sonnet-5-5": { "input": 2.00, "output": 10.00, "cacheRead": 0.10, "cacheWrite": 2.50 }
+  },
+
+  "budget": {
+    "dailyUsd": 3.00,
+    "warnAtFraction": 0.8,
+    "onExhausted": "simple",
+    "timezone": "Europe/London"
+  },
+
+  "rateLimit": {
+    "requestsPerMinute": 40
+  },
+
+  "stats": {
+    "printEveryMinutes": 5,
+    "sessionMinutes": 180
+  },
+
+  "village": {
+    "_comment": "centre null = use the world spawn point. Set {\"x\":..,\"y\":..,\"z\":..} to pick a spot.",
+    "centre": null,
+    "radius": 48,
+    "chests": []
+  },
+
+  "chat": {
+    "hearRadius": 24,
+    "maxSayLength": 90,
+    "minSayGapMs": 8000
+  },
+
+  "bots": [
+    { "name": "Alder",  "role": "lumberjack", "personality": "calm and steady, loves forests, speaks in short plain sentences" },
+    { "name": "Brynn",  "role": "miner",      "personality": "brave and a little reckless, proud of every ore she finds" },
+    { "name": "Corwin", "role": "builder",    "personality": "careful planner, likes tidy straight walls and symmetry" },
+    { "name": "Dalia",  "role": "farmer",     "personality": "warm and patient, worries that everyone has eaten" },
+    { "name": "Edric",  "role": "guard",      "personality": "serious and protective, keeps watch at night" },
+    { "name": "Fenna",  "role": "trader",     "personality": "chatty and fair, always looking for a good swap" },
+    { "name": "Garrick","role": "explorer",   "personality": "curious and restless, wants to map everything" },
+    { "name": "Hazel",  "role": "farmer",     "personality": "cheerful early riser, likes animals" },
+    { "name": "Ivo",    "role": "miner",      "personality": "quiet and stubborn, digs straight down only when safe" },
+    { "name": "Juna",   "role": "builder",    "personality": "creative, likes decorating with flowers and lanterns" },
+    { "name": "Kestrel","role": "explorer",   "personality": "bold scout, reports what she finds to the village" },
+    { "name": "Linus",  "role": "lumberjack", "personality": "hard worker, replants every tree he cuts" },
+    { "name": "Mira",   "role": "trader",     "personality": "organised, keeps track of who needs what" },
+    { "name": "Nils",   "role": "guard",      "personality": "friendly but alert, jokes to keep spirits up" },
+    { "name": "Orla",   "role": "builder",    "personality": "ambitious, dreams of a great town hall" },
+    { "name": "Pim",    "role": "farmer",     "personality": "shy and gentle, prefers working alone in the fields" },
+    { "name": "Quill",  "role": "miner",      "personality": "methodical, counts every block and tool" },
+    { "name": "Rowan",  "role": "lumberjack", "personality": "strong and simple, happy helping anyone" },
+    { "name": "Sable",  "role": "guard",      "personality": "watchful and few words, trusts slowly" },
+    { "name": "Tamsin", "role": "explorer",   "personality": "optimistic adventurer, loves sunsets and caves" }
+  ]
+}
