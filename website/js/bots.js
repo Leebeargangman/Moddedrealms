@@ -1598,6 +1598,7 @@
       b.hidden = !m.online || (cmd === "civStart" && c.session.running) || (cmd === "civStop" && !c.session.running) ||
         (cmd === "civPause" && c.ai.paused) || (cmd === "civResume" && !c.ai.paused) || (cmd === "civStart" && !state.me.admin);
     });
+    $("[data-civ-reset-box]").hidden = !m.online || !state.me.admin;
 
     // Villagers
     var imp = {};
@@ -1830,6 +1831,23 @@
   });
   $("[data-civ-save-restart]").addEventListener("click", function () {
     saveCivSettings(true);
+  });
+
+  var RESET_TEXT = {
+    memories: "Reset every villager's memory? They forget what they learned, who hurt them and recent events, but keep their name, role and personality. The village, leaders, laws and buildings stay.",
+    everything: "Start a new village from scratch? This wipes memories, villagers (the original ones come back), leaders, laws, civilisations, the task board, chest and building records, the world log and the imposters. Settings and cost history are kept; built blocks stay in the world. A running session restarts.",
+  };
+  $$("[data-civ-reset]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var m = civHost();
+      var scope = b.getAttribute("data-civ-reset");
+      if (!m || !window.confirm(RESET_TEXT[scope])) return;
+      var out = $("[data-civ-result]");
+      out.textContent = "Resetting…";
+      command(m.name, "civReset", { scope: scope }, function (ev) {
+        out.textContent = (ev.ok ? "✓ " : "✗ ") + (ev.text || ev.error || "");
+      });
+    });
   });
 
   $("[data-civ-secrets]").addEventListener("change", renderCiv);

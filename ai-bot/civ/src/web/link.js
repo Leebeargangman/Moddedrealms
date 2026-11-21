@@ -14,6 +14,8 @@ import { snapshot } from "./status.js";
 import { setPaused } from "../ai/client.js";
 import { schedule } from "../schedule.js";
 import * as settings from "../settings.js";
+import { resetMemories, resetEverything } from "../village/reset.js";
+import { village } from "../village/village.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -56,6 +58,19 @@ export function connectWebsite(control) {
       else if (cmd.command === "civStop") r = await control.endSession(`stopped from the website by ${cmd.staff?.name || "staff"}`);
       else if (cmd.command === "civPause") { setPaused(true); r = { ok: true, detail: "AI paused: villagers use plain-code behaviour, no API calls" }; }
       else if (cmd.command === "civResume") { setPaused(false); r = { ok: true, detail: "AI resumed" }; }
+      else if (cmd.command === "civReset") {
+        // "memories": live, the session keeps running. "everything": end the session, wipe, start again.
+        if (cmd.args?.scope === "everything") {
+          const s = control.getSession();
+          if (s) {
+            r = await control.restartSession(`new village started by ${cmd.staff?.name || "staff"}`,
+              s.reason === "schedule" ? "schedule" : `new village started by ${cmd.staff?.name || "staff"}`,
+              s.reason === "schedule" ? null : schedule().manualMinutes, () => resetEverything());
+          } else r = resetEverything();
+        } else {
+          r = resetMemories([...village.bots.values()]);
+        }
+      }
       else if (cmd.command === "civSettings") {
         r = settings.save(cmd.args || {});
         // "Save and restart": apply villagers/civilisations/instructions right away.

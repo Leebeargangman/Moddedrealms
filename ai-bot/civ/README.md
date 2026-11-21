@@ -28,6 +28,12 @@ cost almost nothing per call). The card shows the estimated cost per session, we
 real cost per villager-minute of your last sessions. "Save" applies the schedule and budget at once and
 the rest at the next session; "Save and restart the session" applies everything now.
 
+**Resetting the AI** (Session card → "Reset the AI", admins): *Reset memories* makes every villager forget
+what it learned (memory summary, grudges, recent events) but keeps the village; *Start a new village*
+wipes the whole game (villagers, leaders, laws, civilisations, board, chests, buildings, world log,
+imposters) but keeps the settings and cost history. Both save a backup first in `data/backups/<time>/`
+(copy `civ.db` and `memory/` back to undo). Blocks built in the Minecraft world stay.
+
 ## The game (built in Phase 3)
 
 - **Goal:** the villagers build a civilisation together: village, homes, farms, roles, trade.
@@ -161,6 +167,7 @@ src/schedule.js       the daily window in UK time
 src/settings.js       settings changed on the website (mode, villagers, schedule, budget, instructions)
 src/village/factions.js civilisations founded by villagers (Free for all), relations
 src/usage/costmodel.js cost per villager-minute measured from past sessions
+src/village/reset.js  reset memories / start a new village (with a backup first)
 src/web/status.js     the village snapshot (website + local status page)
 src/web/link.js       link to the website's Bots page (snapshot, staff commands)
 src/ai/leader.js      the optional elder AI
