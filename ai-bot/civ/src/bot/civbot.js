@@ -54,6 +54,7 @@ export class CivBot {
 
     bot.once("spawn", () => this.onFirstSpawn());
     bot.on("chat", (username, message) => this.onChat(username, message));
+    bot.on("whisper", (username, message) => this.onWhisper(username, message));
     // On 1.20+ the server says who caused the damage (the shooter for arrows), so no guessing.
     bot.on("entityHurt", (entity, source) => { if (entity === bot.entity) this.onHurt(source); });
     bot.on("health", () => this.onHealth());
@@ -176,6 +177,21 @@ export class CivBot {
     }
   }
 
+  /** A private /msg to us. Only we heard it. */
+  onWhisper(username, message) {
+    if (!this.ready || username === this.def.name) return;
+    const villager = isVillager(username);
+    const text = `${username} (${villager ? "villager" : "player, not a villager"}) WHISPERED to you (private, nobody else heard): "${message.slice(0, 120)}"`;
+    // Whispers are meant for us, so they wake us; from villagers at most 3 times in 5 minutes.
+    this.whisperWakes = (this.whisperWakes || []).filter((t) => Date.now() - t < 300000);
+    if (!villager || this.whisperWakes.length < 3) {
+      this.whisperWakes.push(Date.now());
+      this.brain.notify(text, "whisper");
+    } else {
+      this.brain.note(text, "whisper");
+    }
+  }
+
   onHurt(source) {
     const bot = this.bot;
     const me = bot.entity.position;
@@ -283,6 +299,18 @@ export class CivBot {
   /** Start doing an action. `reflex` = started by code (not the AI): it doesn't wake the brain when done. */
   perform(action, reflex = false) {
     if (!this.ready) return;
+    if (action.action === "whisper") {
+      // A private message via /msg (mineflayer sends "/tell name text"). The command is always built
+      // here in code; the AI's text is cleaned like chat (cleanSay: no "/" at the start, one line).
+      const name = Object.keys(this.bot.players).find((n) => n.toLowerCase() === String(action.target).toLowerCase());
+      if (!name || name === this.def.name) return this.brain.notify(`I couldn't whisper to ${action.target}: they are not online.`, "task");
+      if (Date.now() - (this.lastWhisper || 0) < config.chat.minSayGapMs) return; // same spam limit as chat
+      this.lastWhisper = Date.now();
+      this.bot.whisper(name, action.say);
+      log.info(this.def.name, `whispered to ${name}: ${action.say}`);
+      const note = `I whispered to ${name}: "${action.say}"`;
+      return this.currentTask ? this.brain.note(note, "whisper") : this.brain.notify(note, "whisper");
+    }
     this.say(action.say);
     if (action.action === "continue" || action.action === "chat") {
       if (!this.currentTask) this.lastActivity = Date.now();

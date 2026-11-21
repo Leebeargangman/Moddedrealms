@@ -158,7 +158,7 @@ export class Brain {
       batch.forEach((e) => { e.seen = true; });
 
       // What woke us: the most important new event (attacked beats chat beats task results...).
-      const order = ["attacked", "witness", "health", "death", "clue", "chat-player", "chat-villager", "society", "news", "task", "board", "night", "morning", "arrived", "idle", "other"];
+      const order = ["attacked", "witness", "health", "death", "clue", "chat-player", "whisper", "chat-villager", "society", "news", "task", "board", "night", "morning", "arrived", "idle", "other"];
       const wake = batch.map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
       const imp = this.imposter;
       const res = await ask({ bot: this.name, kind: "decide", system: imp ? IMPOSTER_BLOCKS : SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : ACTION_SCHEMA, trigger: wake });

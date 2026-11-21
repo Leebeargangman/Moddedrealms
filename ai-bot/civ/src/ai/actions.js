@@ -19,6 +19,7 @@ export const ACTIONS = [
   "flee",     // run away from nearby danger
   "sleep",    // sleep in a nearby bed (only works at night)
   "chat",     // only talk (put the message in "say")
+  "whisper",  // a private /msg to one person: target = their name, the message in "say"
   "post",     // put a job on the village task board: target = "gather oak_log" / "craft stone_pickaxe" / "explore", amount
   "claim",    // take a job from the task board and do it: target = the job number, e.g. "4"
   "deposit",  // put things in the village chests: target = item name, "wood" or "all"
@@ -41,7 +42,7 @@ export const IMPOSTER_ACTIONS = [...ACTIONS, "kill"]; // kill: secretly attack a
 // Words the AI sometimes uses instead of the real action names.
 const ALIASES = { mine: "gather", chop: "gather", collect: "gather", dig: "gather", walk: "goto", move: "goto",
   go: "goto", talk: "chat", say: "chat", fight: "attack", run: "flee", rest: "wait", idle: "wait", wander: "explore",
-  store: "deposit", put: "deposit", take: "withdraw", shelter: "hide", elect: "vote", banish: "exile" };
+  msg: "whisper", tell: "whisper", dm: "whisper", store: "deposit", put: "deposit", take: "withdraw", shelter: "hide", elect: "vote", banish: "exile" };
 
 // The JSON schema sent with each request (structured outputs), so the API itself guarantees valid JSON.
 const schemaFor = (actions) => ({
@@ -61,8 +62,8 @@ export const IMPOSTER_SCHEMA = schemaFor(IMPOSTER_ACTIONS);
 
 const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30, withdraw: 16, give: 1 };
 // Which actions use a target / an amount (anything else the AI sends for them is dropped).
-const USES_TARGET = new Set(["gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
-const NEEDS_TARGET = new Set(["post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
+const USES_TARGET = new Set(["whisper", "gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
+const NEEDS_TARGET = new Set(["whisper", "post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
 
 /**
  * Parse and check the AI's reply. Returns { ok: true, action } or { ok: false, error }.
@@ -100,7 +101,7 @@ export function parseAction(text, { imposter = false } = {}) {
     if (t) action.text = t;
   }
   if ((name === "sign" || name === "write") && !action.text) return { ok: false, error: `${name} without text` };
-  if (name === "chat" && !action.say) return { ok: false, error: "chat without a message" };
+  if ((name === "chat" || name === "whisper") && !action.say) return { ok: false, error: `${name} without a message` };
   if (NEEDS_TARGET.has(name) && !action.target) return { ok: false, error: `${name} without a target` };
   if (name === "claim") action.target = action.target.replace(/[^0-9]/g, "");
   return { ok: true, action };
