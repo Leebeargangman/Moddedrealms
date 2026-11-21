@@ -1,0 +1,141 @@
+{
+  "botCount": 20,
+
+  "server": {
+    "host": "127.0.0.1",
+    "port": 25576,
+    "version": "1.21.11",
+    "loginDelayMs": 4000,
+    "_spawnProtectionComment": "Same as spawn-protection in the server's server.properties (0 = off). Non-op players can't break or place blocks this close to the world spawn, so the bots avoid digging there.",
+    "spawnProtection": 0,
+    "_viewDistanceComment": "Chunks each bot loads around it. Lower = much less CPU for many bots.",
+    "viewDistance": 4
+  },
+
+  "ai": {
+    "_providerComment": "auto = use Claude if ANTHROPIC_API_KEY is in .env, otherwise OpenAI if OPENAI_API_KEY is. Or set \"anthropic\" / \"openai\".",
+    "provider": "auto",
+    "model": "claude-haiku-5-5",
+    "openaiModel": "gpt-6-luna",
+    "openaiReasoningEffort": "none",
+    "_maxTokensComment": "A cap, not a charge: you pay for the tokens actually written. Most replies are ~40 tokens; a book can need ~250.",
+    "maxTokens": 300,
+    "effort": "low",
+    "structuredOutput": true,
+    "cooldownMs": 20000,
+    "idleMs": 120000,
+    "memoryEveryDecisions": 10,
+    "memoryMaxTokens": 400,
+    "recentEvents": 5,
+    "warnInputTokens": 5000,
+    "requestTimeoutMs": 30000,
+    "backoff": { "firstMs": 5000, "maxMs": 300000 }
+  },
+
+  "_imposterComment": "2 secret imposters, chosen once at least minVillagers are alive. They may kill when a kill window is open (every killEveryDays Minecraft days, the first firstKillAfterDays after they were chosen; up to killsPerWindow kills), and only with nobody within witnessRadius blocks. Villagers within seeRadius of a death see it.",
+  "imposters": {
+    "count": 2,
+    "minVillagers": 6,
+    "firstKillAfterDays": 2,
+    "killEveryDays": 3,
+    "killsPerWindow": 2,
+    "witnessRadius": 20,
+    "seeRadius": 16
+  },
+
+  "_societyComment": "Elections start when there is no leader or the term (in Minecraft days) is over; they close when all voted or after electionMinutes real minutes.",
+  "society": {
+    "leaderTermDays": 5,
+    "electionMinutes": 4,
+    "maxLaws": 6
+  },
+
+  "_leaderComment": "Optional elder AI (off by default): every everyMinutes during a session one bigger model reads a village summary, writes a short plan shown to every villager and posts up to 3 jobs. Roughly $0.005 a call with Sonnet (about $0.06 a 3-hour session). openaiModel is used when the provider is OpenAI.",
+  "leader": {
+    "enabled": false,
+    "model": "claude-sonnet-5-5",
+    "openaiModel": "gpt-5.4-mini",
+    "everyMinutes": 15
+  },
+
+  "pricing": {
+    "_comment": "US dollars per million tokens. cacheWrite is the 5-minute cache write (1.25x input). Haiku 5.5 prices are for prompts up to 100K tokens. OpenAI prices from developers.openai.com/api/docs/pricing (Nov 2026).",
+    "claude-haiku-5-5": { "input": 0.10, "output": 0.50, "cacheRead": 0.01, "cacheWrite": 0.125 },
+    "claude-sonnet-5-5": { "input": 2.00, "output": 10.00, "cacheRead": 0.10, "cacheWrite": 2.50 },
+    "gpt-6-luna":        { "input": 0.10, "output": 0.50, "cacheRead": 0.01, "cacheWrite": 0.125 },
+    "gpt-5.4-nano":      { "input": 0.20, "output": 1.25, "cacheRead": 0.02, "cacheWrite": 0.20 },
+    "gpt-4o-mini":       { "input": 0.15, "output": 0.60, "cacheRead": 0.075, "cacheWrite": 0.15 },
+    "gpt-5.4-mini":      { "input": 0.75, "output": 4.50, "cacheRead": 0.075, "cacheWrite": 0.75 }
+  },
+
+  "budget": {
+    "dailyUsd": 3.00,
+    "warnAtFraction": 0.8,
+    "onExhausted": "simple",
+    "timezone": "Europe/London"
+  },
+
+  "rateLimit": {
+    "requestsPerMinute": 40
+  },
+
+  "_scheduleComment": "With --scheduled (pm2), a session runs every day from start to end, UK time (summer time handled). manualMinutes = how long a session started from the website runs outside the window.",
+  "schedule": {
+    "timezone": "Europe/London",
+    "start": "17:30",
+    "end": "20:30",
+    "days": [0, 1, 2, 3, 4, 5, 6],
+    "manualMinutes": 60
+  },
+
+  "_websiteComment": "Live status on the website's Bots page. url/key are read from ../manager/manager.json (the existing bot manager's website link) unless set here or in .env (CIV_WEBSITE_URL, BOT_MANAGER_KEY).",
+  "website": {
+    "enabled": true,
+    "managerName": "civ",
+    "managerConfig": "../manager/manager.json",
+    "statusPort": 3100
+  },
+
+  "stats": {
+    "printEveryMinutes": 5,
+    "sessionMinutes": 180
+  },
+
+  "village": {
+    "_comment": "centre null = use the world spawn point. Set {\"x\":..,\"y\":..,\"z\":..} to pick a spot.",
+    "centre": null,
+    "radius": 48,
+    "newcomerDelayMinutes": 2
+  },
+
+  "chat": {
+    "hearRadius": 24,
+    "maxSayLength": 90,
+    "minSayGapMs": 8000,
+    "_villagerWakesComment": "Another villager's chat only wakes a bot (= one AI call) when it says the bot's name, at most villagerWakesPer5Min times in 5 minutes. Other villager chat is just remembered for the bot's next call. Players' chat always wakes it.",
+    "villagerWakesPer5Min": 2
+  },
+
+  "bots": [
+    { "name": "Alder",  "role": "lumberjack", "personality": "calm and steady, loves forests, speaks in short plain sentences" },
+    { "name": "Brynn",  "role": "miner",      "personality": "brave and a little reckless, proud of every ore she finds" },
+    { "name": "Corwin", "role": "builder",    "personality": "careful planner, likes tidy straight walls and symmetry" },
+    { "name": "Dalia",  "role": "farmer",     "personality": "warm and patient, worries that everyone has eaten" },
+    { "name": "Edric",  "role": "guard",      "personality": "serious and protective, keeps watch at night" },
+    { "name": "Fenna",  "role": "trader",     "personality": "chatty and fair, always looking for a good swap" },
+    { "name": "Garrick","role": "explorer",   "personality": "curious and restless, wants to map everything" },
+    { "name": "Hazel",  "role": "farmer",     "personality": "cheerful early riser, likes animals" },
+    { "name": "Ivo",    "role": "miner",      "personality": "quiet and stubborn, digs straight down only when safe" },
+    { "name": "Juna",   "role": "builder",    "personality": "creative, likes decorating with flowers and lanterns" },
+    { "name": "Kestrel","role": "explorer",   "personality": "bold scout, reports what she finds to the village" },
+    { "name": "Linus",  "role": "lumberjack", "personality": "hard worker, replants every tree he cuts" },
+    { "name": "Mira",   "role": "trader",     "personality": "organised, keeps track of who needs what" },
+    { "name": "Nils",   "role": "guard",      "personality": "friendly but alert, jokes to keep spirits up" },
+    { "name": "Orla",   "role": "builder",    "personality": "ambitious, dreams of a great town hall" },
+    { "name": "Pim",    "role": "farmer",     "personality": "shy and gentle, prefers working alone in the fields" },
+    { "name": "Quill",  "role": "miner",      "personality": "methodical, counts every block and tool" },
+    { "name": "Rowan",  "role": "lumberjack", "personality": "strong and simple, happy helping anyone" },
+    { "name": "Sable",  "role": "guard",      "personality": "watchful and few words, trusts slowly" },
+    { "name": "Tamsin", "role": "explorer",   "personality": "optimistic adventurer, loves sunsets and caves" }
+  ]
+}

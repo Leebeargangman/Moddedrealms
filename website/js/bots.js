@@ -62,7 +62,8 @@
         return state.managers[k];
       })
       .filter(function (m) {
-        return m.snapshot;
+        // The AI civilisation has its own tab; the bot/team/crowd parts only see normal bot hosts.
+        return m.snapshot && m.snapshot.kind !== "civ";
       });
   }
 
@@ -195,6 +196,7 @@
     renderConnectors();
     renderHosts();
     renderTestPlayers();
+    renderCiv();
   }
 
   /** No host connected: say which ones are off and how to start one. */
@@ -1507,6 +1509,183 @@
     modal.close();
   });
 
+  /* ---------- Tabs ---------- */
+
+  function showTab(name) {
+    $$("[data-tab]").forEach(function (t) {
+      t.setAttribute("aria-selected", t.getAttribute("data-tab") === name ? "true" : "false");
+    });
+    $$("[data-panel]").forEach(function (p) {
+      p.hidden = p.getAttribute("data-panel") !== name;
+    });
+    try {
+      localStorage.setItem("botsTab", name);
+    } catch (e) {
+      /* private window: fine */
+    }
+  }
+  $$("[data-tab]").forEach(function (t) {
+    t.addEventListener("click", function () {
+      showTab(t.getAttribute("data-tab"));
+    });
+  });
+
+  /* ---------- AI civilisation (ai-bot/civ) ---------- */
+
+  function civHost() {
+    return Object.keys(state.managers)
+      .map(function (k) {
+        return state.managers[k];
+      })
+      .filter(function (m) {
+        return m.snapshot && m.snapshot.kind === "civ";
+      })[0];
+  }
+
+  function ago(ms) {
+    var s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 90) return s + " s ago";
+    if (s < 5400) return Math.round(s / 60) + " min ago";
+    return Math.round(s / 3600) + " h ago";
+  }
+
+  function clock(ms) {
+    return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function money(n) {
+    return "$" + (n || 0).toFixed(n < 1 ? 3 : 2);
+  }
+
+  function listInto(node, items, make) {
+    node.textContent = "";
+    if (!items.length) node.appendChild(el("li", "muted small", "Nothing yet."));
+    items.forEach(function (it) {
+      node.appendChild(make(it));
+    });
+  }
+
+  function renderCiv() {
+    var m = civHost();
+    $("[data-civ-empty]").hidden = !!m;
+    $("[data-civ]").hidden = !m;
+    if (!m) return;
+    var c = m.snapshot.civ;
+    var secrets = $("[data-civ-secrets]").checked;
+    var online = c.villagers.filter(function (v) {
+      return v.online;
+    }).length;
+    $('[data-civ-stat="alive"]').textContent = c.villagers.length;
+    $('[data-civ-stat="online"]').textContent = m.online ? online : 0;
+    $('[data-civ-stat="day"]').textContent = c.day === null || c.day === undefined ? "-" : c.day;
+    $('[data-civ-stat="cost"]').textContent = money(c.ai.spentToday);
+
+    // Session and schedule
+    var tagBox = $("[data-civ-session-tag]");
+    tagBox.textContent = "";
+    tagBox.appendChild(!m.online ? tag("program offline", "grey") : c.session.running ? tag(c.ai.paused ? "running, AI paused" : "running", c.ai.paused ? "yellow" : "green") : tag("waiting", "grey"));
+    var lines = [];
+    if (!m.online) lines.push("The villagers' program isn't connected (last seen " + ago(m.lastSeen || Date.now()) + ").");
+    else if (c.session.running) {
+      lines.push("Session started " + ago(c.session.started) + " (" + c.session.reason + ")" + (c.session.endsAt ? ", ends " + clock(c.session.endsAt) : "") + ".");
+    } else lines.push("No session running.");
+    lines.push("Daily schedule: " + c.schedule.window + " " + c.schedule.timezone + (c.schedule.enabled ? "" : " (schedule off: started by hand)") + (c.schedule.nextStart && !c.session.running ? ", next " + clock(c.schedule.nextStart) : "") + ".");
+    if (c.lag) lines.push("Bot lag: " + Math.round(c.lag.p99) + " ms (p99)" + (c.lag.p99 > 150 ? ": jerky" : "") + ".");
+    $("[data-civ-session]").textContent = lines.join(" ");
+    $$("[data-civ-cmd]").forEach(function (b) {
+      var cmd = b.getAttribute("data-civ-cmd");
+      b.hidden = !m.online || (cmd === "civStart" && c.session.running) || (cmd === "civStop" && !c.session.running) ||
+        (cmd === "civPause" && c.ai.paused) || (cmd === "civResume" && !c.ai.paused) || (cmd === "civStart" && !state.me.admin);
+    });
+
+    // Villagers
+    var imp = {};
+    (c.secret.imposters || []).forEach(function (i) {
+      imp[i.name] = true;
+    });
+    var table = $("[data-civ-villagers]");
+    table.textContent = "";
+    var head = el("tr");
+    ["Name", "Role", "Health", "Doing", "Last said"].forEach(function (h) {
+      head.appendChild(el("th", null, h));
+    });
+    table.appendChild(head);
+    c.villagers.forEach(function (v) {
+      var tr = el("tr", v.online ? "" : "civ-offline");
+      var name = el("td");
+      name.appendChild(el("b", null, v.name));
+      if (v.leader) name.appendChild(tag("leader", "green"));
+      if (secrets && imp[v.name]) name.appendChild(tag("imposter", "red"));
+      name.title = v.personality;
+      tr.appendChild(name);
+      tr.appendChild(el("td", null, v.role));
+      tr.appendChild(el("td", null, v.online ? v.health + " hp, " + v.food + " food" : "offline"));
+      tr.appendChild(el("td", "small", v.task || (v.online ? "thinking" : "")));
+      tr.appendChild(el("td", "small muted", v.lastSaid || ""));
+      table.appendChild(tr);
+    });
+    $("[data-civ-gone]").textContent = c.gone.length ? "Gone for good: " + c.gone.map(function (g) {
+      return g.name + " (" + g.status + ")";
+    }).join(", ") : "";
+
+    // News, leader, laws, buildings, board, chests, AI use
+    listInto($("[data-civ-news]"), c.news.slice().reverse(), function (n) {
+      var li = el("li");
+      li.appendChild(el("span", "muted small", (n.day !== null && n.day !== undefined ? "Day " + n.day + " · " : "") + ago(n.at) + " "));
+      li.appendChild(document.createTextNode(n.text));
+      return li;
+    });
+    $("[data-civ-leader]").textContent = c.leader ? c.leader.name + " leads the village (since day " + c.leader.since_day + ")" + (c.election ? ". An election is on: " + c.election.votes + " votes so far." : ".") : c.election ? "Election in progress: " + c.election.votes + " votes so far." : "No leader yet.";
+    listInto($("[data-civ-laws]"), c.laws, function (l) {
+      return el("li", null, l);
+    });
+    listInto($("[data-civ-buildings]"), c.buildings.slice().reverse(), function (b) {
+      return el("li", null, b.blueprint + " at " + b.x + ", " + b.z + " · " + (b.status === "done" ? "done" : b.placed + "/" + b.total + " blocks") + (b.builder ? " · " + b.builder : ""));
+    });
+    listInto($("[data-civ-board]"), c.board, function (j) {
+      return el("li", null, "#" + j.id + " " + [j.action, j.target, j.amount ? "x" + j.amount : ""].join(" ").trim() + " · " + (j.status === "open" ? "open" : "taken by " + j.claimed_by));
+    });
+    var chests = Object.keys(c.chests).sort(function (a, b) {
+      return c.chests[b] - c.chests[a];
+    });
+    $("[data-civ-chests]").textContent = chests.length ? chests.slice(0, 14).map(function (k) {
+      return k.replace(/_/g, " ") + " " + c.chests[k];
+    }).join(", ") : "Empty, or no chest yet.";
+    var ai = c.ai.model + " (" + c.ai.provider + ")" + (c.ai.mock ? ", mock" : "") + ". Today " + money(c.ai.spentToday) + " of " + money(c.ai.budget) + " (" + c.ai.callsToday + " calls).";
+    if (c.stats) ai += " This session: " + c.stats.calls + " calls, " + money(c.stats.cost) + ", " + Math.round(c.stats.cacheHitRate * 100) + "% from cache; 3 h with 20 villagers would cost about " + money(c.stats.projected20Bots) + ".";
+    $("[data-civ-ai]").textContent = ai;
+
+    // Secrets (hidden unless switched on: streams and screenshots shouldn't spoil the game)
+    $("[data-civ-secret-card]").hidden = !secrets;
+    if (secrets) {
+      var w = c.secret.killWindow || {};
+      $("[data-civ-secret-summary]").textContent = "Imposters: " + ((c.secret.imposters || []).map(function (i) {
+        return i.name + " (" + i.status + ")";
+      }).join(", ") || "not chosen yet") + ". Kill window: " + (w.open ? "open, " + w.killsLeft + " left today" : "closed, next on day " + w.opensDay) + ".";
+      listInto($("[data-civ-secret-log]"), c.secret.log.slice().reverse(), function (n) {
+        var li = el("li");
+        li.appendChild(el("span", "muted small", (n.day !== null && n.day !== undefined ? "Day " + n.day + " · " : "") + ago(n.at) + " "));
+        li.appendChild(document.createTextNode(n.text));
+        return li;
+      });
+    }
+  }
+
+  $("[data-civ-secrets]").addEventListener("change", renderCiv);
+  $$("[data-civ-cmd]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var m = civHost();
+      if (!m) return;
+      var cmd = b.getAttribute("data-civ-cmd");
+      if (cmd === "civStart" && !window.confirm("Start a session now? It uses API credit (about 30p an hour with 20 villagers).")) return;
+      var out = $("[data-civ-result]");
+      out.textContent = "Sending…";
+      command(m.name, cmd, {}, function (ev) {
+        out.textContent = (ev.ok ? "✓ " : "✗ ") + (ev.text || ev.error || "");
+      });
+    });
+  });
+
   /* ---------- Start ---------- */
 
   MR.me().then(function (info) {
@@ -1516,6 +1695,13 @@
       return;
     }
     $("[data-dashboard]").hidden = false;
+    var saved = "bots";
+    try {
+      saved = localStorage.getItem("botsTab") || "bots";
+    } catch (e) {
+      /* private window */
+    }
+    showTab(saved);
     load().then(function () {
       renderBuilds();
       connectStream();

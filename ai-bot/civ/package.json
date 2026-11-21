@@ -1,0 +1,27 @@
+{
+  "name": "moddedrealms-claude-civ",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI civilisation: Mineflayer bots that each think with Claude Haiku, built to keep API costs low and measured",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test-run": "node src/index.js --minutes 10",
+    "mock": "node src/index.js --mock --minutes 5",
+    "test-mode": "node src/index.js --bots 3 --minutes 30",
+    "test-mode-mock": "node src/index.js --bots 3 --minutes 30 --mock",
+    "report": "node src/usage/report.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "mineflayer": "^4.39.0",
+    "mineflayer-collectblock": "^1.6.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "openai": "^7.62.0",
+    "prismarine-schematic": "^1.3.0",
+    "vec3": "^0.2.0"
+  }
+}
