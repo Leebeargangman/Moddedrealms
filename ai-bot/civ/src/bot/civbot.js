@@ -163,11 +163,12 @@ export class CivBot {
     const villager = isVillager(username);
     const text = `${username} (${villager ? "villager" : "player, not a villager"}) says: "${message.slice(0, 120)}"`;
     if (!villager) return this.brain.notify(text, "chat-player");
-    // Villagers talking to each other could ping-pong forever (each line = an AI call). So another
-    // villager's chat wakes this bot at most chat.villagerWakesPer5Min times in 5 minutes, and only if it
-    // named us or we are idle; otherwise it is just remembered for the next call.
+    // Villagers talking to each other could ping-pong forever (each line = an AI call, and one line is
+    // heard by everyone within 24 blocks). So another villager's chat only wakes this bot if it says our
+    // name, at most chat.villagerWakesPer5Min times in 5 minutes. Everything else is remembered and seen
+    // at the bot's next call anyway (it was 72% of all calls with 20 bots before this rule).
     this.chatWakes = (this.chatWakes || []).filter((t) => Date.now() - t < 300000);
-    if ((named || !this.currentTask) && this.chatWakes.length < config.chat.villagerWakesPer5Min) {
+    if (named && this.chatWakes.length < config.chat.villagerWakesPer5Min) {
       this.chatWakes.push(Date.now());
       this.brain.notify(text, "chat-villager");
     } else {
