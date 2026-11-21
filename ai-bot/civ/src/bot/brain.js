@@ -193,6 +193,7 @@ export class Brain {
       }
       this.decisions++;
       this.body.perform(action);
+      if (!this.body.currentTask) this.body.autopilot(); // e.g. chat, vote or an instant failure: keep busy meanwhile
 
       if (res.text && this.decisions % config.ai.memoryEveryDecisions === 0) this.updateMemory(); // runs alongside, not awaited
     } catch (e) {

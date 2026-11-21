@@ -21,6 +21,7 @@ function itemTest(target) {
   if (["wood", "log", "logs"].includes(t)) return (n) => n.endsWith("_log");
   if (t === "planks") return (n) => n.endsWith("_planks");
   if (t === "stone") return (n) => n === "cobblestone" || n === "stone";
+  if (["food", "meat"].includes(t)) return (n) => FOOD_ITEMS.includes(n);
   return (n) => n === t;
 }
 
@@ -77,7 +78,9 @@ async function openChest(bot, ch) {
 async function deposit(bot, a, task, ctx) {
   const test = itemTest(a.target);
   const items = bot.inventory.items().filter((it) => test(it.name));
-  if (!items.length) return { ok: false, detail: `I have no ${a.target || "spare items"} to put away` };
+  if (!items.length) {
+    return { ok: false, detail: (a.target || "all") === "all" ? "nothing spare to put away (tools, food and beds are kept): go gather, build or help instead" : `I carry no ${a.target} to put away` };
+  }
   let list = liveChests(bot);
   if (!list.length) {
     const made = await placeNewChest(bot, ctx);
@@ -109,7 +112,11 @@ async function withdraw(bot, a, task) {
   const test = itemTest(a.target);
   const want = a.amount ?? 16;
   const list = liveChests(bot).filter((ch) => Object.keys(ch.contents).some(test));
-  if (!list.length) return { ok: false, detail: `the village chests have no ${a.target}` };
+  if (!list.length) {
+    const t = Object.entries(chests.totals()).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([n, c]) => `${n} ${c}`).join(", ");
+    const food = a.target && /food|bread|beef|pork|chicken|mutton|apple|potato|carrot/.test(a.target) ? " Nobody has stored food yet: hunt animals (attack cow/pig/chicken/sheep) or pick sweet_berries." : "";
+    return { ok: false, detail: `the village chests have no ${a.target} (they have: ${t || "nothing"}).${food}` };
+  }
   let got = 0;
   for (const ch of list) {
     if (task.cancelled || got >= want) break;

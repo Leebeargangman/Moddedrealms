@@ -470,7 +470,11 @@ export async function attack(bot, a, task, ctx = {}) {
   }
   bot.pathfinder.setGoal(null);
   if (bot.health <= 6) return { ok: false, detail: `stopped fighting ${mob.name}: too hurt` };
-  return { ok: !bot.entities[mob.id], detail: bot.entities[mob.id] ? `${mob.name} got away` : `killed ${mob.name}` };
+  if (bot.entities[mob.id]) return { ok: false, detail: `${mob.name} got away` };
+  // Walk over the drops (meat, leather, feathers, wool...) so they are picked up.
+  const at = mob.position.clone();
+  try { await walkTo(bot, new goals.GoalNear(at.x, at.y, at.z, 0.5), 8000); await sleep(800); } catch { /* drops may be lost */ }
+  return { ok: true, detail: `killed ${mob.name}` };
 }
 
 // ----------------------------------------------------------------------------------------------

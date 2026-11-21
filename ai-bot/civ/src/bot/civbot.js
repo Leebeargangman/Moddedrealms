@@ -296,8 +296,29 @@ export class CivBot {
     this.bot.chat(text);
   }
 
+  /**
+   * Keep busy (plain code, no AI call): when the bot has had nothing to do for a few seconds, for example
+   * because its last action failed at once and the next AI call is still in cooldown, do something useful
+   * instead of standing still. Whatever the AI decides next simply replaces it.
+   */
+  autopilot() {
+    clearTimeout(this.autoTimer);
+    this.autoTimer = setTimeout(() => {
+      if (!this.ready || this.currentTask || this.stopping) return;
+      const { facts } = this.snapshot();
+      const hasMeatNearby = Object.values(this.bot.entities).some((e) => ["cow", "pig", "chicken", "sheep"].includes(e.name) && e.position?.distanceTo(this.bot.entity.position) < 24);
+      let a;
+      if (facts.food <= 14 && facts.hasFood) a = { action: "eat" };
+      else if (facts.isNight) a = facts.bedNear ? { action: "sleep" } : { action: "hide" };
+      else if (facts.food <= 12 && hasMeatNearby) a = { action: "attack", target: ["cow", "pig", "chicken", "sheep"].find((n) => Object.values(this.bot.entities).some((e) => e.name === n && e.position?.distanceTo(this.bot.entity.position) < 24)) };
+      else a = { action: "gather", target: "wood", amount: 8 };
+      log.info(this.def.name, `keeping busy while the AI waits: ${describe(a)}`);
+      this.perform(a, true, { quiet: true });
+    }, 4000);
+  }
+
   /** Start doing an action. `reflex` = started by code (not the AI): it doesn't wake the brain when done. */
-  perform(action, reflex = false) {
+  perform(action, reflex = false, { quiet = false } = {}) {
     if (!this.ready) return;
     if (action.action === "whisper") {
       // A private message via /msg (mineflayer sends "/tell name text"). The command is always built
@@ -384,7 +405,12 @@ export class CivBot {
         if (action.boardId) board.finish(action.boardId, result.ok, result.detail);
         log.info(this.def.name, `${verb.toLowerCase()}: ${describe(action)} -> ${result.detail}`);
         const job = action.boardId ? ` [job #${action.boardId} ${result.ok ? "done" : "back on the board"}]` : "";
-        if (!reflex || !result.ok) this.brain.notify(`${verb}: ${describe(action)} (${result.detail})${job}`, "task");
+        // quiet = busywork from autopilot(): remembered, but never worth an AI call on its own.
+        // (but if the AI hasn't decided anything for idleMs, let this result wake it so the bot gets a real plan.)
+        if (quiet && Date.now() - this.brain.lastCall < config.ai.idleMs) this.brain.note(`${verb}: ${describe(action)} (${result.detail})`, "task");
+        else if (quiet) this.brain.notify(`${verb}: ${describe(action)} (${result.detail}). I need a real plan.`, "idle");
+        else if (!reflex || !result.ok) this.brain.notify(`${verb}: ${describe(action)} (${result.detail})${job}`, "task");
+        this.autopilot();
       });
   }
 

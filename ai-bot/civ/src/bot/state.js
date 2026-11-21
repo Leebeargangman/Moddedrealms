@@ -87,6 +87,7 @@ export function snapshot(bot, village) {
 
   const fmt = (list, n = 4) => list.sort((a, b) => a[1] - b[1]).slice(0, n).map(([name, d]) => `${name} ${d}m`).join(", ");
   const inv = inventoryCounts(bot);
+  const spare = inv.filter(([n]) => !/_(pickaxe|axe|sword|shovel|hoe)$/.test(n) && !FOOD.includes(n) && !n.endsWith("_bed")).reduce((s, [, c]) => s + c, 0);
   const invText = inv.length ? inv.slice(0, 10).map(([n, c]) => `${n} ${c}`).join(", ") + (inv.length > 10 ? `, +${inv.length - 10} more kinds` : "") : "empty";
   const villageText = village ? ` (${dist(village, me)} m from village)` : "";
   const nearby = [
@@ -110,7 +111,7 @@ export function snapshot(bot, village) {
 
   const text = [
     `pos ${Math.round(me.x)},${Math.round(me.y)},${Math.round(me.z)}${villageText} · hp ${Math.round(bot.health)}/20 · food ${bot.food}/20 · ${facts.isNight ? "night" : "day"}`,
-    `inventory: ${invText}`,
+    `inventory: ${invText}${spare ? ` (${spare} spare materials)` : ""}`,
     `nearby: ${nearby || "nothing notable"}`,
     signs.length ? `signs here: ${signs.join(" · ")}` : "",
   ].filter(Boolean).join("\n");

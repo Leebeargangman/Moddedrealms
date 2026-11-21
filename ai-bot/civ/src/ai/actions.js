@@ -42,7 +42,7 @@ export const IMPOSTER_ACTIONS = [...ACTIONS, "kill"]; // kill: secretly attack a
 // Words the AI sometimes uses instead of the real action names.
 const ALIASES = { mine: "gather", chop: "gather", collect: "gather", dig: "gather", walk: "goto", move: "goto",
   go: "goto", talk: "chat", say: "chat", fight: "attack", run: "flee", rest: "wait", idle: "wait", wander: "explore",
-  msg: "whisper", tell: "whisper", dm: "whisper", store: "deposit", put: "deposit", take: "withdraw", shelter: "hide", elect: "vote", banish: "exile" };
+  hunt: "attack", kill_animal: "attack", msg: "whisper", tell: "whisper", dm: "whisper", store: "deposit", put: "deposit", take: "withdraw", shelter: "hide", elect: "vote", banish: "exile" };
 
 // The JSON schema sent with each request (structured outputs), so the API itself guarantees valid JSON.
 const schemaFor = (actions) => ({
