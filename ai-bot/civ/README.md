@@ -32,10 +32,19 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
   imposters are caught the village is safe.
 - **Real players can be dangerous.** Bots remember who attacked them and are careful around them.
 - **Only witnesses know.** A villager learns about a death only if it is close enough to see it happen.
-  Death messages are hidden (`/gamerule showDeathMessages false`) so the server doesn't announce the killer.
+  Death messages are hidden (`/gamerule show_death_messages false` in 1.21.11) so the server doesn't
+  announce the killer.
 - **Deaths leave clues** that others can find later: the dropped items where the body fell, who was last seen
   near the victim and when, who was missing at the time, a villager who suddenly carries the victim's things.
-  Villagers have to work out the rest themselves.
+  Villagers have to work out the rest themselves. (Built: the finder is told where and roughly when, and
+  whom they themselves remember seeing near there; after a day without being found, the village is told
+  the villager is missing.)
+- **Night:** villagers sleep in a bed or dig an emergency shelter (`hide`) until morning.
+- **Building:** `build` with a blueprint name. Built in: `hut` (71 planks) and `house` (143 planks). Your
+  own: build it in-game, select it with WorldEdit (`//pos1`, `//pos2`), `//copy`, `//schem save myhouse`,
+  and put the `.schem` file in `ai-bot/civ/schematics/`. The builder finds a flat plot near the village,
+  clears it, takes materials from the villager and the village chests, and places blocks bottom-up (no AI
+  calls while building). Missing materials become gather jobs on the task board.
 
 ## How it keeps costs down
 
@@ -124,6 +133,15 @@ src/bot/skills.js     how each action is done, in plain code
 src/bot/state.js      the compact state summary
 src/bot/edgegap.js    keeps bots from freezing against walls on Paper
 src/village/board.js  the shared task board (post / claim jobs)
+src/village/village.js the world rules every 5 s: days, elections, deaths, clues, newcomers, the win
+src/village/roster.js who is alive / dead / exiled, the secret imposters, newcomers
+src/village/society.js leader, elections, laws
+src/village/crime.js  kill windows, witnesses, remains and clues, missing villagers
+src/village/chests.js village chest positions and contents
+src/village/worldlog.js the world log (data/world-log.md; secret lines marked [secret])
+src/bot/skills-village.js deposit, withdraw, give, hide, the imposters' kill
+src/build/blueprints.js built-in blueprints + schematics/*.schem
+src/build/builder.js  plot finding, clearing and placing blocks
 src/ai/ratelimit.js   the global 40-calls-a-minute queue
 src/usage/ledger.js   SQLite log of every API call
 src/usage/report.js   summaries, projections and the session report
