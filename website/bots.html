@@ -112,6 +112,14 @@
                       <button class="btn btn-ghost btn-sm" type="button" data-civ-cmd="civResume">Resume the AI</button>
                     </div>
                     <p class="small" data-civ-result></p>
+                    <details class="civ-reset" data-civ-reset-box>
+                      <summary class="small">Reset the AI</summary>
+                      <p class="muted small">A backup is saved first (data/backups on the VPS). Blocks built in the world stay.</p>
+                      <div class="civ-actions">
+                        <button class="btn btn-ghost btn-sm" type="button" data-civ-reset="memories">Reset memories</button>
+                        <button class="btn btn-ghost btn-sm" type="button" data-civ-reset="everything">Start a new village</button>
+                      </div>
+                    </details>
                   </div>
                   <div class="app-card">
                     <div class="app-card-head"><h2>Settings</h2><span class="muted small" data-civ-settings-who></span></div>

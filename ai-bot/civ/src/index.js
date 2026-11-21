@@ -99,11 +99,13 @@ async function endSession(why = "stopped") {
 
 /** End the session and start a new one (new settings), as one step: nothing may quit in between. */
 let restarting = false;
-async function restartSession(why, reason, minutes) {
+async function restartSession(why, reason, minutes, between = null) {
   restarting = true;
   try {
     await endSession(why);
-    return await startSession(reason, minutes);
+    const r = between ? await between() : null; // e.g. wipe the village while nobody is logged in
+    const started = await startSession(reason, minutes);
+    return r || started;
   } finally {
     restarting = false;
   }

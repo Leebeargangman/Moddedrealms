@@ -4243,3 +4243,14 @@ button.row:hover {
   border-radius: 10px;
   background: var(--surface-2);
 }
+
+.civ-reset {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.civ-reset summary {
+  cursor: pointer;
+  color: var(--muted);
+}

@@ -35,7 +35,7 @@ const q = {
 };
 
 const S = () => config.society;
-const first = () => roster.factionNames()[0];
+const first = () => roster.factionNames()[0] ?? ""; // "" when there are none yet (Free for all)
 // Keys of the first civilisation stay "leader"/"election" so an existing village keeps its leader.
 // (Free for all: always per civilisation, since civilisations come and go.)
 const key = (k, f) => (factions.isFree() ? `${k}:${f}` : !f || f === first() ? k : `${k}:${f}`);
