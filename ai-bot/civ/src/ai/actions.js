@@ -78,11 +78,13 @@ export function parseAction(text, { imposter = false, free = false } = {}) {
     // Be forgiving about stray text around the object (only needed if structured outputs are off).
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
-    if (start < 0 || end < start) return { ok: false, error: "no JSON object" };
-    obj = JSON.parse(text.slice(start, end + 1));
+    if (start < 0) return { ok: false, error: "no JSON object" };
+    obj = end > start ? JSON.parse(text.slice(start, end + 1)) : salvage(text);
   } catch (e) {
-    return { ok: false, error: `invalid JSON (${e.message})` };
+    obj = salvage(text); // e.g. a reply cut off at the token limit in the middle of "say"
+    if (!obj) return { ok: false, error: `invalid JSON (${e.message})` };
   }
+  if (!obj) return { ok: false, error: "no complete JSON object" };
   if (!obj || typeof obj !== "object") return { ok: false, error: "not an object" };
 
   let name = String(obj.action || "").toLowerCase().trim();
@@ -108,6 +110,18 @@ export function parseAction(text, { imposter = false, free = false } = {}) {
   if (NEEDS_TARGET.has(name) && !action.target) return { ok: false, error: `${name} without a target` };
   if (name === "claim") action.target = action.target.replace(/[^0-9]/g, "");
   return { ok: true, action };
+}
+
+/**
+ * A reply cut off before its closing "}" (it hit max_tokens while writing a long "say" or "text"):
+ * keep the fields that are complete (action, target, amount) and drop the unfinished text.
+ */
+function salvage(text) {
+  const str = (k) => (text.match(new RegExp(`"${k}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`)) || [])[1];
+  const action = str("action");
+  if (!action) return null;
+  const amount = Number((text.match(/"amount"\s*:\s*(\d+)/) || [])[1]);
+  return { action, target: str("target"), amount: Number.isFinite(amount) ? amount : undefined };
 }
 
 /** Make chat text safe: one short line, and never a /command (a bot must not run server commands). */
