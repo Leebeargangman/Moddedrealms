@@ -6,7 +6,7 @@
 //
 // ask() never throws: on any problem it returns { text: null, reason } and the caller falls back.
 
-import { config, options, provider, model } from "../config.js";
+import { config, options, provider, model as defaultModel } from "../config.js";
 import { log } from "../log.js";
 import * as ledger from "../usage/ledger.js";
 import { mockReply } from "./mock.js";
@@ -35,6 +35,11 @@ export function budgetState() {
 /** 1 normally, 2 once 80% of the daily budget is used. */
 export const cooldownMultiplier = () => (budgetState() === "warn" ? 2 : 1);
 
+// --- staff pause (from the website): no AI calls, bots use plain-code behaviour ---------------------
+let pausedByStaff = false;
+export const setPaused = (on) => { pausedByStaff = Boolean(on); };
+export const isPaused = () => pausedByStaff;
+
 // --- backoff after API errors -------------------------------------------------------------------
 let pausedUntil = 0;
 let errorStreak = 0;
@@ -54,8 +59,10 @@ let useStructured = config.ai.structuredOutput;
  * system: array of system blocks (the big one carries cache_control) · user: the small message text.
  * Returns { text, reason } where text is null if no answer could be had.
  */
-export async function ask({ bot, kind, system, user, maxTokens, schema = null, trigger = null }) {
+export async function ask({ bot, kind, system, user, maxTokens, schema = null, trigger = null, model: modelOverride = null }) {
+  const model = modelOverride || defaultModel;
   if (budgetState() === "exhausted") return { text: null, reason: "budget" };
+  if (pausedByStaff) return { text: null, reason: "paused by staff" };
   if (Date.now() < pausedUntil) return { text: null, reason: "paused" };
 
   await takeSlot(); // global limit: at most rateLimit.requestsPerMinute calls a minute, queued in order

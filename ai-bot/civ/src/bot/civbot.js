@@ -293,6 +293,7 @@ export class CivBot {
     if (similar) return;
     this.said.push({ at: Date.now(), words });
     this.lastSay = Date.now();
+    this.lastSaidText = text; // shown on the website
     this.bot.chat(text);
   }
 

@@ -164,8 +164,18 @@ function scheduleNewcomer() {
 }
 
 let startedAt = Date.now();
+let ticker = null;
+/** Start the world rules for a session (safe to call again for the next session). */
 export function start() {
   startedAt = Date.now();
+  village.stopping = false;
   roster.seed();
-  setInterval(tick, 5000);
+  clearInterval(ticker);
+  ticker = setInterval(tick, 5000);
+}
+/** End of a session: stop the world rules (bots are logged off by the caller). */
+export function stop() {
+  village.stopping = true;
+  clearInterval(ticker);
+  ticker = null;
 }

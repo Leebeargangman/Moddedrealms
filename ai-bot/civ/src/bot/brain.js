@@ -22,6 +22,7 @@ import * as crime from "../village/crime.js";
 import * as worldlog from "../village/worldlog.js";
 import * as builder from "../build/builder.js";
 import { village, positions } from "../village/village.js";
+import { elderLine } from "../ai/leader.js";
 
 const MEMORY_DIR = path.join(DATA_DIR, "memory");
 fs.mkdirSync(MEMORY_DIR, { recursive: true });
@@ -141,6 +142,7 @@ export class Brain {
       chests.text(),
       `${builder.text()} Blueprints: ${village.blueprintText || "hut, house"}.`,
       news && `Village news: ${news}`,
+      elderLine(),
       board.text(this.name),
       loop && `Note: you chose "${c[c.length - 1]}" 3 times in a row. Choose something different that makes progress.`,
     ].filter(Boolean).join("\n");

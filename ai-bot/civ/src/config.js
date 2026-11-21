@@ -37,6 +37,7 @@ function flag(name) {
 }
 
 export const options = {
+  scheduled: Boolean(flag("scheduled")),
   mock: Boolean(flag("mock")),
   minutes: flag("minutes") ? Number(flag("minutes")) : null,
 };

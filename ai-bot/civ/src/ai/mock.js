@@ -5,6 +5,7 @@ const lastLine = (user) => ((user.match(/Recent events[^\n]*\n([\s\S]*?)\nState:
 
 export function mockReply(kind, user) {
   if (kind === "memory") return "I am new here. I gathered some wood and looked around near the village.";
+  if (kind === "leader") return JSON.stringify({ plan: "Gather wood and build huts before night; hunt cows for food.", jobs: [{ action: "gather", target: "oak_log", amount: 32 }, { action: "attack", target: "cow", amount: 3 }] });
   // Only look at the inventory line, not at blocks the bot can see nearby.
   const inv = (user.match(/inventory: (.*)/) || [])[1] || "";
   const has = (item) => new RegExp(`\\b${item}\\b`).test(inv);

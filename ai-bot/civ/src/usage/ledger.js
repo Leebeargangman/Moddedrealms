@@ -37,8 +37,14 @@ if (!db.prepare("PRAGMA table_info(api_calls)").all().some((c) => c.name === "wa
 }
 
 // A session id is just the start time, e.g. "2026-11-20T17-30-00".
-export const SESSION = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
-export const SESSION_STARTED = Date.now();
+export let SESSION = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+export let SESSION_STARTED = Date.now();
+/** Start a new session id (the scheduled mode runs one session a day in the same process). */
+export function newSession() {
+  SESSION = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+  SESSION_STARTED = Date.now();
+  return SESSION;
+}
 
 // The budget "day" follows UK time (or whatever budget.timezone says), so it resets at midnight there.
 export function budgetDay(date = new Date()) {

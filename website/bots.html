@@ -60,7 +60,7 @@
       <div class="container">
         <p class="eyebrow">Staff</p>
         <h1 id="page-title">AI bots</h1>
-        <p>Talk to the AI bots, give them orders and schematics to build, and run teams of bots with a leader.</p>
+        <p>Watch the AI civilisation, talk to the AI bots, give them orders and schematics to build, and run teams of bots with a leader.</p>
       </div>
     </section>
 
@@ -82,100 +82,86 @@
             <div class="stat"><b data-stat="connectors">0</b><span>Staff PCs connected</span></div>
           </div>
 
+          <div class="tabs tabs--3" role="tablist" aria-label="What to show">
+            <button class="tab" type="button" role="tab" id="tab-civ" aria-controls="panel-civ" aria-selected="false" data-tab="civ">Civilisation</button>
+            <button class="tab" type="button" role="tab" id="tab-bots" aria-controls="panel-bots" aria-selected="true" data-tab="bots">Bots &amp; teams</button>
+            <button class="tab" type="button" role="tab" id="tab-tp" aria-controls="panel-tp" aria-selected="false" data-tab="tp">Test players</button>
+          </div>
+
+          <div id="panel-civ" role="tabpanel" aria-labelledby="tab-civ" data-panel="civ" hidden>
+            <div class="app-card" data-civ-empty>
+              <h2>AI civilisation</h2>
+              <p class="muted">Not connected. The villagers' program (ai-bot/civ on the VPS) shows its village here once it runs.</p>
+            </div>
+            <div data-civ hidden>
+              <div class="stats">
+                <div class="stat"><b data-civ-stat="alive">0</b><span>Villagers alive</span></div>
+                <div class="stat"><b data-civ-stat="online">0</b><span>Online now</span></div>
+                <div class="stat"><b data-civ-stat="day">-</b><span>Minecraft day</span></div>
+                <div class="stat"><b data-civ-stat="cost">$0</b><span>AI cost today</span></div>
+              </div>
+              <div class="app-grid">
+                <div class="app-main">
+                  <div class="app-card">
+                    <div class="app-card-head"><h2>Session</h2><span data-civ-session-tag></span></div>
+                    <p class="muted small" data-civ-session></p>
+                    <div class="civ-actions">
+                      <button class="btn btn-ghost btn-sm" type="button" data-civ-cmd="civStart">Start a session now</button>
+                      <button class="btn btn-ghost btn-sm" type="button" data-civ-cmd="civStop">End the session</button>
+                      <button class="btn btn-ghost btn-sm" type="button" data-civ-cmd="civPause">Pause the AI</button>
+                      <button class="btn btn-ghost btn-sm" type="button" data-civ-cmd="civResume">Resume the AI</button>
+                    </div>
+                    <p class="small" data-civ-result></p>
+                  </div>
+                  <div class="app-card">
+                    <div class="app-card-head"><h2>Villagers</h2><label class="small civ-secret-toggle"><input type="checkbox" data-civ-secrets> Show secrets</label></div>
+                    <div class="civ-table-wrap"><table class="civ-table" data-civ-villagers></table></div>
+                    <p class="muted small" data-civ-gone></p>
+                  </div>
+                  <div class="app-card">
+                    <h2>Village news</h2>
+                    <ul class="civ-news" data-civ-news></ul>
+                  </div>
+                  <div class="app-card" data-civ-secret-card hidden>
+                    <h2>Secrets</h2>
+                    <p class="muted small" data-civ-secret-summary></p>
+                    <ul class="civ-news" data-civ-secret-log></ul>
+                  </div>
+                </div>
+                <aside class="app-side">
+                  <div class="app-card">
+                    <h2>Leader &amp; laws</h2>
+                    <p data-civ-leader></p>
+                    <ol class="civ-laws" data-civ-laws></ol>
+                  </div>
+                  <div class="app-card">
+                    <h2>Buildings</h2>
+                    <ul class="civ-list" data-civ-buildings></ul>
+                  </div>
+                  <div class="app-card">
+                    <h2>Task board</h2>
+                    <ul class="civ-list" data-civ-board></ul>
+                  </div>
+                  <div class="app-card">
+                    <h2>Village chests</h2>
+                    <p class="small" data-civ-chests></p>
+                  </div>
+                  <div class="app-card">
+                    <h2>AI use</h2>
+                    <p class="small" data-civ-ai></p>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+
+          <div id="panel-bots" role="tabpanel" aria-labelledby="tab-bots" data-panel="bots">
+
           <div class="app-grid">
             <div class="app-main">
               <div class="app-card">
                 <div class="app-card-head"><h2>Bots</h2><button class="btn btn-ghost btn-sm" type="button" data-new-bot>New bot</button></div>
                 <div class="bot-list" data-bots aria-live="polite"></div>
-              </div>
-
-              <div class="app-card" data-tp hidden>
-                <div class="app-card-head">
-                  <h2>Test players</h2>
-                  <select class="input tp-host" data-tp-host aria-label="Test player server"></select>
-                </div>
-                <p class="muted small" data-tp-summary></p>
-
-                <section class="bot-goal" aria-labelledby="ai-title">
-                  <div class="bot-goal-head"><h3 id="ai-title">AI &amp; API</h3><span data-ai-tag></span></div>
-                  <p class="small" data-ai-status></p>
-                  <div class="meters" data-ai-usage></div>
-                  <form class="form" data-ai-form autocomplete="off">
-                    <div class="form-grid">
-                      <div class="field"><label for="ai-provider">AI runs on</label>
-                        <select class="input" id="ai-provider" name="provider">
-                          <option value="pc">My PC, through the connector (free)</option>
-                          <option value="ollama">Ollama on the server's machine (free)</option>
-                          <option value="lmstudio">LM Studio or another local server (free)</option>
-                          <option value="openai">OpenAI (API key)</option>
-                          <option value="openrouter">OpenRouter (API key)</option>
-                          <option value="groq">Groq (API key)</option>
-                          <option value="together">Together (API key)</option>
-                          <option value="anthropic">Claude, Anthropic (API key)</option>
-                          <option value="off">No AI: their built-in routines</option>
-                        </select></div>
-                      <div class="field" data-ai-for="pc ollama lmstudio openai openrouter groq together anthropic"><label for="ai-model">Model</label><input class="input" id="ai-model" name="model" maxlength="80" spellcheck="false" placeholder="e.g. qwen2.5:7b"></div>
-                      <div class="field" data-ai-for="ollama lmstudio"><label for="ai-url">Address</label><input class="input" id="ai-url" name="url" maxlength="200" spellcheck="false" placeholder="http://127.0.0.1:11434"></div>
-                      <div class="field" data-ai-for="pc"><label for="ai-staff">Whose PC (website name)</label><input class="input" id="ai-staff" name="staff" maxlength="32" spellcheck="false"></div>
-                      <div class="field" data-ai-for="openai openrouter groq together anthropic"><label for="ai-key">API key</label><input class="input" id="ai-key" name="key" type="password" maxlength="400" autocomplete="new-password" spellcheck="false" placeholder="paste to set or replace it"><span class="field-foot" data-ai-keynote></span></div>
-                    </div>
-                    <details class="bot-section" data-ai-for="openai openrouter groq together anthropic" open>
-                      <summary>Spending caps</summary>
-                      <div class="form-grid caps-grid">
-                        <div class="field"><label for="cap-rph">Requests per hour</label><input class="input" id="cap-rph" name="maxRequestsPerHour" type="number" min="0" max="100000"></div>
-                        <div class="field"><label for="cap-tpd">Tokens per day</label><input class="input" id="cap-tpd" name="maxTokensPerDay" type="number" min="0" max="100000000" step="1000"></div>
-                        <div class="field"><label for="cap-players">Test players on the API at once</label><input class="input" id="cap-players" name="maxPlayers" type="number" min="0" max="200"></div>
-                        <div class="field"><label for="cap-gap">Seconds between one player's requests</label><input class="input" id="cap-gap" name="minSecondsPerPlayer" type="number" min="10" max="3600"></div>
-                        <div class="field"><label for="cap-answer">Longest answer (tokens)</label><input class="input" id="cap-answer" name="maxAnswerTokens" type="number" min="50" max="1000"></div>
-                        <div class="field"><label for="cap-dollars">Dollars per day (0 = no dollar cap)</label><input class="input" id="cap-dollars" name="maxDollarsPerDay" type="number" min="0" max="10000" step="0.01"></div>
-                        <div class="field"><label for="cap-pin">Price per million input tokens ($)</label><input class="input" id="cap-pin" name="pricePerMillionIn" type="number" min="0" step="0.001"></div>
-                        <div class="field"><label for="cap-pout">Price per million output tokens ($)</label><input class="input" id="cap-pout" name="pricePerMillionOut" type="number" min="0" step="0.001"></div>
-                      </div>
-                      <p class="muted small">These can't be exceeded. When one is reached, test players carry on with their own routines until the hour or day rolls over. Usage is counted from what the API reports and kept across restarts. For a firm money limit, fill in your API's prices and a dollar cap.</p>
-                    </details>
-                    <p class="muted small" data-ai-for="openai openrouter groq together anthropic">The key goes straight to that server over HTTPS and is only stored in its config.yml. It's never shown here, in game or in any log. Only admins can change the AI link.</p>
-                    <div class="form-actions">
-                      <button class="btn btn-ghost btn-sm" type="button" data-ai-test>Test the link</button>
-                      <button class="btn btn-ghost btn-sm" type="button" data-ai-pause>Pause the API</button>
-                      <button class="btn btn-primary btn-sm" type="submit">Save</button>
-                    </div>
-                    <p class="small" data-ai-test-result aria-live="polite"></p>
-                  </form>
-                </section>
-
-                <details class="bot-section" open>
-                  <summary>Players</summary>
-                  <form class="inline-form" data-populate-form>
-                    <input class="input" name="count" type="number" min="1" max="50" value="5" aria-label="How many">
-                    <button class="btn btn-primary btn-sm" type="submit">Players join at spawn</button>
-                  </form>
-                  <p class="muted small">They get made-up player names and play survival like normal players: some solo, some in small teams. They make tools, set up bases away from spawn, mine, explore, go to the nether and trade. Real players can team up with them in game with /teamup &lt;name&gt;.</p>
-                  <form class="form" data-free-form>
-                    <div class="form-grid">
-                      <div class="field"><label for="free-keep">Keep this many online (0 = off)</label><input class="input" id="free-keep" name="keepOnline" type="number" min="0" max="200"></div>
-                      <label class="check"><input type="checkbox" name="sessions"><span>They come and go: play for a while, log off, come back later</span></label>
-                      <label class="check"><input type="checkbox" name="buildBases"><span>Set up their own bases (away from spawn and anyone's builds)</span></label>
-                      <label class="check"><input type="checkbox" name="teamUp"><span>Real players can team up with them</span></label>
-                      <label class="check"><input type="checkbox" name="aiByDefault"><span>New players use the AI above</span></label>
-                      <label class="check"><input type="checkbox" name="hunger"><span>They get hungry and eat</span></label>
-                    </div>
-                    <h4 class="tp-sub">Combat</h4>
-                    <div class="form-grid">
-                      <label class="check"><input type="checkbox" name="combat"><span>Can be attacked and die (they drop what they carry and respawn)</span></label>
-                      <label class="check"><input type="checkbox" name="mobsAttack"><span>Monsters go for them</span></label>
-                      <label class="check"><input type="checkbox" name="fightBack"><span>Fight back (never their teammates)</span></label>
-                      <label class="check"><input type="checkbox" name="fightBackPlayers"><span>Fight back against players too</span></label>
-                      <label class="check"><input type="checkbox" name="dropItems"><span>Drop their items when they die</span></label>
-                      <label class="check"><input type="checkbox" name="deathMessages"><span>Death messages in chat</span></label>
-                    </div>
-                    <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">Save</button></div>
-                  </form>
-                </details>
-
-                <details class="bot-section" open>
-                  <summary>Teams and bases</summary>
-                  <div data-camps></div>
-                </details>
               </div>
 
               <div class="app-card" data-detail hidden>
@@ -298,6 +284,99 @@
                 <div data-hosts></div>
               </div>
             </aside>
+          </div>
+          </div>
+
+          <div id="panel-tp" role="tabpanel" aria-labelledby="tab-tp" data-panel="tp" hidden>
+              <div class="app-card" data-tp hidden>
+              <div class="app-card-head">
+                <h2>Test players</h2>
+                <select class="input tp-host" data-tp-host aria-label="Test player server"></select>
+              </div>
+              <p class="muted small" data-tp-summary></p>
+
+              <section class="bot-goal" aria-labelledby="ai-title">
+                <div class="bot-goal-head"><h3 id="ai-title">AI &amp; API</h3><span data-ai-tag></span></div>
+                <p class="small" data-ai-status></p>
+                <div class="meters" data-ai-usage></div>
+                <form class="form" data-ai-form autocomplete="off">
+                  <div class="form-grid">
+                    <div class="field"><label for="ai-provider">AI runs on</label>
+                      <select class="input" id="ai-provider" name="provider">
+                        <option value="pc">My PC, through the connector (free)</option>
+                        <option value="ollama">Ollama on the server's machine (free)</option>
+                        <option value="lmstudio">LM Studio or another local server (free)</option>
+                        <option value="openai">OpenAI (API key)</option>
+                        <option value="openrouter">OpenRouter (API key)</option>
+                        <option value="groq">Groq (API key)</option>
+                        <option value="together">Together (API key)</option>
+                        <option value="anthropic">Claude, Anthropic (API key)</option>
+                        <option value="off">No AI: their built-in routines</option>
+                      </select></div>
+                    <div class="field" data-ai-for="pc ollama lmstudio openai openrouter groq together anthropic"><label for="ai-model">Model</label><input class="input" id="ai-model" name="model" maxlength="80" spellcheck="false" placeholder="e.g. qwen2.5:7b"></div>
+                    <div class="field" data-ai-for="ollama lmstudio"><label for="ai-url">Address</label><input class="input" id="ai-url" name="url" maxlength="200" spellcheck="false" placeholder="http://127.0.0.1:11434"></div>
+                    <div class="field" data-ai-for="pc"><label for="ai-staff">Whose PC (website name)</label><input class="input" id="ai-staff" name="staff" maxlength="32" spellcheck="false"></div>
+                    <div class="field" data-ai-for="openai openrouter groq together anthropic"><label for="ai-key">API key</label><input class="input" id="ai-key" name="key" type="password" maxlength="400" autocomplete="new-password" spellcheck="false" placeholder="paste to set or replace it"><span class="field-foot" data-ai-keynote></span></div>
+                  </div>
+                  <details class="bot-section" data-ai-for="openai openrouter groq together anthropic" open>
+                    <summary>Spending caps</summary>
+                    <div class="form-grid caps-grid">
+                      <div class="field"><label for="cap-rph">Requests per hour</label><input class="input" id="cap-rph" name="maxRequestsPerHour" type="number" min="0" max="100000"></div>
+                      <div class="field"><label for="cap-tpd">Tokens per day</label><input class="input" id="cap-tpd" name="maxTokensPerDay" type="number" min="0" max="100000000" step="1000"></div>
+                      <div class="field"><label for="cap-players">Test players on the API at once</label><input class="input" id="cap-players" name="maxPlayers" type="number" min="0" max="200"></div>
+                      <div class="field"><label for="cap-gap">Seconds between one player's requests</label><input class="input" id="cap-gap" name="minSecondsPerPlayer" type="number" min="10" max="3600"></div>
+                      <div class="field"><label for="cap-answer">Longest answer (tokens)</label><input class="input" id="cap-answer" name="maxAnswerTokens" type="number" min="50" max="1000"></div>
+                      <div class="field"><label for="cap-dollars">Dollars per day (0 = no dollar cap)</label><input class="input" id="cap-dollars" name="maxDollarsPerDay" type="number" min="0" max="10000" step="0.01"></div>
+                      <div class="field"><label for="cap-pin">Price per million input tokens ($)</label><input class="input" id="cap-pin" name="pricePerMillionIn" type="number" min="0" step="0.001"></div>
+                      <div class="field"><label for="cap-pout">Price per million output tokens ($)</label><input class="input" id="cap-pout" name="pricePerMillionOut" type="number" min="0" step="0.001"></div>
+                    </div>
+                    <p class="muted small">These can't be exceeded. When one is reached, test players carry on with their own routines until the hour or day rolls over. Usage is counted from what the API reports and kept across restarts. For a firm money limit, fill in your API's prices and a dollar cap.</p>
+                  </details>
+                  <p class="muted small" data-ai-for="openai openrouter groq together anthropic">The key goes straight to that server over HTTPS and is only stored in its config.yml. It's never shown here, in game or in any log. Only admins can change the AI link.</p>
+                  <div class="form-actions">
+                    <button class="btn btn-ghost btn-sm" type="button" data-ai-test>Test the link</button>
+                    <button class="btn btn-ghost btn-sm" type="button" data-ai-pause>Pause the API</button>
+                    <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                  </div>
+                  <p class="small" data-ai-test-result aria-live="polite"></p>
+                </form>
+              </section>
+
+              <details class="bot-section" open>
+                <summary>Players</summary>
+                <form class="inline-form" data-populate-form>
+                  <input class="input" name="count" type="number" min="1" max="50" value="5" aria-label="How many">
+                  <button class="btn btn-primary btn-sm" type="submit">Players join at spawn</button>
+                </form>
+                <p class="muted small">They get made-up player names and play survival like normal players: some solo, some in small teams. They make tools, set up bases away from spawn, mine, explore, go to the nether and trade. Real players can team up with them in game with /teamup &lt;name&gt;.</p>
+                <form class="form" data-free-form>
+                  <div class="form-grid">
+                    <div class="field"><label for="free-keep">Keep this many online (0 = off)</label><input class="input" id="free-keep" name="keepOnline" type="number" min="0" max="200"></div>
+                    <label class="check"><input type="checkbox" name="sessions"><span>They come and go: play for a while, log off, come back later</span></label>
+                    <label class="check"><input type="checkbox" name="buildBases"><span>Set up their own bases (away from spawn and anyone's builds)</span></label>
+                    <label class="check"><input type="checkbox" name="teamUp"><span>Real players can team up with them</span></label>
+                    <label class="check"><input type="checkbox" name="aiByDefault"><span>New players use the AI above</span></label>
+                    <label class="check"><input type="checkbox" name="hunger"><span>They get hungry and eat</span></label>
+                  </div>
+                  <h4 class="tp-sub">Combat</h4>
+                  <div class="form-grid">
+                    <label class="check"><input type="checkbox" name="combat"><span>Can be attacked and die (they drop what they carry and respawn)</span></label>
+                    <label class="check"><input type="checkbox" name="mobsAttack"><span>Monsters go for them</span></label>
+                    <label class="check"><input type="checkbox" name="fightBack"><span>Fight back (never their teammates)</span></label>
+                    <label class="check"><input type="checkbox" name="fightBackPlayers"><span>Fight back against players too</span></label>
+                    <label class="check"><input type="checkbox" name="dropItems"><span>Drop their items when they die</span></label>
+                    <label class="check"><input type="checkbox" name="deathMessages"><span>Death messages in chat</span></label>
+                  </div>
+                  <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">Save</button></div>
+                </form>
+              </details>
+
+              <details class="bot-section" open>
+                <summary>Teams and bases</summary>
+                <div data-camps></div>
+              </details>
+            </div>
+
           </div>
         </div>
       </div>

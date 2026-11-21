@@ -50,9 +50,11 @@
     "maxLaws": 6
   },
 
+  "_leaderComment": "Optional elder AI (off by default): every everyMinutes during a session one bigger model reads a village summary, writes a short plan shown to every villager and posts up to 3 jobs. Roughly $0.005 a call with Sonnet (about $0.06 a 3-hour session). openaiModel is used when the provider is OpenAI.",
   "leader": {
     "enabled": false,
     "model": "claude-sonnet-5-5",
+    "openaiModel": "gpt-5.4-mini",
     "everyMinutes": 15
   },
 
@@ -62,7 +64,8 @@
     "claude-sonnet-5-5": { "input": 2.00, "output": 10.00, "cacheRead": 0.10, "cacheWrite": 2.50 },
     "gpt-6-luna":        { "input": 0.10, "output": 0.50, "cacheRead": 0.01, "cacheWrite": 0.125 },
     "gpt-5.4-nano":      { "input": 0.20, "output": 1.25, "cacheRead": 0.02, "cacheWrite": 0.20 },
-    "gpt-4o-mini":       { "input": 0.15, "output": 0.60, "cacheRead": 0.075, "cacheWrite": 0.15 }
+    "gpt-4o-mini":       { "input": 0.15, "output": 0.60, "cacheRead": 0.075, "cacheWrite": 0.15 },
+    "gpt-5.4-mini":      { "input": 0.75, "output": 4.50, "cacheRead": 0.075, "cacheWrite": 0.75 }
   },
 
   "budget": {
@@ -74,6 +77,23 @@
 
   "rateLimit": {
     "requestsPerMinute": 40
+  },
+
+  "_scheduleComment": "With --scheduled (pm2), a session runs every day from start to end, UK time (summer time handled). manualMinutes = how long a session started from the website runs outside the window.",
+  "schedule": {
+    "timezone": "Europe/London",
+    "start": "17:30",
+    "end": "20:30",
+    "days": [0, 1, 2, 3, 4, 5, 6],
+    "manualMinutes": 60
+  },
+
+  "_websiteComment": "Live status on the website's Bots page. url/key are read from ../manager/manager.json (the existing bot manager's website link) unless set here or in .env (CIV_WEBSITE_URL, BOT_MANAGER_KEY).",
+  "website": {
+    "enabled": true,
+    "managerName": "civ",
+    "managerConfig": "../manager/manager.json",
+    "statusPort": 3100
   },
 
   "stats": {

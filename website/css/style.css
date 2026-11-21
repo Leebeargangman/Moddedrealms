@@ -4105,3 +4105,78 @@ button.row:hover {
   opacity: 0.7;
   pointer-events: none;
 }
+
+/* ---------- Bots page: tabs and the AI civilisation ---------- */
+.tabs--3 {
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 640px;
+}
+
+.civ-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.civ-secret-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.civ-table-wrap {
+  overflow-x: auto;
+}
+
+.civ-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.civ-table th,
+.civ-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.civ-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.civ-table td .tag {
+  margin-left: 6px;
+}
+
+.civ-offline td {
+  opacity: 0.55;
+}
+
+.civ-news,
+.civ-list,
+.civ-laws {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.civ-news {
+  list-style: none;
+  padding-left: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+@media (max-width: 480px) {
+  .tabs--3 .tab {
+    padding: 0 4px;
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+  }
+}

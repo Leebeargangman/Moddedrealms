@@ -9,11 +9,10 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 `config.json` or `--provider openai`. An OpenAI account needs prepaid credit
 (platform.openai.com → Billing) or every call fails with "insufficient quota".
 
-> **Status: Phase 3**: up to 20 villagers with roles, village chests, building (built-in blueprints or
-> your WorldEdit schematics), a leader chosen by election, laws, two secret imposters, permadeath with
-> newcomers, witnesses and clues, and a world log, on top of Phase 2's task board, chat, rate limiter
-> and budget. Coming next: Phase 4 (17:30–20:30 UK schedule, saving/loading, dashboard on the website's
-> Bots page, pm2, optional Sonnet leader), later Phase 5 (recording/streaming the bots).
+> **Status: Phase 4**: everything from Phases 1-3 (20 villagers, village life, building, government,
+> imposters, permadeath) now runs 24/7 under pm2 with a daily session 17:30-20:30 UK time, shows live on the
+> website's Bots page (Civilisation tab, with start/stop/pause buttons), and has an optional elder AI.
+> Coming later: Phase 5 (recording/streaming the bots).
 
 ## The game (built in Phase 3)
 
@@ -90,6 +89,29 @@ $0.00013 instead of $0.00004, still far under the budget.
    ```
    `.env` is in `.gitignore`; the key is never logged.
 
+## Running it for real (Phase 4)
+
+On the VPS, as the `bots` user:
+
+```bash
+cd ~/moddedrealms/ai-bot/civ
+pm2 start ecosystem.config.cjs && pm2 save   # runs 24/7; a session every day 17:30-20:30 UK time
+pm2 logs ai-civ                              # watch it
+pm2 restart ai-civ                           # after changing config.json or the code
+```
+
+- **Schedule**: `config.json` → `schedule` (UK time, summer time handled). Outside the window the program
+  waits; at the end of the window the villagers log off, memories are saved and the report is written.
+  The next session carries on with the same village.
+- **Website**: the program links to the website as bot host "civ" using the existing bot manager's
+  website settings (`../manager/manager.json`), so no key is copied. The Bots page's **Civilisation**
+  tab shows villagers, leader and laws, buildings, the task board, chests, news, AI cost and lag. Staff
+  can end a session or pause the AI; admins can start a session outside the window (for
+  `schedule.manualMinutes`). "Show secrets" reveals the imposters and true causes of death.
+- **Local status**: `http://127.0.0.1:3100` on the VPS (JSON at `/api/status`).
+- **Elder AI** (`leader.enabled`, off by default): every 15 minutes one bigger model reads a village
+  summary and posts a short plan (shown to every villager) and up to 3 jobs. About $0.06 a session with Sonnet.
+
 ## Run it
 
 ```bash
@@ -120,7 +142,12 @@ cache hit rate, projection for the session and for 20 bots). On exit the report 
 
 ```
 config.json           every setting: bot count, server, AI, pricing, budget, village, the 20 villagers
-src/index.js          starts the bots (staggered), prints summaries, stops cleanly, writes the report
+src/index.js          sessions (start/end, staggered logins, reports), scheduled mode
+src/schedule.js       the daily window in UK time
+src/web/status.js     the village snapshot (website + local status page)
+src/web/link.js       link to the website's Bots page (snapshot, staff commands)
+src/ai/leader.js      the optional elder AI
+ecosystem.config.cjs  pm2 settings
 src/config.js         loads config.json, .env and command-line flags
 src/ai/client.js      the only code that asks the AI: budget, backoff, usage logging
 src/ai/providers/     anthropic.js (Claude, prompt caching) and openai.js (stand-in); same answers, same logging
