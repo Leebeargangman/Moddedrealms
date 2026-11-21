@@ -217,7 +217,7 @@ export function exile(leaderName, target, reason) {
 }
 
 /** Free for all: "found", "join", "leave" and "diplomacy". Returns { ok, detail }. */
-export function civAction(me, action, pos) {
+export function civAction(me, action, pos, bot = null) {
   if (!factions.isFree()) return { ok: false, detail: "that only works in Free for all mode" };
   const mine = roster.factionOf(me);
   const day = village.day;
@@ -225,7 +225,15 @@ export function civAction(me, action, pos) {
     if (mine && society.leader(mine)?.name === me && roster.alive().filter((v) => v.faction === mine).length > 1) {
       return { ok: false, detail: `you lead ${mine}: leave it first` };
     }
-    const r = factions.found(me, action.target, pos, day);
+    // Water within 4 blocks around or just below = no place for a village.
+    const isWet = (p) => {
+      if (!bot) return false;
+      for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) for (let dy = -2; dy <= 1; dy++) {
+        if (bot.blockAt(p.floored().offset(dx, dy, dz))?.name === "water") return true;
+      }
+      return false;
+    };
+    const r = factions.found(me, action.target, pos, day, isWet);
     if (!r.ok) return r;
     if (mine) leaveCiv(me, mine);
     roster.setFaction(me, r.name);

@@ -14,7 +14,11 @@ import { installEdgeGap } from "./edgegap.js";
 import { SKILLS, eat, flee, escape } from "./skills.js";
 import { VILLAGE_SKILLS, murder } from "./skills-village.js";
 import { snapshot, isHostile, isNight, isProtected, isVillager } from "./state.js";
-import { describe } from "../ai/actions.js";
+import { describe, parseAction } from "../ai/actions.js";
+import * as routines from "../village/routines.js";
+import * as chests from "../village/chests.js";
+import * as worldlog from "../village/worldlog.js";
+import * as blueprints from "../build/blueprints.js";
 import * as board from "../village/board.js";
 import * as society from "../village/society.js";
 import * as crime from "../village/crime.js";
@@ -59,6 +63,7 @@ export class CivBot {
     // On 1.20+ the server says who caused the damage (the shooter for arrows), so no guessing.
     bot.on("entityHurt", (entity, source) => { if (entity === bot.entity) this.onHurt(source); });
     bot.on("health", () => this.onHealth());
+    bot.on("breath", () => this.onBreath());
     bot.on("death", () => {
       // Permadeath: this villager is gone for good (the village records it, tells witnesses and
       // brings a newcomer later). Its items stay where it died: a clue for whoever finds them.
@@ -84,6 +89,7 @@ export class CivBot {
     const moves = new Movements(bot);
     moves.allowParkour = false;   // fewer odd jumps: looks more natural and upsets anti-cheats less
     moves.canDig = true;
+    moves.liquidCost = 20;        // go around water when there is any other way (villagers were drowning)
     // Spawn protection: the server undoes any block we break or place near the world spawn, and the
     // pathfinder would try the same dig forever. So paths must not break or place blocks there.
     bot.civWorldSpawn = (bot.spawnPoint || bot.entity.position).clone();
@@ -244,6 +250,22 @@ export class CivBot {
     }
   }
 
+  /**
+   * Reflex: running out of air (0-20). Drop everything, swim up and get to land: no AI call needed,
+   * and waiting 20 s for one is how villagers drowned.
+   */
+  onBreath() {
+    const bot = this.bot;
+    if (!this.ready || bot.oxygenLevel === undefined) return;
+    if (bot.oxygenLevel <= 12 && !this.surfacing) {
+      this.surfacing = true;
+      this.cancelTask();
+      log.warn(this.def.name, `running out of air (${bot.oxygenLevel}/20): swimming up and out`);
+      this.perform({ action: "flee", reflex: true, toLand: true }, true);
+      this.brain.notify("I nearly drowned! Keep out of deep water: drowned live there and you run out of air.", "health");
+    } else if (bot.oxygenLevel >= 20) this.surfacing = false;
+  }
+
   onHealth() {
     const bot = this.bot;
     if (!this.ready) return;
@@ -372,8 +394,27 @@ export class CivBot {
     }
     // Free for all: create, join and leave civilisations; leaders set war, peace or alliance.
     if (["found", "join", "leave", "diplomacy"].includes(action.action)) {
-      const r = civAction(me, action, this.bot.entity.position);
+      const r = civAction(me, action, this.bot.entity.position, this.bot);
       return quick(r.ok ? r.detail : `Couldn't ${action.action}: ${r.detail}.`);
+    }
+    // Villagers' own programs and building designs (data, never code: see village/routines.js).
+    if (action.action === "program") {
+      const p = routines.parseRoutine(action.text);
+      if (!p.ok) return quick(`My routine "${action.target}" has a mistake: ${p.detail}. I should fix it and program it again.`);
+      const sv = routines.save("routine", action.target, me, roster.factionOf(me), p.routine);
+      if (!sv.ok) return quick(`Couldn't save the routine: ${sv.detail}.`);
+      log.info(me, `programmed routine ${sv.name}: ${JSON.stringify(p.routine).slice(0, 200)}`);
+      return quick(`I saved my routine "${sv.name}" (${p.detail}). Use run with target "${sv.name}" to start it.`);
+    }
+    if (action.action === "design") {
+      const d = routines.parseDesign(action.text);
+      if (!d.ok) return quick(`My design "${action.target}" has a mistake: ${d.detail}.`);
+      const name = routines.cleanName(action.target);
+      if (blueprints.BUILT_IN_NAMES.includes(name)) return quick(`"${name}" is already a built-in blueprint: choose another name.`);
+      const sv = routines.save("design", name, me, roster.factionOf(me), d.blueprint);
+      blueprints.reload().then(() => blueprints.text()).then((t) => { village.blueprintText = t; });
+      worldlog.write("build", `${me} designed a new building: ${sv.name} (${d.detail}).`, { day: village.day });
+      return quick(`I designed "${sv.name}" (${d.detail}). Anyone can now build it (build, target "${sv.name}").`);
     }
     if (action.action === "exile") {
       const r = exile(me, action.target, action.say);
@@ -387,7 +428,7 @@ export class CivBot {
       crime.attackStarted(me, name);
       action = { ...action, target: name };
     }
-    const skill = ALL_SKILLS[action.action];
+    const skill = action.action === "run" ? (b, a, t, c) => this.runRoutine(a, t, c) : ALL_SKILLS[action.action];
     if (!skill) return;
     // Asked to do exactly what we are already doing (e.g. "hide" while hiding): just carry on.
     const cur = this.currentTask?.action;
@@ -425,6 +466,63 @@ export class CivBot {
         else if (!reflex || !result.ok) this.brain.notify(`${verb}: ${describe(action)} (${result.detail})${job}`, "task");
         this.autopilot();
       });
+  }
+
+  /**
+   * Run a villager-written routine step by step (see village/routines.js). Every step is an ordinary
+   * action; the result says exactly which step failed and why, so the AI can fix ("debug") it.
+   */
+  async runRoutine(a, task, ctx) {
+    const me = this.def.name;
+    const r = routines.get("routine", a.target, roster.factionOf(me));
+    if (!r) {
+      const mine = routines.list("routine", roster.factionOf(me)).map((x) => x.name);
+      return { ok: false, detail: `there is no routine called "${a.target}"${mine.length ? ` (yours: ${mine.join(", ")})` : " (write one with program)"}` };
+    }
+    const bot = this.bot;
+    const deadline = Date.now() + 10 * 60000;
+    const facts = () => {
+      const f = this.snapshot().facts;
+      const count = (n) => bot.inventory.items().filter((it) => it.name === n || (n === "wood" || n === "log" ? it.name.endsWith("_log") : n === "planks" ? it.name.endsWith("_planks") : false)).reduce((s, it) => s + it.count, 0);
+      const spare = bot.inventory.items().filter((it) => !/_(pickaxe|axe|sword|shovel|hoe)$/.test(it.name)).reduce((s, it) => s + it.count, 0);
+      const box = chests.totals(roster.factionOf(me));
+      return { health: bot.health, food: bot.food, spare, night: f.isNight, danger: f.dangerNear, inv: count, chest: (n) => box[n] || 0 };
+    };
+    let stepNo = 0;
+    const runList = async (list) => {
+      for (const st of list) {
+        if (task.cancelled) throw new Error("stopped");
+        if (Date.now() > deadline) throw new Error("took longer than 10 minutes");
+        stepNo++;
+        if (st.do) {
+          const p = parseAction(JSON.stringify(st.do));
+          if (!p.ok) { if (st.try) continue; throw new Error(`step ${stepNo}: ${p.error}`); }
+          const act = p.action;
+          let res;
+          if (act.action === "chat") { this.say(act.say); res = { ok: true }; }
+          else if (act.action === "whisper") { const n = Object.keys(bot.players).find((x) => x.toLowerCase() === act.target); if (n && act.say) bot.whisper(n, act.say); res = { ok: Boolean(n) , detail: `${act.target} is not online` }; }
+          else if (act.action === "post") { const [ja, ...rest] = act.target.split(/\s+/); res = board.post({ by: me, action: ja, target: rest.join("_") || null, amount: act.amount ?? null }); }
+          else if (act.action === "claim") { const c = board.claim(Number(act.target), me); res = c.ok ? await ALL_SKILLS[c.task.action](bot, { action: c.task.action, target: c.task.target || undefined, amount: c.task.amount || undefined }, task, ctx) : c; if (c.ok) board.finish(c.task.id, res.ok, res.detail); }
+          else res = await ALL_SKILLS[act.action](bot, act, task, ctx).catch((e) => ({ ok: false, detail: e.message }));
+          if (!res.ok && !st.try) throw new Error(`step ${stepNo} (${describe(act)}): ${res.detail}`);
+        } else if (st.repeat !== undefined) {
+          for (let i = 0; i < Number(st.repeat); i++) await runList(st.steps || []);
+        } else if (st.if !== undefined) {
+          await runList(routines.evalCondition(st.if, facts()) ? st.then || [] : st.else || []);
+        } else if (st.until !== undefined) {
+          for (let i = 0; i < 20 && !routines.evalCondition(st.until, facts()); i++) await runList(st.steps || []);
+        }
+      }
+    };
+    try {
+      await runList(r.body.steps);
+      routines.recordRun(r.id, true);
+      return { ok: true, detail: `routine "${r.name}" finished (${stepNo} steps)` };
+    } catch (e) {
+      routines.recordRun(r.id, false, e.message);
+      if (task.cancelled) return { ok: false, detail: `routine "${r.name}" stopped` };
+      return { ok: false, detail: `routine "${r.name}" failed at ${e.message}. Fix it with program "${r.name}" if the routine is wrong.` };
+    }
   }
 
   /** Leave the village for good (died or exiled): log off and never reconnect. */

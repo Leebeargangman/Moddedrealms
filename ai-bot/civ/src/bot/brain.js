@@ -25,6 +25,7 @@ import * as builder from "../build/builder.js";
 import { village, positions } from "../village/village.js";
 import { elderLine } from "../ai/leader.js";
 import * as settings from "../settings.js";
+import * as routines from "../village/routines.js";
 
 const MEMORY_DIR = path.join(DATA_DIR, "memory");
 fs.mkdirSync(MEMORY_DIR, { recursive: true });
@@ -151,6 +152,13 @@ export class Brain {
     ].join("\n");
   }
 
+  /** The routines this villager can run (its civilisation's), with how the last run went. */
+  routinesLine() {
+    const list = routines.list("routine", roster.factionOf(this.name), 6);
+    if (!list.length) return "";
+    return "Routines: " + list.map((r) => `${r.name} (${r.runs} runs${r.last_error ? `, last failed: ${r.last_error.slice(0, 70)}` : ""})`).join("; ");
+  }
+
   /** The small, changing part of the prompt. */
   buildMessage(stateText) {
     const d = this.body.def;
@@ -185,6 +193,7 @@ export class Brain {
       news && `Village news: ${news}`,
       elderLine(this.name),
       board.text(this.name),
+      this.routinesLine(),
       loop && `Note: you chose "${c[c.length - 1]}" 3 times in a row. Choose something different that makes progress.`,
     ].filter(Boolean).join("\n");
   }

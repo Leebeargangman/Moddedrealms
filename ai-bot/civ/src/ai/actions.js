@@ -30,6 +30,9 @@ export const ACTIONS = [
   "sign",     // put up a sign: target = "here" or "village" (notice board), text = what it says
   "write",    // write and sign a book: target = title, text = content (needs a writable_book)
   "read",     // read the signs nearby and the books you carry
+  "program",  // write/rewrite your own routine: target = its name, text = the routine JSON
+  "run",      // run one of your civilisation's routines: target = its name
+  "design",   // design a building: target = its name, text = the design JSON; then build it
   "vote",     // during an election: target = the villager you vote for as leader
   "law",      // leader only: make a law (target = the law, short) or "repeal 2"
   "exile",    // leader only: send a villager away forever: target = their name (give the reason in "say")
@@ -65,8 +68,8 @@ export const FREE_SCHEMA = schemaFor(FREE_ACTIONS);
 
 const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30, withdraw: 16, give: 1 };
 // Which actions use a target / an amount (anything else the AI sends for them is dropped).
-const USES_TARGET = new Set(["found", "join", "diplomacy", "whisper", "gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
-const NEEDS_TARGET = new Set(["found", "join", "diplomacy", "whisper", "post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
+const USES_TARGET = new Set(["program", "run", "design", "found", "join", "diplomacy", "whisper", "gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
+const NEEDS_TARGET = new Set(["program", "run", "design", "found", "join", "diplomacy", "whisper", "post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
 
 /**
  * Parse and check the AI's reply. Returns { ok: true, action } or { ok: false, error }.
@@ -105,7 +108,9 @@ export function parseAction(text, { imposter = false, free = false } = {}) {
     const t = obj.text.replace(/[\r\n]+/g, " ").replace(/§./g, "").replace(/^[\s/]+/, "").trim().slice(0, name === "sign" ? 120 : 1000);
     if (t) action.text = t;
   }
-  if ((name === "sign" || name === "write") && !action.text) return { ok: false, error: `${name} without text` };
+  // Routines and designs: JSON in "text" (checked properly by village/routines.js before use).
+  if ((name === "program" || name === "design") && typeof obj.text === "string") action.text = obj.text.slice(0, 2500);
+  if (["sign", "write", "program", "design"].includes(name) && !action.text) return { ok: false, error: `${name} without text` };
   if ((name === "chat" || name === "whisper") && !action.say) return { ok: false, error: `${name} without a message` };
   if (NEEDS_TARGET.has(name) && !action.target) return { ok: false, error: `${name} without a target` };
   if (name === "claim") action.target = action.target.replace(/[^0-9]/g, "");

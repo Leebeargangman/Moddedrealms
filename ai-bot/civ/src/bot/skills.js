@@ -190,10 +190,12 @@ async function ensureTable(bot) {
   const tableId = bot.registry.blocksByName.crafting_table.id;
   const found = bot.findBlock({ matching: tableId, maxDistance: 32 });
   if (found) {
-    await walkTo(bot, new goals.GoalNear(found.position.x, found.position.y, found.position.z, 2), 60000);
-    return bot.blockAt(found.position);
+    try { await walkTo(bot, new goals.GoalNear(found.position.x, found.position.y, found.position.z, 2), 30000); } catch { /* checked below */ }
+    // Only use it if we really got close enough to open it (a table behind a wall or up a cliff is no use).
+    if (bot.entity.position.distanceTo(found.position.offset(0.5, 0.5, 0.5)) <= 4) return bot.blockAt(found.position);
   }
-  const item = await waitForItem(bot, "crafting_table", 2000);
+  let item = await waitForItem(bot, "crafting_table", 500);
+  if (!item && await craftTableFromWood(bot)) item = await waitForItem(bot, "crafting_table", 2000); // make our own
   if (!item) return null;
   // Placing is not allowed in spawn protection: walk out of it first.
   if (isProtected(bot, bot.entity.position)) {
@@ -203,15 +205,19 @@ async function ensureTable(bot) {
     const r = bot.civSpawnProtection + 4;
     try { await walkTo(bot, new goals.GoalNearXZ(Math.round(s.x + dir.x * r), Math.round(s.z + dir.z * r), 2), 60000); } catch { /* try anyway */ }
   }
+  // Any free spot next to us: grass, flowers and leaf litter count as free (placing replaces them).
   const base = bot.entity.position.floored();
-  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]]) {
-    const spot = base.offset(dx, 0, dz);
-    const below = bot.blockAt(spot.offset(0, -1, 0));
-    const here = bot.blockAt(spot);
-    if (below && below.boundingBox === "block" && here && here.name === "air") {
+  const free = (b) => b && b.boundingBox === "empty" && !["water", "lava"].includes(b.name);
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]]) {
+    for (const dy of [0, -1, 1]) {
+      const spot = base.offset(dx, dy, dz);
+      const below = bot.blockAt(spot.offset(0, -1, 0));
+      if (!below || below.boundingBox !== "block" || !free(bot.blockAt(spot)) || isProtected(bot, spot)) continue;
       await bot.equip(item, "hand");
-      await bot.placeBlock(below, new Vec3(0, 1, 0));
-      return bot.blockAt(spot);
+      try { await bot.placeBlock(below, new Vec3(0, 1, 0)); } catch { /* checked below */ }
+      await sleep(300);
+      const placed = bot.blockAt(spot);
+      if (placed?.name === "crafting_table") return placed;
     }
   }
   return null;
@@ -268,11 +274,27 @@ export async function craftSafely(bot, recipe, times, table = null) {
   // A chest window that is still closing would receive the items instead of the crafting grid
   // (we saw withdrawn logs go straight back into the chest), so wait until no window is open.
   for (let i = 0; i < 10 && bot.currentWindow; i++) { try { bot.closeWindow(bot.currentWindow); } catch { /* closed */ } await sleep(300); }
+  // Count what really arrived: a craft can "succeed" without producing anything (seen with fences right
+  // after placing a table), so check, wait a moment and retry once before giving up.
+  const have = () => bot.inventory.items().filter((it) => it.type === recipe.result.id).reduce((n, it) => n + it.count, 0);
   let done = 0;
   for (let i = 0; i < times; i++) {
     if (!bot.recipesFor(recipe.result.id, null, 1, table).length) break;
-    try { await bot.craft(recipe, 1, table); done++; } catch { break; }
-    await sleep(350);
+    let made = false;
+    for (let attempt = 0; attempt < 3 && !made; attempt++) {
+      if (attempt) {
+        // Out of step with the server: close whatever window is open and give it a moment.
+        if (bot.currentWindow) { try { bot.closeWindow(bot.currentWindow); } catch { /* closed */ } }
+        await sleep(700 * attempt);
+      }
+      const before = have();
+      try { await bot.craft(recipe, 1, table); } catch { if (attempt === 2) break; continue; }
+      await sleep(400);
+      for (let t = 0; t < 4 && have() <= before; t++) await sleep(250);
+      made = have() > before;
+    }
+    if (!made) break;
+    done++;
   }
   return done;
 }
@@ -301,7 +323,7 @@ async function craft(bot, a) {
     // Maybe it needs a crafting table (3x3 recipes).
     if (bot.recipesAll(item.id, null, true).length && !bot.recipesAll(item.id, null, null).length) {
       table = await ensureTable(bot);
-      if (!table) {
+      if (!table && !bot.inventory.items().some((it) => it.name === "crafting_table")) {
         // No table near and none carried: make one first if we can (planks, or logs turned into planks).
         const made = await craftTableFromWood(bot);
         if (made) table = await ensureTable(bot);
@@ -390,7 +412,28 @@ async function explore(bot, _a, _task, ctx) {
   return { ok: true, detail: `explored to ${x},${z}` };
 }
 
+/** Swim up and walk to the nearest dry ground (used when running out of air). */
+async function toLand(bot) {
+  const me = bot.entity.position;
+  bot.setControlState("jump", true); // swim up while the path is planned
+  const ground = bot.findBlocks({
+    matching: (b) => b.boundingBox === "block" && !["water", "lava", "kelp", "kelp_plant", "seagrass", "tall_seagrass"].includes(b.name),
+    maxDistance: 24, count: 200,
+  }).filter((p) => {
+    const above = bot.blockAt(p.offset(0, 1, 0)), head = bot.blockAt(p.offset(0, 2, 0));
+    return above && head && above.name === "air" && head.name === "air"; // standing room in the open air
+  }).sort((p, q) => p.distanceTo(me) - q.distanceTo(me))[0];
+  try {
+    if (ground) await walkTo(bot, new goals.GoalBlock(ground.x, ground.y + 1, ground.z), 25000);
+    else await walkTo(bot, new goals.GoalY(Math.ceil(me.y) + 4), 10000);
+  } catch { /* keep swimming up */ } finally {
+    bot.setControlState("jump", false);
+  }
+  return { ok: true, detail: ground ? "got out of the water onto dry land" : "swam up for air" };
+}
+
 export async function flee(bot, a = {}) {
+  if (a.toLand) return toLand(bot);
   const me = bot.entity.position;
   const threat = Object.values(bot.entities).filter((e) => isHostile(e) && e.position.distanceTo(me) < 16)
     .sort((a, b) => a.position.distanceTo(me) - b.position.distanceTo(me))[0];

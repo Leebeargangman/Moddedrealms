@@ -17,7 +17,7 @@ import * as chests from "../village/chests.js";
 import * as worldlog from "../village/worldlog.js";
 import * as roster from "../village/roster.js";
 import { isProtected } from "../bot/state.js";
-import { walkTo, sleep, craftSafely } from "../bot/skills.js";
+import { walkTo, sleep, craftSafely, SKILLS } from "../bot/skills.js";
 import * as blueprints from "./blueprints.js";
 
 const { goals } = pf;
@@ -69,8 +69,36 @@ export function text(f) {
 }
 
 // --- materials ------------------------------------------------------------------------------------
-const matches = (material, name) =>
-  material === name || (material === "planks" && name.endsWith("_planks")) || (material === "log" && name.endsWith("_log") && !name.startsWith("stripped_"));
+// Generic materials in blueprints: any wood type will do ("stairs" = oak_stairs, spruce_stairs...).
+const WOOD = /^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|pale_oak|bamboo|crimson|warped)_/;
+const GENERIC = {
+  planks: (n) => n.endsWith("_planks"),
+  log: (n) => (n.endsWith("_log") || n.endsWith("_stem")) && !n.startsWith("stripped_"),
+  stairs: (n) => n.endsWith("_stairs") && WOOD.test(n),
+  slab: (n) => n.endsWith("_slab") && WOOD.test(n),
+  door: (n) => n.endsWith("_door") && WOOD.test(n),
+  fence: (n) => n.endsWith("_fence") && WOOD.test(n),
+  torch: (n) => n === "torch" || n === "wall_torch",
+};
+// Blocks whose item has another name (a torch on a wall is the item "torch").
+const ITEM_OF = { wall_torch: "torch", redstone_wall_torch: "redstone_torch", soul_wall_torch: "soul_torch" };
+export const itemOf = (block) => ITEM_OF[block] || block;
+const matches = (material, name) => material === name || itemOf(material) === itemOf(name) || Boolean(GENERIC[material]?.(name));
+
+/** Wood type the villager can make parts from (the planks or logs it carries), oak by default. */
+function woodType(bot) {
+  const it = bot.inventory.items().find((i) => (i.name.endsWith("_planks") || i.name.endsWith("_log")) && WOOD.test(i.name));
+  return it ? it.name.replace(/_(planks|log)$/, "") : "oak";
+}
+/** The real item to craft for a material ("stairs" -> "spruce_stairs"), or null if it can't be crafted. */
+function craftName(bot, material) {
+  const w = woodType(bot);
+  const generic = { planks: `${w}_planks`, stairs: `${w}_stairs`, slab: `${w}_slab`, door: `${w}_door`, fence: `${w}_fence`, torch: "torch" }[material];
+  const name = generic || itemOf(material);
+  return bot.registry.itemsByName[name] && bot.recipesAll?.(bot.registry.itemsByName[name].id, null, true)?.length ? name : null;
+}
+// Roughly how many planks one of each crafted part costs (to turn enough logs into planks first).
+const PLANKS_PER = { planks: 1, stairs: 1.5, slab: 0.5, door: 2, fence: 1.7, ladder: 1.2, chest: 8, crafting_table: 4, oak_trapdoor: 1, torch: 0.25 };
 const SOFT = (name) => ["air", "cave_air", "short_grass", "tall_grass", "fern", "large_fern", "dead_bush", "snow", "dandelion", "poppy",
   "leaf_litter", "bush", "short_dry_grass", "tall_dry_grass"].includes(name) || name.endsWith("_flower") || name.endsWith("_sapling");
 
@@ -130,22 +158,56 @@ function findPlot(bot, centre, size) {
 // --- placing ------------------------------------------------------------------------------------------
 const FACES = [[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].map(([x, y, z]) => new Vec3(x, y, z));
 
-async function placeAt(bot, pos, material) {
+const DIR = { north: new Vec3(0, 0, -1), south: new Vec3(0, 0, 1), east: new Vec3(1, 0, 0), west: new Vec3(-1, 0, 0) };
+const solid = (b) => b && b.boundingBox === "block";
+
+/**
+ * Place one blueprint block k ({ block, props }) at pos. Blocks with a direction are placed the way the
+ * game decides it: stairs and doors face the way the player looks (so we stand behind them), wall torches
+ * and ladders hang on the block behind them, and top slabs/stairs are placed against the block above.
+ */
+async function placeAt(bot, pos, k) {
+  const material = typeof k === "string" ? k : k.block;
+  const props = (typeof k === "object" && k.props) || {};
   const item = bot.inventory.items().find((it) => matches(material, it.name));
   if (!item) return "no material";
-  // Get within reach, but don't stand where the block goes.
+  const facing = DIR[props.facing];
+  const onWall = facing && (/wall_torch$/.test(material) || material === "ladder" || (material === "torch" && props.facing));
+  const looksThatWay = facing && !onWall && (/_stairs$|_door$|_trapdoor$|^stairs$|^door$|_gate$/.test(material));
   const eyes = () => bot.entity.position.offset(0, 1.62, 0);
-  if (eyes().distanceTo(pos.offset(0.5, 0.5, 0.5)) > 4.2) {
+  // Where to stand: behind a block that must face away from us, else anywhere within reach.
+  if (looksThatWay) {
+    const spot = pos.minus(facing.scaled(2));
+    try { await walkTo(bot, new goals.GoalNearXZ(spot.x, spot.z, 0.7), 20000); } catch { /* place from here */ }
+    // Couldn't get behind it (a slope, a wall): place it from anywhere close; it may face another way.
+    if (eyes().distanceTo(pos.offset(0.5, 0.5, 0.5)) > 4.5) {
+      try { await walkTo(bot, new goals.GoalNearXZ(pos.x, pos.z, 2), 20000); } catch { /* try from here */ }
+    }
+  } else if (eyes().distanceTo(pos.offset(0.5, 0.5, 0.5)) > 4.2) {
     try { await walkTo(bot, new goals.GoalNearXZ(pos.x, pos.z, 2), 30000); } catch { /* try from here */ }
   }
   const feet = bot.entity.position.floored();
   if ((feet.x === pos.x && feet.z === pos.z) && (pos.y === feet.y || pos.y === feet.y + 1)) {
     try { await walkTo(bot, new goals.GoalNearXZ(pos.x + 2, pos.z + 2, 1), 8000); } catch { return "in the way"; }
   }
+  if (eyes().distanceTo(pos.offset(0.5, 0.5, 0.5)) > 4.5 && !looksThatWay) {
+    // High blocks (a roof ridge): stand right underneath, inside the building, and reach straight up.
+    try { await walkTo(bot, new goals.GoalNearXZ(pos.x, pos.z, 0.6), 20000); } catch { /* still try */ }
+  }
   if (eyes().distanceTo(pos.offset(0.5, 0.5, 0.5)) > 4.5) return "out of reach";
-  const ref = FACES.map((f) => ({ f, b: bot.blockAt(pos.plus(f)) })).find(({ b }) => b && b.boundingBox === "block");
+  // What to place against.
+  let ref = null;
+  if (onWall) {
+    const wall = bot.blockAt(pos.minus(facing));
+    if (solid(wall)) ref = { b: wall, f: facing.scaled(-1) };
+  } else if (props.type === "top" || props.half === "top") {
+    const above = bot.blockAt(pos.offset(0, 1, 0));
+    if (solid(above)) ref = { b: above, f: new Vec3(0, 1, 0) };
+  }
+  if (!ref) ref = FACES.map((f) => ({ f, b: bot.blockAt(pos.plus(f)) })).find(({ b }) => solid(b));
   if (!ref) return "nothing to place against";
   await bot.equip(item, "hand");
+  if (looksThatWay) await bot.look(Math.atan2(-facing.x, -facing.z), 0, true); // face the way the block must face
   try {
     await bot.placeBlock(ref.b, ref.f.scaled(-1));
   } catch (e) {
@@ -154,6 +216,28 @@ async function placeAt(bot, pos, material) {
     if (!now || !matches(material, now.name)) return e.message;
   }
   return null;
+}
+
+/** Make the crafted parts a blueprint needs (stairs, slabs, doors, fences, torches...) from what we carry. */
+async function craftParts(bot, need, task, ctx) {
+  for (const [m, n] of Object.entries(need)) {
+    if (m === "planks" || m === "log" || task.cancelled) continue;
+    const missing = n - carried(bot, m);
+    if (missing <= 0) continue;
+    const name = craftName(bot, m);
+    if (!name) continue;
+    // A recipe makes a few at a time and the craft skill stops when the planks run out: try a few rounds.
+    for (let round = 0; round < 3 && carried(bot, m) < n && !task.cancelled; round++) {
+      const before = carried(bot, m);
+      if (m !== "torch") await logsToPlanks(bot, Math.ceil((n - before) * (PLANKS_PER[m] ?? 1)) + carried(bot, "planks"), 0);
+      try {
+        const r = await SKILLS.craft(bot, { action: "craft", target: name, amount: n - before }, task, ctx);
+        if (process.env.CIV_DEBUG) console.log("craft part", name, JSON.stringify(r));
+      } catch (e) { if (process.env.CIV_DEBUG) console.log("craft part", name, "threw", e.message); }
+      await sleep(400);
+      if (carried(bot, m) <= before) break; // nothing more can be made
+    }
+  }
 }
 
 /**
@@ -176,7 +260,7 @@ export async function build(bot, a, task, ctx) {
   if (!bp) return { ok: false, detail: `unknown blueprint "${a.target}": choose one of ${Object.keys(list).join(", ")}` };
 
   // Materials: carry what we need, taking from the chests first.
-  const need = blueprints.materials(bp);
+  const need = blueprints.materials(bp, { required: true }); // optional blocks (torches...) are skipped if missing
   const short = {};
   for (const [m, n] of Object.entries(need)) {
     const placedAlready = row ? Math.round((row.placed / row.total) * n) : 0;
@@ -189,14 +273,20 @@ export async function build(bot, a, task, ctx) {
       if (m === "planks" && carried(bot, "planks") < need.planks) await ctx.withdraw("wood", Math.ceil((need.planks - carried(bot, "planks")) / 4));
     }
   }
-  // Planks come from logs: turn carried logs into planks (keeping the logs a blueprint itself needs).
-  if (need.planks) await logsToPlanks(bot, need.planks, need.log || 0);
+  // Planks come from logs: enough for the planks themselves and for the parts made from them.
+  const plankNeed = Object.entries(need).reduce((s, [m, n]) => s + (PLANKS_PER[m] ?? (GENERIC[m] ? 0 : 0)) * Math.max(0, n - (m === "planks" ? 0 : carried(bot, m))), 0);
+  if (plankNeed) await logsToPlanks(bot, Math.ceil(plankNeed), need.log || 0);
+  await craftParts(bot, blueprints.materials(bp), task, ctx); // also optional parts (torches) when we can
   if (process.env.CIV_DEBUG) console.log("build materials", JSON.stringify(need), "carry planks", carried(bot, "planks"), "logs", carried(bot, "log"));
   for (const m of Object.keys(short)) { const left = need[m] - carried(bot, m); if (left <= 0) delete short[m]; else short[m] = left; }
   // Start with what we have if it is at least a good part (walls first), else ask the village for help.
   const totalShort = Object.values(short).reduce((s, n) => s + n, 0);
   if (totalShort > bp.blocks.length * 0.7) {
-    for (const [m, n] of Object.entries(short)) ctx.post({ action: "gather", target: m === "planks" || m === "log" ? "wood" : m, amount: Math.min(64, m === "planks" ? Math.ceil(n / 4) : n) });
+    for (const [m, n] of Object.entries(short)) {
+      // Wooden parts (stairs, doors...) are made from wood: ask for logs instead.
+      const wooden = m === "planks" || m === "log" || PLANKS_PER[m] !== undefined || GENERIC[m];
+      ctx.post({ action: "gather", target: wooden && m !== "torch" ? "wood" : m === "torch" ? "coal" : m, amount: Math.min(64, wooden ? Math.ceil(n * (PLANKS_PER[m] ?? 1) / 4) + 1 : n) });
+    }
     return { ok: false, detail: `not enough materials for a ${row ? row.blueprint : want}: missing ${Object.entries(short).map(([m, n]) => `${n} ${m}`).join(", ")} (4 planks = 1 log). I posted gather jobs.` };
   }
 
@@ -220,12 +310,20 @@ export async function build(bot, a, task, ctx) {
       if (!b || b.name === "air" || (wanted && matches(wanted.block, b.name))) continue;
       if (SOFT(b.name) && !wanted) continue; // grass and flowers: placing replaces them anyway
       if (!bot.canDigBlock(b) && b.name !== "water") {
-        try { await walkTo(bot, new goals.GoalNear(p.x, p.y, p.z, 3), 20000); } catch { /* reach from here */ }
+        try { await walkTo(bot, new goals.GoalNear(p.x, p.y, p.z, 2), 20000); } catch { /* reach from here */ }
       }
-      try { if (bot.canDigBlock(bot.blockAt(p))) await bot.dig(bot.blockAt(p), true); } catch { /* leave it */ }
+      try {
+        if (bot.canDigBlock(bot.blockAt(p))) await bot.dig(bot.blockAt(p), true);
+        else if (process.env.CIV_DEBUG) console.log("clear: can't dig", b.name, "at", p.toString(), "from", bot.entity.position.floored().toString());
+      } catch (e) { if (process.env.CIV_DEBUG) console.log("clear: dig failed", b.name, p.toString(), e.message); }
     }
     const floor = origin.offset(dx, 0, dz);
-    if (bot.blockAt(floor)?.boundingBox !== "block" && carried(bot, "dirt")) await placeAt(bot, floor, "dirt");
+    const found = bp.blocks.find((k) => k.x === dx && k.y === 0 && k.z === dz);
+    const fb = bot.blockAt(floor);
+    if (found && fb && fb.name !== "air" && !matches(found.block, fb.name) && bot.canDigBlock(fb)) {
+      // A foundation block goes here (cobblestone...): take the ground block out first.
+      try { await walkTo(bot, new goals.GoalNear(floor.x, floor.y, floor.z, 3), 15000); await bot.dig(fb, true); } catch { /* placed later if possible */ }
+    } else if (!found && fb?.boundingBox !== "block" && carried(bot, "dirt")) await placeAt(bot, floor, "dirt");
   }
 
   // Place, layer by layer; a block needs a neighbour to be placed against, so loop until no progress.
@@ -238,7 +336,9 @@ export async function build(bot, a, task, ctx) {
       const p = origin.offset(k.x, k.y, k.z);
       const b = bot.blockAt(p);
       if (b && matches(k.block, b.name)) continue; // already there
-      const problem = await placeAt(bot, p, k.block);
+      if (k.opt && !carried(bot, k.block)) continue; // optional (torches...): skip when we have none
+      const problem = await placeAt(bot, p, k);
+      if (!problem && itemOf(k.block) === "chest") chests.add(p, ctx.faction); // a chest in a building is a village chest
       if (process.env.CIV_DEBUG && problem) console.log("place", p.toString(), k.block, "->", problem, "carry", carried(bot, k.block));
       if (problem) { lastProblem = problem; next.push(k); if (problem === "no material") break; } else placedNow++;
     }
@@ -247,7 +347,7 @@ export async function build(bot, a, task, ctx) {
     q.progress.run(bp.blocks.length - pending.length, ctx.name, row.id);
     await sleep(50);
   }
-  const placed = bp.blocks.filter((k) => { const b = bot.blockAt(origin.offset(k.x, k.y, k.z)); return b && matches(k.block, b.name); }).length;
+  const placed = bp.blocks.filter((k) => { if (k.opt) return true; const b = bot.blockAt(origin.offset(k.x, k.y, k.z)); return b && matches(k.block, b.name); }).length;
   q.progress.run(placed, ctx.name, row.id);
   if (placed >= bp.blocks.length) {
     q.done.run(Date.now(), row.id);

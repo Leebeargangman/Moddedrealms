@@ -1656,6 +1656,14 @@
     listInto($("[data-civ-buildings]"), c.buildings.slice().reverse(), function (b) {
       return el("li", null, b.blueprint + " at " + b.x + ", " + b.z + " · " + (b.status === "done" ? "done" : b.placed + "/" + b.total + " blocks") + (b.builder ? " · " + b.builder : ""));
     });
+    var made = (c.routines || []).map(function (r) {
+      return { text: "Routine " + r.name + " by " + r.owner + " · " + r.runs + " runs" + (r.fails ? ", " + r.fails + " failed" : "") + (r.lastError ? " · last error: " + r.lastError : "") };
+    }).concat((c.designs || []).map(function (d) {
+      return { text: "Design " + d.name + " by " + d.owner + " · " + d.size.x + "×" + d.size.y + "×" + d.size.z + ", " + d.blocks + " blocks" };
+    }));
+    listInto($("[data-civ-routines]"), made, function (x) {
+      return el("li", "small", x.text);
+    });
     listInto($("[data-civ-board]"), c.board, function (j) {
       return el("li", null, "#" + j.id + " " + [j.action, j.target, j.amount ? "x" + j.amount : ""].join(" ").trim() + " · " + (j.status === "open" ? "open" : "taken by " + j.claimed_by));
     });
