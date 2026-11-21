@@ -115,7 +115,7 @@ export class CivBot {
     // Reflex (plain code): fight back if healthy and it's a mob, otherwise run.
     if (this.currentTask?.action.action !== "attack" && this.currentTask?.action.action !== "flee") {
       if (attacker && attacker.type !== "player" && bot.health > 10) this.perform({ action: "attack", target: attacker.name }, true);
-      else this.perform({ action: "flee" }, true);
+      else this.perform({ action: "flee", reflex: true }, true);
     }
     // Tell the brain, but at most once every 15 s (a fight is many hits).
     if (!this.flags.hurtAt || Date.now() - this.flags.hurtAt > 15000) {
@@ -167,6 +167,16 @@ export class CivBot {
 
   say(text) {
     if (!text || Date.now() - this.lastSay < config.chat.minSayGapMs) return;
+    // Skip lines that are nearly the same as something we said in the last 5 minutes
+    // (stops "Creepers are near. I'll keep clear." every 20 seconds).
+    const words = new Set(text.toLowerCase().match(/[a-z']+/g) || []);
+    this.said = (this.said || []).filter((s) => Date.now() - s.at < 300000);
+    const similar = this.said.some((s) => {
+      const shared = [...words].filter((w) => s.words.has(w)).length;
+      return shared / Math.max(1, new Set([...words, ...s.words]).size) >= 0.5;
+    });
+    if (similar) return;
+    this.said.push({ at: Date.now(), words });
     this.lastSay = Date.now();
     this.bot.chat(text);
   }

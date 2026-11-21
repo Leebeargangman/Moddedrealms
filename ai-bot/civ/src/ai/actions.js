@@ -41,6 +41,8 @@ export const ACTION_SCHEMA = {
 };
 
 const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30 };
+// Which actions use a target / an amount (anything else the AI sends for them is dropped).
+const USES_TARGET = new Set(["gather", "craft", "goto", "follow", "attack"]);
 
 /**
  * Parse and check the AI's reply. Returns { ok: true, action } or { ok: false, error }.
@@ -64,10 +66,10 @@ export function parseAction(text) {
   if (!ACTIONS.includes(name)) return { ok: false, error: `unknown action "${obj.action}"` };
 
   const action = { action: name };
-  if (typeof obj.target === "string" && obj.target.trim()) {
+  if (USES_TARGET.has(name) && typeof obj.target === "string" && obj.target.trim()) {
     action.target = obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
   }
-  const amount = Number.isFinite(obj.amount) ? Math.round(obj.amount) : DEFAULT_AMOUNT[name];
+  const amount = !(name in DEFAULT_AMOUNT) ? undefined : Number.isFinite(obj.amount) ? Math.round(obj.amount) : DEFAULT_AMOUNT[name];
   if (amount !== undefined) action.amount = Math.max(1, Math.min(name === "follow" || name === "wait" ? 300 : 64, amount));
   const say = cleanSay(obj.say);
   if (say) action.say = say;

@@ -52,10 +52,14 @@ export function snapshot(bot, village) {
     if (e === bot.entity || !e.position) continue;
     const d = dist(e.position, me);
     if (e.type === "player" && d <= 48) players.push([e.username, d]);
-    else if (isHostile(e) && d <= 24) mobs.push([e.name, d]);
+    // Hostiles: only those within 16 m and roughly on our level count (a creeper in a cave 15 blocks
+    // below is no threat). Within 8 m = danger.
+    else if (isHostile(e) && d <= 16 && Math.abs(e.position.y - me.y) <= 6) mobs.push([e.name, d]);
     else if (["cow", "pig", "sheep", "chicken", "rabbit"].includes(e.name) && d <= 24) animals.push([e.name, d]);
   }
-  facts.dangerNear = mobs.some(([, d]) => d <= 8);
+  const danger = mobs.filter(([, d]) => d <= 8);
+  const far = mobs.filter(([, d]) => d > 8);
+  facts.dangerNear = danger.length > 0;
 
   // Blocks: one search for all interesting types, then keep the nearest of each.
   const ids = new Set(INTERESTING.map((n) => bot.registry.blocksByName[n]?.id).filter((id) => id !== undefined));
@@ -74,7 +78,8 @@ export function snapshot(bot, village) {
   const villageText = village ? ` (${dist(village, me)} m from village)` : "";
   const nearby = [
     players.length && `players ${fmt(players)}`,
-    mobs.length && `hostile ${fmt(mobs)}`,
+    danger.length && `DANGER ${fmt(danger)}`,
+    far.length && `hostile but not close ${fmt(far)}`,
     animals.length && `animals ${fmt(animals, 3)}`,
     nearest.size && `blocks ${fmt([...nearest.entries()], 8)}`,
   ].filter(Boolean).join(" · ");

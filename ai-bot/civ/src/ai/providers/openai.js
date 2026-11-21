@@ -2,8 +2,9 @@
 // It is a stand-in until a Claude key is available: same prompts, same JSON actions, same logging.
 //
 // Differences from Claude worth knowing:
-//  - Prompt caching is automatic (no cache_control), and only for prompts of 1,024+ tokens. Sending
-//    the same prompt_cache_key on every call helps the requests land on the same cache.
+//  - Prompt caching is automatic (no cache_control), and only for prompts of 1,024+ tokens. OpenAI only
+//    caches up to the end of a "developer" or user message, so the fixed rules go in a developer
+//    message (as a "system" message they were never read back from the cache, measured Nov 2026).
 //  - The JSON schema must be "strict": every field listed as required, optional ones allowed to be null.
 //  - gpt-6-luna is a reasoning model. Reasoning tokens are billed as output, so reasoning is set to
 //    "none" (config ai.openaiReasoningEffort), like turning thinking off for Claude.
@@ -36,7 +37,7 @@ export async function call({ model, system, user, maxTokens, schema }) {
     model,
     max_completion_tokens: maxTokens,
     messages: [
-      { role: "system", content: system.map((b) => b.text).join("\n\n") },
+      { role: "developer", content: system.map((b) => b.text).join("\n\n") },
       { role: "user", content: user },
     ],
     prompt_cache_key: "moddedrealms-civ",

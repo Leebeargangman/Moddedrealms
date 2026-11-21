@@ -242,10 +242,13 @@ async function explore(bot, _a, _task, ctx) {
   return { ok: true, detail: `explored to ${x},${z}` };
 }
 
-export async function flee(bot) {
+export async function flee(bot, a = {}) {
   const me = bot.entity.position;
   const threat = Object.values(bot.entities).filter((e) => isHostile(e) && e.position.distanceTo(me) < 16)
     .sort((a, b) => a.position.distanceTo(me) - b.position.distanceTo(me))[0];
+  // The AI asked to flee but nothing is close: running would just waste time. (A reflex flee, after
+  // being hurt by something we can't see, still runs.)
+  if (!threat && !a.reflex) return { ok: false, detail: "nothing dangerous within 16 m, no need to flee: get back to work" };
   const away = threat ? me.minus(threat.position).normalize() : new Vec3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
   const x = Math.round(me.x + away.x * 20), z = Math.round(me.z + away.z * 20);
   bot.setControlState("sprint", true);

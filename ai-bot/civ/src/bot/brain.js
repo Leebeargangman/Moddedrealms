@@ -12,7 +12,7 @@ import path from "node:path";
 import { config, DATA_DIR } from "../config.js";
 import { log } from "../log.js";
 import { ask, cooldownMultiplier } from "../ai/client.js";
-import { SYSTEM_PROMPT, MEMORY_SYSTEM, ACTION_LIST } from "../ai/prompts.js";
+import { SYSTEM_PROMPT, MEMORY_SYSTEM } from "../ai/prompts.js";
 import { ACTION_SCHEMA, parseAction, fallbackAction, describe } from "../ai/actions.js";
 
 const MEMORY_DIR = path.join(DATA_DIR, "memory");
@@ -37,6 +37,7 @@ export class Brain {
     this.thinking = false;   // a call is in progress
     this.lastCall = 0;
     this.decisions = 0;
+    this.lastChoices = [];   // the last few actions the AI chose, to spot it going round in circles
     this.memoryFile = path.join(MEMORY_DIR, `${this.name}.json`);
     this.memory = "";
     try {
@@ -76,14 +77,16 @@ export class Brain {
     const events = this.events.map((e) => `- ${ago(now - e.at)}: ${e.text}${e.seen ? "" : " [new]"}`).join("\n") || "- nothing yet";
     const task = this.body.currentTask;
     const taskText = task ? `${describe(task.action)} (for ${Math.round((now - task.started) / 1000)} s)` : "none";
+    const c = this.lastChoices;
+    const loop = c.length >= 3 && c.slice(-3).every((x) => x === c[c.length - 1]);
     return [
       `You are ${d.name}, preferred role ${d.role}. Personality: ${d.personality}.`,
       `Memory: ${this.memory || "nothing yet, you just arrived."}`,
       `Current task: ${taskText}`,
       `Recent events (oldest first):\n${events}`,
       `State:\n${stateText}`,
-      `Actions: ${ACTION_LIST}. Reply with one JSON object.`,
-    ].join("\n");
+      loop && `Note: you chose "${c[c.length - 1]}" 3 times in a row. Choose something different that makes progress.`,
+    ].filter(Boolean).join("\n");
   }
 
   async think() {
@@ -103,6 +106,16 @@ export class Brain {
         const parsed = parseAction(res.text);
         if (parsed.ok) action = parsed.action;
         else log.warn(this.name, `unusable reply (${parsed.error}): ${res.text.slice(0, 120)}`);
+      }
+      // Fleeing when nothing is close just wastes time (and another AI call): do something useful instead.
+      if (action?.action === "flee" && !facts.dangerNear && facts.health > 8) {
+        log.info(this.name, `ignored flee (nothing dangerous within 8 m)`);
+        action = null;
+        res.reason = "flee without danger";
+      }
+      if (action) {
+        this.lastChoices.push(action.action + (action.target ? ` ${action.target}` : ""));
+        if (this.lastChoices.length > 5) this.lastChoices.shift();
       }
       if (!action) {
         action = fallbackAction(facts);
