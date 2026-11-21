@@ -1579,6 +1579,7 @@
     $('[data-civ-stat="online"]').textContent = m.online ? online : 0;
     $('[data-civ-stat="day"]').textContent = c.day === null || c.day === undefined ? "-" : c.day;
     $('[data-civ-stat="cost"]').textContent = money(c.ai.spentToday);
+    fillCivForm(c);
 
     // Session and schedule
     var tagBox = $("[data-civ-session-tag]");
@@ -1606,7 +1607,8 @@
     var table = $("[data-civ-villagers]");
     table.textContent = "";
     var head = el("tr");
-    ["Name", "Role", "Health", "Doing", "Last said"].forEach(function (h) {
+    var showCiv = (c.factions || []).length > 1 || (c.settings && c.settings.mode === "free");
+    (showCiv ? ["Name", "Civilisation", "Role", "Health", "Doing", "Last said"] : ["Name", "Role", "Health", "Doing", "Last said"]).forEach(function (h) {
       head.appendChild(el("th", null, h));
     });
     table.appendChild(head);
@@ -1618,6 +1620,7 @@
       if (secrets && imp[v.name]) name.appendChild(tag("imposter", "red"));
       name.title = v.personality;
       tr.appendChild(name);
+      if (showCiv) tr.appendChild(el("td", null, v.faction || "on their own"));
       tr.appendChild(el("td", null, v.role));
       tr.appendChild(el("td", null, v.online ? v.health + " hp, " + v.food + " food" : "offline"));
       tr.appendChild(el("td", "small", v.task || (v.online ? "thinking" : "")));
@@ -1635,10 +1638,20 @@
       li.appendChild(document.createTextNode(n.text));
       return li;
     });
-    $("[data-civ-leader]").textContent = c.leader ? c.leader.name + " leads the village (since day " + c.leader.since_day + ")" + (c.election ? ". An election is on: " + c.election.votes + " votes so far." : ".") : c.election ? "Election in progress: " + c.election.votes + " votes so far." : "No leader yet.";
-    listInto($("[data-civ-laws]"), c.laws, function (l) {
-      return el("li", null, l);
+    var facBox = $("[data-civ-factions]");
+    facBox.textContent = "";
+    var manyCivs = (c.factions || []).length > 1 || (c.settings && c.settings.mode === "free");
+    (c.factions || []).forEach(function (f) {
+      if (manyCivs) facBox.appendChild(el("h3", "civ-faction-name", f.name + " · " + f.alive + " alive"));
+      facBox.appendChild(el("p", "small", f.leader ? f.leader.name + " leads" + (manyCivs ? "" : " the village") + " (since day " + f.leader.since_day + ")" + (f.election ? "; election on, " + f.election.votes + " votes so far." : ".") : f.election ? "Election in progress: " + f.election.votes + " votes so far." : "No leader yet."));
+      if (f.relations && f.relations.length) facBox.appendChild(el("p", "small muted", f.relations.join(" · ")));
+      var ol = el("ol", "civ-laws");
+      listInto(ol, f.laws, function (l) {
+        return el("li", null, l);
+      });
+      facBox.appendChild(ol);
     });
+    if (!(c.factions || []).length) facBox.appendChild(el("p", "muted small", "No civilisations yet: everyone is on their own."));
     listInto($("[data-civ-buildings]"), c.buildings.slice().reverse(), function (b) {
       return el("li", null, b.blueprint + " at " + b.x + ", " + b.z + " · " + (b.status === "done" ? "done" : b.placed + "/" + b.total + " blocks") + (b.builder ? " · " + b.builder : ""));
     });
@@ -1670,6 +1683,154 @@
       });
     }
   }
+
+  /* Settings form: filled from the live snapshot until someone starts editing it. */
+  var civForm = $("[data-civ-settings]");
+  var civDirty = false;
+  var MODE_HELP = {
+    village: "One village works together. With imposters on, two villagers secretly kill when nobody is watching.",
+    civilisations: "Villagers are split evenly between the civilisations you name, each with its own village site, leader, laws and storage. At war, they may attack each other's villagers.",
+    free: "Everyone starts on their own. Villagers decide for themselves: found a civilisation, join one or leave, and leaders choose allies and wars. Anyone outside your own civilisation can be attacked.",
+  };
+
+  function factionInputs(names) {
+    var box = $("[data-civ-faction-names]");
+    var n = Number(civForm.factionCount.value) || 2;
+    var current = $$("input", box).map(function (i) {
+      return i.value;
+    });
+    var defaults = ["Red", "Blue", "Green", "Gold"];
+    box.textContent = "";
+    for (var i = 0; i < n; i++) {
+      var inp = el("input", "input");
+      inp.maxLength = 20;
+      inp.setAttribute("aria-label", "Civilisation " + (i + 1) + " name");
+      inp.value = (names && names[i]) || current[i] || defaults[i];
+      box.appendChild(inp);
+    }
+  }
+
+  function civFormValues() {
+    var f = civForm;
+    var mode = f.mode.value;
+    return {
+      mode: mode,
+      botCount: Number(f.botCount.value),
+      budget: Number(f.budget.value),
+      schedule: {
+        start: f.start.value,
+        end: f.end.value,
+        days: $$('input[name="day"]', f)
+          .filter(function (d) {
+            return d.checked;
+          })
+          .map(function (d) {
+            return Number(d.value);
+          }),
+      },
+      factions: mode === "civilisations" ? $$("input", $("[data-civ-faction-names]")).map(function (i) {
+        return i.value.trim();
+      }) : ["Village"],
+      war: mode === "civilisations" && f.war.checked,
+      imposters: mode === "village" && f.imposters.checked,
+      factionDistance: Number(f.factionDistance.value) || 150,
+      instructions: f.instructions.value,
+    };
+  }
+
+  function showMode() {
+    var mode = civForm.mode.value;
+    $$("[data-civ-only]", civForm).forEach(function (n) {
+      n.hidden = n.getAttribute("data-civ-only") !== mode;
+    });
+    $("[data-civ-mode-help]").textContent = MODE_HELP[mode] || "";
+  }
+
+  function toMinutes(t) {
+    var p = String(t || "0:0").split(":");
+    return Number(p[0]) * 60 + Number(p[1] || 0);
+  }
+
+  function civCost() {
+    var m = civHost();
+    if (!m) return;
+    var c = m.snapshot.civ;
+    var v = civFormValues();
+    var minutes = Math.max(0, toMinutes(v.schedule.end) - toMinutes(v.schedule.start));
+    var model = c.costModel || { perBotMinute: 0.00024, measuredSessions: 0, elderPerSession: 0 };
+    var session = model.perBotMinute * v.botCount * minutes + (model.elderPerSession || 0);
+    var week = session * v.schedule.days.length;
+    var out = $("[data-civ-cost]");
+    out.textContent = "Estimated AI cost: " + money(session) + " a session (" + v.botCount + " villagers × " + Math.round(minutes / 6) / 10 + " h), " +
+      money(week) + " a week, about " + money(week * 4.35) + " a month. " +
+      (model.measuredSessions ? "Based on your last " + model.measuredSessions + " real session(s)." : "Estimated from test runs (no real session measured yet).") +
+      (session > v.budget ? " Over the daily budget of " + money(v.budget) + ": the villagers slow down at 80% and stop using the AI when it runs out." : "");
+    out.className = "civ-cost small" + (session > v.budget ? " ai-test-bad" : "");
+  }
+
+  function fillCivForm(c) {
+    if (civDirty || !c.settings) return;
+    var s = c.settings;
+    var f = civForm;
+    f.mode.value = s.mode || (s.factions && s.factions.length > 1 ? "civilisations" : "village");
+    f.botCount.value = s.botCount;
+    f.budget.value = s.budget;
+    f.start.value = s.schedule.start;
+    f.end.value = s.schedule.end;
+    $$('input[name="day"]', f).forEach(function (d) {
+      d.checked = s.schedule.days.indexOf(Number(d.value)) !== -1;
+    });
+    f.factionCount.value = String(Math.max(2, Math.min(4, (s.factions || []).length)));
+    factionInputs((s.factions || []).length > 1 ? s.factions.map(function (x) {
+      return x.name;
+    }) : null);
+    f.war.checked = !!s.war;
+    f.imposters.checked = !!s.imposters;
+    f.factionDistance.value = s.factionDistance;
+    f.instructions.value = s.instructions || "";
+    var admin = state.me && state.me.admin;
+    $$("input, select, textarea, button", f).forEach(function (n) {
+      n.disabled = !admin;
+    });
+    $("[data-civ-settings-who]").textContent = admin ? "" : "Only admins can change these.";
+    showMode();
+    civCost();
+  }
+
+  function onFormEdit(e) {
+    civDirty = true;
+    if (e.target.name === "factionCount") factionInputs();
+    if (e.target.name === "mode") showMode();
+    civCost();
+  }
+  civForm.addEventListener("input", onFormEdit);
+  civForm.addEventListener("change", onFormEdit);
+
+  function saveCivSettings(restart) {
+    var m = civHost();
+    if (!m) return;
+    var v = civFormValues();
+    var out = $("[data-civ-settings-result]");
+    if (restart && !window.confirm("Save, then end the current session and start a new one with these settings?")) return;
+    out.textContent = "Saving…";
+    var args = Object.assign({}, v, {
+      factions: v.factions.map(function (n) {
+        return { name: n };
+      }),
+      restart: !!restart,
+    });
+    command(m.name, "civSettings", args, function (ev) {
+      out.textContent = (ev.ok ? "✓ " : "✗ ") + (ev.text || ev.error || "");
+      if (ev.ok) civDirty = false;
+    });
+  }
+  civForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    saveCivSettings(false);
+  });
+  $("[data-civ-save-restart]").addEventListener("click", function () {
+    saveCivSettings(true);
+  });
 
   $("[data-civ-secrets]").addEventListener("change", renderCiv);
   $$("[data-civ-cmd]").forEach(function (b) {

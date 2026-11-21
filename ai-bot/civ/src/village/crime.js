@@ -88,17 +88,18 @@ export function attackStarted(imposter, victim) { attempts.set(victim, { by: imp
  * A villager died (any cause). Records it, uses up a kill if it was murder, and returns who saw it:
  * [{ name, text }] events for witnesses. `where` = positions of everyone online.
  */
-export function died(victim, pos, day, where, causeHint) {
+export function died(victim, pos, day, where, causeHint, warKiller = null) {
   const a = attempts.get(victim);
-  const killer = a && Date.now() - a.at < 30000 && roster.isImposter(a.by) ? a.by : null;
+  const impKiller = a && Date.now() - a.at < 30000 && roster.isImposter(a.by) ? a.by : null;
+  const killer = impKiller || warKiller;
   attempts.delete(victim);
   q.add.run(victim, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), Date.now(), day, killer);
-  if (killer) {
+  if (impKiller) {
     const w = kv("killWindow") || {};
     kv("killWindow", { day, kills: (w.day === day ? w.kills : 0) + 1 });
     kv("lastKillWindowDay", day);
   }
-  worldlog.write("secret", `${victim} died at ${Math.round(pos.x)},${Math.round(pos.z)}: ${killer ? `killed by imposter ${killer}` : causeHint || "not murder (mob, fall...)"}.`, { day, isPublic: false });
+  worldlog.write("secret", `${victim} died at ${Math.round(pos.x)},${Math.round(pos.z)}: ${impKiller ? `killed by imposter ${impKiller}` : warKiller ? `killed in war by ${warKiller}` : causeHint || "not murder (mob, fall...)"}.`, { day, isPublic: false });
   const r = C().seeRadius;
   return Object.entries(where)
     .filter(([n, p]) => n !== victim && n !== killer && roster.isAlive(n) && p.distanceTo(pos) <= r)

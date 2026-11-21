@@ -447,8 +447,9 @@ export async function attack(bot, a, task, ctx = {}) {
   const playerName = a.target && Object.keys(bot.players).find((n) => n.toLowerCase() === a.target.toLowerCase() && n !== bot.username);
   if (playerName) {
     const when = ctx.attackedBy?.[playerName];
-    if (!when || Date.now() - when > 120000) return { ok: false, detail: `I only fight people in self-defence: ${playerName} hasn't attacked me recently` };
-    return fightPlayer(bot, playerName, task);
+    const enemy = ctx.isEnemy?.(playerName); // at war: enemy villagers may be attacked any time
+    if (!enemy && (!when || Date.now() - when > 120000)) return { ok: false, detail: `I only fight people in self-defence: ${playerName} hasn't attacked me recently` };
+    return fightPlayer(bot, playerName, task, enemy ? 30 : 20);
   }
   const want = a.target && a.target !== "hostile" ? a.target : null;
   const mob = Object.values(bot.entities)

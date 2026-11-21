@@ -24,6 +24,9 @@ import { village, start as startVillage, stop as stopVillage } from "./village/v
 import { schedule, inWindow, windowText } from "./schedule.js";
 import { connectWebsite } from "./web/link.js";
 import { startElders } from "./ai/leader.js";
+import * as settings from "./settings.js";
+
+settings.apply(); // the website's saved settings override config.json (schedule, villagers, budget...)
 import { startStatusServer } from "./web/status.js";
 
 const keyName = provider === "openai" ? OPENAI_KEY : ANTHROPIC_KEY;
@@ -45,14 +48,15 @@ const online = () => [...village.bots.values()].filter((b) => b.ready).length ||
 /** Start a session now. `reason` is shown on the website; `minutes` = stop by itself after that long. */
 async function startSession(reason = "manual", minutes = null) {
   if (session) return { ok: false, detail: "a session is already running" };
+  settings.apply(); // villagers, civilisations, budget... as last saved on the website
   const sid = ledger.newSession();
   session = { id: sid, started: Date.now(), reason, endsAt: minutes ? Date.now() + minutes * 60000 : null, bots: [], timers: [] };
   log.info("civ", `session ${sid} starting (${reason}): ${config.botCount} villagers on ${config.server.host}:${config.server.port}` +
     ` · model ${options.mock ? "MOCK (no API calls)" : `${model} (${provider})`} · budget $${config.budget.dailyUsd}/day` +
     (session.endsAt ? ` · until ${new Date(session.endsAt).toTimeString().slice(0, 5)}` : ""));
 
-  board.seed(); // starter jobs for a brand-new village (only if the board has never had any)
   startVillage(); // creates the villagers the first time, then runs the world rules every 5 s
+  for (const f of roster.factionNames()) board.seed(f); // starter jobs for a brand-new village
   village.blueprintText = await blueprints.text();
   village.makeBot = (def) => {
     if (!session || village.stopping) return null;
@@ -93,6 +97,18 @@ async function endSession(why = "stopped") {
   return { ok: true, detail: `session ended, report ${file.split("/").pop()}` };
 }
 
+/** End the session and start a new one (new settings), as one step: nothing may quit in between. */
+let restarting = false;
+async function restartSession(why, reason, minutes) {
+  restarting = true;
+  try {
+    await endSession(why);
+    return await startSession(reason, minutes);
+  } finally {
+    restarting = false;
+  }
+}
+
 // --- run modes --------------------------------------------------------------------------------------
 let quitting = false;
 async function quit(why) {
@@ -104,7 +120,7 @@ async function quit(why) {
 process.on("SIGINT", () => quit("Ctrl+C"));
 process.on("SIGTERM", () => quit("stop signal"));
 
-const control = { startSession, endSession, getSession: () => session, lag };
+const control = { startSession, endSession, restartSession, getSession: () => session, lag };
 connectWebsite(control);
 startStatusServer(control);
 
@@ -122,5 +138,5 @@ if (options.scheduled) {
 } else {
   await startSession("manual", options.minutes);
   // One-off run: when the session ends (--minutes, or from the website), the program ends too.
-  setInterval(() => { if (!session && !quitting) quit("session over"); }, 5000);
+  setInterval(() => { if (!session && !quitting && !restarting) quit("session over"); }, 5000);
 }

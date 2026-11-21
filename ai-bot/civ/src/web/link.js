@@ -13,6 +13,7 @@ import { log } from "../log.js";
 import { snapshot } from "./status.js";
 import { setPaused } from "../ai/client.js";
 import { schedule } from "../schedule.js";
+import * as settings from "../settings.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -55,6 +56,17 @@ export function connectWebsite(control) {
       else if (cmd.command === "civStop") r = await control.endSession(`stopped from the website by ${cmd.staff?.name || "staff"}`);
       else if (cmd.command === "civPause") { setPaused(true); r = { ok: true, detail: "AI paused: villagers use plain-code behaviour, no API calls" }; }
       else if (cmd.command === "civResume") { setPaused(false); r = { ok: true, detail: "AI resumed" }; }
+      else if (cmd.command === "civSettings") {
+        r = settings.save(cmd.args || {});
+        // "Save and restart": apply villagers/civilisations/instructions right away.
+        if (r.ok && cmd.args?.restart && control.getSession()) {
+          const reason = control.getSession().reason;
+          await control.restartSession(`restarted by ${cmd.staff?.name || "staff"} with new settings`,
+            reason === "schedule" ? "schedule" : `restarted from the website by ${cmd.staff?.name || "staff"}`, reason === "schedule" ? null : schedule().manualMinutes);
+          r = { ok: true, detail: "settings saved and the session restarted with them" };
+        } else if (r.ok) r = { ok: true, detail: control.getSession() ? "settings saved: villagers, civilisations and instructions apply from the next session (or use save and restart)" : "settings saved" };
+        if (r.ok) log.info("website", `settings changed by ${cmd.staff?.name || "staff"}: ${JSON.stringify(settings.get()).slice(0, 300)}`);
+      }
       else r = { ok: false, detail: `unknown command ${cmd.command}` };
     } catch (e) {
       r = { ok: false, detail: e.message };

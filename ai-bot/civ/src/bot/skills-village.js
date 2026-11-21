@@ -52,14 +52,14 @@ async function placeNewChest(bot, ctx) {
   await walkTo(bot, new goals.GoalNear(spot.x, spot.y, spot.z, 3), 60000);
   await bot.equip(item, "hand");
   await bot.placeBlock(bot.blockAt(spot.offset(0, -1, 0)), new Vec3(0, 1, 0));
-  const id = chests.add(spot);
+  const id = chests.add(spot, ctx.faction);
   return { chest: { id, x: spot.x, y: spot.y, z: spot.z, contents: {} } };
 }
 
 /** The village chests that still exist (forgets chests that were broken). */
-function liveChests(bot) {
+function liveChests(bot, ctx) {
   const out = [];
-  for (const ch of chests.all()) {
+  for (const ch of chests.all(ctx.faction)) {
     const b = bot.blockAt(new Vec3(ch.x, ch.y, ch.z));
     if (b && b.name !== "chest" && b.name !== "trapped_chest") { chests.remove(ch.id); continue; } // broken
     out.push(ch);
@@ -78,10 +78,11 @@ async function openChest(bot, ch) {
 async function deposit(bot, a, task, ctx) {
   const test = itemTest(a.target);
   const items = bot.inventory.items().filter((it) => test(it.name));
+  if (!ctx.village) return { ok: false, detail: "you are on your own: there are no village chests for you (found or join a civilisation)" };
   if (!items.length) {
     return { ok: false, detail: (a.target || "all") === "all" ? "nothing spare to put away (tools, food and beds are kept): go gather, build or help instead" : `I carry no ${a.target} to put away` };
   }
-  let list = liveChests(bot);
+  let list = liveChests(bot, ctx);
   if (!list.length) {
     const made = await placeNewChest(bot, ctx);
     if (made.error) return { ok: false, detail: made.error };
@@ -107,13 +108,13 @@ async function deposit(bot, a, task, ctx) {
   return { ok: true, detail: `put ${stored} items in the village chests` };
 }
 
-async function withdraw(bot, a, task) {
+async function withdraw(bot, a, task, ctx = {}) {
   if (!a.target) return { ok: false, detail: "withdraw what?" };
   const test = itemTest(a.target);
   const want = a.amount ?? 16;
-  const list = liveChests(bot).filter((ch) => Object.keys(ch.contents).some(test));
+  const list = liveChests(bot, ctx).filter((ch) => Object.keys(ch.contents).some(test));
   if (!list.length) {
-    const t = Object.entries(chests.totals()).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([n, c]) => `${n} ${c}`).join(", ");
+    const t = Object.entries(chests.totals(ctx.faction)).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([n, c]) => `${n} ${c}`).join(", ");
     const food = a.target && /food|bread|beef|pork|chicken|mutton|apple|potato|carrot/.test(a.target) ? " Nobody has stored food yet: hunt animals (attack cow/pig/chicken/sheep) or pick sweet_berries." : "";
     return { ok: false, detail: `the village chests have no ${a.target} (they have: ${t || "nothing"}).${food}` };
   }
@@ -276,7 +277,7 @@ async function placeSign(bot, a, task, ctx) {
   const groups = [];
   for (let i = 0; i < lines.length; i += 4) groups.push(lines.slice(i, i + 4));
   if (!(await getSigns(bot, groups.length, ctx))) return { ok: false, detail: "I have no sign and couldn't make one (a sign needs 6 planks and a stick, or 2 logs)" };
-  const atVillage = String(a.target || "").includes("village");
+  const atVillage = String(a.target || "").includes("village") && Boolean(ctx.village);
   const spots = signSpots(bot, atVillage ? ctx.village : bot.entity.position, groups.length, atVillage ? [4, 9] : [1, 3]);
   if (spots.length < groups.length) return { ok: false, detail: "found no free ground for a sign here" };
   const placed = [];

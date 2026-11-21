@@ -16,13 +16,16 @@ import * as society from "../village/society.js";
 import * as chests from "../village/chests.js";
 import * as worldlog from "../village/worldlog.js";
 import * as crime from "../village/crime.js";
-import { db } from "../village/db.js";
 import * as builder from "../build/builder.js";
 import { village } from "../village/village.js";
 import { schedule, inWindow, nextStart, windowText } from "../schedule.js";
 import { describe } from "../ai/actions.js";
+import * as board from "../village/board.js";
+import * as settings from "../settings.js";
+import { costModel } from "../usage/costmodel.js";
+import { centreOfFaction } from "../village/village.js";
+import * as factions from "../village/factions.js";
 
-const openJobs = db.prepare("SELECT id, action, target, amount, status, claimed_by, posted_by, result FROM tasks WHERE status != 'done' ORDER BY id LIMIT 12");
 
 export function snapshot(control) {
   const s = control.getSession();
@@ -40,7 +43,8 @@ export function snapshot(control) {
       pos: e ? [Math.round(e.position.x), Math.round(e.position.y), Math.round(e.position.z)] : null,
       task: b?.currentTask ? describe(b.currentTask.action) : null,
       lastSaid: b?.lastSaidText || null,
-      leader: lead?.name === v.name,
+      leader: Boolean(roster.factionOf(v.name)) && society.leader(roster.factionOf(v.name))?.name === v.name,
+      faction: roster.factionOf(v.name), // null = on their own (Free for all)
       joinedDay: v.joined_day, leftDay: v.left_day,
     };
   };
@@ -64,9 +68,24 @@ export function snapshot(control) {
       gone: all.filter((v) => v.status !== "alive").slice(-30).map((v) => ({ name: v.name, role: v.role, status: v.status, leftDay: v.left_day })),
       leader: lead, election: el ? { open: true, votes: Object.keys(el.votes).length } : null,
       laws: society.laws().map((l) => l.text),
-      buildings: builder.all().slice(-20).map((b) => ({ id: b.id, blueprint: b.blueprint, x: b.x, z: b.z, status: b.status, placed: b.placed, total: b.total, builder: b.builder })),
+      buildings: builder.all().slice(-20).map((b) => ({ id: b.id, blueprint: b.blueprint, x: b.x, z: b.z, status: b.status, placed: b.placed, total: b.total, builder: b.builder, faction: b.faction || roster.factionNames()[0] })),
       chests: chests.totals(),
-      board: openJobs.all().map((r) => ({ ...r })),
+      board: board.openJobs(),
+      // One entry per civilisation (a single village has just one).
+      factions: roster.factionNames().map((f) => {
+        const c = centreOfFaction(f);
+        const l = society.leader(f), e = society.election(f);
+        return {
+          name: f, centre: c ? [Math.round(c.x), Math.round(c.z)] : null,
+          alive: all.filter((v) => v.status === "alive" && roster.factionOf(v.name) === f).length,
+          relations: factions.isFree() ? factions.relationsText(f)
+            : settings.get().war ? [`at war with ${roster.factionNames().filter((x) => x !== f).join(", ")}`] : [],
+          leader: l, election: e ? { open: true, votes: Object.keys(e.votes).length } : null,
+          laws: society.laws(f).map((x) => x.text), chests: chests.totals(f), board: board.openJobs(f),
+        };
+      }),
+      settings: settings.get(),
+      costModel: costModel(),
       news: worldlog.recent(25).map((r) => ({ at: r.at, day: r.day, kind: r.kind, text: r.text })),
       secret: {
         imposters: all.filter((v) => v.imposter).map((v) => ({ name: v.name, status: v.status })),

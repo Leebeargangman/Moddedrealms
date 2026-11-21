@@ -9,6 +9,8 @@
 import { config } from "../config.js";
 import { log } from "../log.js";
 import { db } from "./db.js";
+import * as settings from "../settings.js";
+import * as factions from "./factions.js";
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS villagers (
@@ -25,7 +27,11 @@ db.exec(`
   );
 `);
 
+// Added for several civilisations: which one a villager belongs to.
+if (!db.prepare("PRAGMA table_info(villagers)").all().some((c) => c.name === "faction")) db.exec("ALTER TABLE villagers ADD COLUMN faction TEXT");
+
 const q = {
+  setFaction: db.prepare("UPDATE villagers SET faction = ? WHERE name = ?"),
   count: db.prepare("SELECT COUNT(*) AS n FROM villagers"),
   insert: db.prepare("INSERT INTO villagers (name, role, personality, imposter, joined_at, joined_day) VALUES (?, ?, ?, ?, ?, ?)"),
   alive: db.prepare("SELECT * FROM villagers WHERE status = 'alive' ORDER BY joined_at"),
@@ -69,9 +75,40 @@ export function nextVillager(day) {
   const d = config.bots.find((b) => !used.has(b.name.toLowerCase()));
   if (d) {
     q.insert.run(d.name, d.role, d.personality, 0, Date.now(), day ?? null);
+    q.setFaction.run(smallestFaction(), d.name);
     return { name: d.name, role: d.role, personality: d.personality };
   }
   return newcomer(day);
+}
+
+/** The civilisation names in use: from the website settings, or (Free for all) the ones villagers founded. */
+export const factionNames = () => (factions.isFree() ? factions.active().map((c) => c.name) : settings.get().factions.map((f) => f.name));
+/** A villager's civilisation. In Free for all it can be null: on their own. */
+export function factionOf(name) {
+  const f = get(name)?.faction;
+  if (factions.isFree()) return f && factions.get(f) ? factions.get(f).name : null;
+  return f || factionNames()[0];
+}
+/** Join a civilisation, or null to be on your own (Free for all). */
+export function setFaction(name, f) { q.setFaction.run(f, name); }
+
+/** The civilisation with the fewest living members (where a newcomer goes). Free for all: nobody's. */
+export function smallestFaction() {
+  if (factions.isFree()) return null;
+  const names = factionNames();
+  const count = Object.fromEntries(names.map((n) => [n, 0]));
+  for (const v of alive()) if (count[v.faction] !== undefined) count[v.faction]++;
+  return names.sort((a, b) => count[a] - count[b])[0];
+}
+
+/** Make sure every living villager belongs to an existing civilisation (after the settings changed). */
+export function assignFactions() {
+  const names = factionNames();
+  for (const v of alive()) {
+    if (names.includes(v.faction)) continue;
+    // Free for all: a villager whose civilisation is gone is on their own again.
+    q.setFaction.run(factions.isFree() ? null : smallestFaction(), v.name);
+  }
 }
 
 export const alive = () => q.alive.all().map((r) => ({ ...r }));
@@ -99,6 +136,7 @@ export function newcomer(day) {
   const [t1, t2] = [...TRAITS].sort(() => Math.random() - 0.5);
   const personality = `${t1} and ${t2}, ${pick(QUIRKS)}`;
   q.insert.run(name, role, personality, 0, Date.now(), day ?? null); // newcomers are never imposters
+  q.setFaction.run(smallestFaction(), name);
   log.info("roster", `newcomer ${name} (${role}): ${personality}`);
   return { name, role, personality };
 }

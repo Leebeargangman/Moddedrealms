@@ -14,6 +14,20 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 > website's Bots page (Civilisation tab, with start/stop/pause buttons), and has an optional elder AI.
 > Coming later: Phase 5 (recording/streaming the bots).
 
+## Modes and settings (website: Bots page → Civilisation → Settings, admins)
+
+| Mode | What happens |
+|---|---|
+| **One village** | Everyone works together in one village. Optional: two secret imposters (the game below). |
+| **Set civilisations** | 2-4 civilisations you name. Villagers are split evenly; each civilisation has its own village site (`factionDistance` blocks apart), leader, laws, chests, buildings and task board. At **war**, enemy villagers show as ENEMIES and may be attacked any time; kills are seen by witnesses and newcomers join the smaller side. |
+| **Free for all** | Everyone starts on their own and chooses: `found` a civilisation where they stand (they lead it), `join` one, `leave`, and leaders use `diplomacy` (`war X`, `peace X`, `ally X`) and `exile` (throw a member out). Anyone outside your civilisation (and not an ally) may be attacked. A civilisation with nobody left is dissolved. |
+
+Also on the settings card: number of villagers, schedule (UK start/end time and days), daily budget, and
+**custom instructions** that every villager follows (they go into the cached part of the prompt, so they
+cost almost nothing per call). The card shows the estimated cost per session, week and month, from the
+real cost per villager-minute of your last sessions. "Save" applies the schedule and budget at once and
+the rest at the next session; "Save and restart the session" applies everything now.
+
 ## The game (built in Phase 3)
 
 - **Goal:** the villagers build a civilisation together: village, homes, farms, roles, trade.
@@ -144,6 +158,9 @@ cache hit rate, projection for the session and for 20 bots). On exit the report 
 config.json           every setting: bot count, server, AI, pricing, budget, village, the 20 villagers
 src/index.js          sessions (start/end, staggered logins, reports), scheduled mode
 src/schedule.js       the daily window in UK time
+src/settings.js       settings changed on the website (mode, villagers, schedule, budget, instructions)
+src/village/factions.js civilisations founded by villagers (Free for all), relations
+src/usage/costmodel.js cost per villager-minute measured from past sessions
 src/web/status.js     the village snapshot (website + local status page)
 src/web/link.js       link to the website's Bots page (snapshot, staff commands)
 src/ai/leader.js      the optional elder AI
