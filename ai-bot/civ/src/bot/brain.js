@@ -72,13 +72,13 @@ export class Brain {
    * so the report shows what the money is spent on.
    */
   notify(text, wake = "other", { urgent = false } = {}) {
-    this.note(text, wake);
+    this.note(text, wake, true);
     this.schedule(urgent);
   }
 
   /** Remember an event for the next call WITHOUT waking the AI for it. */
-  note(text, wake = "other") {
-    this.events.push({ at: Date.now(), text, seen: false, wake });
+  note(text, wake = "other", woke = false) {
+    this.events.push({ at: Date.now(), text, seen: false, wake, woke });
     if (this.events.length > config.ai.recentEvents) this.events.shift();
     this.history.push(text);
     if (this.history.length > 30) this.history.shift();
@@ -159,7 +159,8 @@ export class Brain {
 
       // What woke us: the most important new event (attacked beats chat beats task results...).
       const order = ["attacked", "witness", "health", "death", "clue", "chat-player", "whisper", "chat-villager", "society", "news", "task", "board", "night", "morning", "arrived", "idle", "other"];
-      const wake = batch.map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
+      // Only events that asked for a call count (chat that was just remembered rides along for free).
+      const wake = batch.filter((e) => e.woke).map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
       const imp = this.imposter;
       const res = await ask({ bot: this.name, kind: "decide", system: imp ? IMPOSTER_BLOCKS : SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : ACTION_SCHEMA, trigger: wake });
       let action;
