@@ -43,7 +43,9 @@ export class CivBot {
   start() {
     const { host, port, version } = config.server;
     log.info(this.def.name, `connecting to ${host}:${port}`);
-    const bot = mineflayer.createBot({ host, port, version, username: this.def.name, auth: "offline", hideErrors: true });
+    // viewDistance 4 chunks (64 blocks) instead of the default 12: the bots only look ~48 blocks around
+    // them, and 20 bots decoding ~600 chunks each kept the one Node thread busy (the bots lagged).
+    const bot = mineflayer.createBot({ host, port, version, username: this.def.name, auth: "offline", hideErrors: true, viewDistance: config.server.viewDistance ?? 4 });
     this.bot = bot;
     bot.loadPlugin(pathfinder);
     bot.loadPlugin(collectBlock);
@@ -92,6 +94,9 @@ export class CivBot {
     bot.pathfinder.setMovements(moves);
     // More time to plan paths (default 5 s gave "took too long to decide path" in hilly forests).
     bot.pathfinder.thinkTimeout = 10000;
+    // At most 3 ms of path planning per game tick per bot (default 40 ms). All bots share one Node
+    // thread: with 20 bots planning at once, 40 ms each froze every bot's movement (the "lag").
+    bot.pathfinder.tickTimeout = 3;
     if (!this.village.pos) {
       this.village.pos = (bot.spawnPoint || bot.entity.position).clone();
       log.info("village", `centre set to the world spawn ${this.village.pos.floored()}`);

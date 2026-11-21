@@ -47,7 +47,13 @@ while (living.length < config.botCount) living.push(roster.nextVillager(null));
 living.forEach((def, i) => setTimeout(() => village.makeBot(def), i * config.server.loginDelayMs));
 
 const online = () => [...village.bots.values()].filter((b) => b.ready).length || 1;
-const statsTimer = setInterval(() => console.log("\n" + summaryText(online()) + "\n"), config.stats.printEveryMinutes * 60000);
+// How late the Node thread runs its work: high numbers mean the bots move jerkily ("lag").
+import { monitorEventLoopDelay } from "node:perf_hooks";
+const loopDelay = monitorEventLoopDelay({ resolution: 20 });
+loopDelay.enable();
+const lagText = () => `Event loop lag: p50 ${(loopDelay.percentile(50) / 1e6).toFixed(0)} ms · p99 ${(loopDelay.percentile(99) / 1e6).toFixed(0)} ms · max ${(loopDelay.max / 1e6).toFixed(0)} ms (under ~20 ms is smooth)`;
+const statsTimer = setInterval(() => { console.log("\n" + summaryText(online()) + "\n" + lagText() + "\n"); loopDelay.reset(); }, config.stats.printEveryMinutes * 60000);
+setInterval(() => { if (loopDelay.percentile(99) / 1e6 > 200) log.warn("civ", lagText()); }, 60000);
 
 let stopping = false;
 async function shutdown(why) {

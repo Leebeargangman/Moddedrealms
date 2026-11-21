@@ -7,7 +7,9 @@
     "version": "1.21.11",
     "loginDelayMs": 4000,
     "_spawnProtectionComment": "Same as spawn-protection in the server's server.properties (0 = off). Non-op players can't break or place blocks this close to the world spawn, so the bots avoid digging there.",
-    "spawnProtection": 0
+    "spawnProtection": 0,
+    "_viewDistanceComment": "Chunks each bot loads around it. Lower = much less CPU for many bots.",
+    "viewDistance": 4
   },
 
   "ai": {
