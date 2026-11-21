@@ -93,12 +93,15 @@ export function connectWebsite(control) {
   (async function pushLoop() {
     let failing = false;
     for (;;) {
+      const events = outbox.splice(0, 200);
       try {
-        await post("/api/botlink/events", { events: outbox.splice(0, 200), snapshot: snapshot(control) });
+        await post("/api/botlink/events", { events, snapshot: snapshot(control) });
         if (failing) log.info("website", "connected to the website again");
         failing = false;
       } catch (e) {
-        if (!failing) log.warn("website", `can't reach the website: ${e.message}`);
+        outbox.unshift(...events); // keep command results to send again (e.g. the website restarting)
+        if (outbox.length > 500) outbox.splice(0, outbox.length - 500);
+        if (!failing) log.warn("website", `couldn't update the website: ${e.message}`);
         failing = true;
       }
       await sleep(5000);

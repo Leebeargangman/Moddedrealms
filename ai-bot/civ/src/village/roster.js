@@ -87,7 +87,7 @@ export const factionNames = () => (factions.isFree() ? factions.active().map((c)
 export function factionOf(name) {
   const f = get(name)?.faction;
   if (factions.isFree()) return f && factions.get(f) ? factions.get(f).name : null;
-  return f || factionNames()[0];
+  return f || factionNames()[0] || null;
 }
 /** Join a civilisation, or null to be on your own (Free for all). */
 export function setFaction(name, f) { q.setFaction.run(f, name); }

@@ -55,7 +55,7 @@ export function insideBuilding(pos) {
   return cache.list.some((b) => pos.x >= b.x && pos.x < b.x + b.sx && pos.z >= b.z && pos.z < b.z + b.sz && pos.y >= b.y && pos.y < b.y + b.sy);
 }
 
-const firstF = () => roster.factionNames()[0];
+const firstF = () => roster.factionNames()[0] ?? "";
 const mine = (b, f) => (b.faction || firstF()) === (f || firstF());
 
 /** Prompt lines: this civilisation's buildings, done and in progress. */

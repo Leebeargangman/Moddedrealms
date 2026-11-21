@@ -6,7 +6,7 @@
 import { db } from "./db.js";
 import * as roster from "./roster.js";
 
-const first = () => roster.factionNames()[0];
+const first = () => roster.factionNames()[0] ?? ""; // "" when there are none yet (Free for all)
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS chests (
