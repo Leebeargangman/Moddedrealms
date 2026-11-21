@@ -11,7 +11,7 @@ import { config } from "../config.js";
 import { log } from "../log.js";
 import { Brain } from "./brain.js";
 import { SKILLS, eat, flee } from "./skills.js";
-import { snapshot, isHostile, isNight } from "./state.js";
+import { snapshot, isHostile, isNight, isProtected } from "./state.js";
 import { describe } from "../ai/actions.js";
 
 const { pathfinder, Movements } = pf;
@@ -62,6 +62,15 @@ export class CivBot {
     const moves = new Movements(bot);
     moves.allowParkour = false;   // fewer odd jumps: looks more natural and upsets anti-cheats less
     moves.canDig = true;
+    // Spawn protection: the server undoes any block we break or place near the world spawn, and the
+    // pathfinder would try the same dig forever. So paths must not break or place blocks there.
+    bot.civWorldSpawn = (bot.spawnPoint || bot.entity.position).clone();
+    bot.civSpawnProtection = config.server.spawnProtection || 0;
+    if (bot.civSpawnProtection > 0) {
+      const forbid = (block) => (isProtected(bot, block.position) ? 1e6 : 0);
+      moves.exclusionAreasBreak.push(forbid);
+      moves.exclusionAreasPlace.push(forbid);
+    }
     bot.pathfinder.setMovements(moves);
     if (!this.village.pos) {
       this.village.pos = (bot.spawnPoint || bot.entity.position).clone();
@@ -78,6 +87,7 @@ export class CivBot {
 
   tick() {
     if (!this.ready) return;
+    this.checkStuck();
     const night = isNight(this.bot);
     if (night !== this.wasNight) {
       this.wasNight = night;
@@ -88,6 +98,24 @@ export class CivBot {
       this.lastActivity = Date.now();
       this.brain.notify(`I have been idle for ${Math.round(idleFor / 60000)} min.`);
     }
+  }
+
+  /** Cancel a task that has made no progress (not moved, inventory unchanged) for 45 s. */
+  checkStuck() {
+    const t = this.currentTask;
+    const moving = t && ["gather", "goto", "explore", "flee"].includes(t.action.action);
+    const pos = this.bot.entity.position;
+    const items = this.bot.inventory.items().reduce((n, it) => n + it.count, 0);
+    const p = this.progress;
+    if (!moving || !p || p.task !== t || pos.distanceTo(p.pos) > 1.5 || items !== p.items) {
+      this.progress = { task: t, pos: pos.clone(), items, at: Date.now() };
+      return;
+    }
+    if (Date.now() - p.at < 45000) return;
+    log.warn(this.def.name, `stuck on ${describe(t.action)}: no movement or new items for 45 s`);
+    this.cancelTask();
+    this.progress = null;
+    this.brain.notify(`Task failed: ${describe(t.action)} (stuck: I haven't moved or got anything for 45 s, try another place or action)`);
   }
 
   snapshot() {

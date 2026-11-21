@@ -13,6 +13,14 @@ const INTERESTING = ["oak_log", "birch_log", "spruce_log", "jungle_log", "acacia
   "stone", "coal_ore", "iron_ore", "copper_ore", "gold_ore", "diamond_ore", "deepslate_iron_ore", "deepslate_coal_ore",
   "crafting_table", "furnace", "chest", "white_bed", "red_bed", "wheat", "water", "sand", "clay"];
 
+/** True if `pos` is inside the server's spawn protection (non-ops can't break or place blocks there). */
+export function isProtected(bot, pos) {
+  const r = bot.civSpawnProtection;
+  const s = bot.civWorldSpawn;
+  if (!r || !s) return false;
+  return Math.abs(Math.floor(pos.x) - Math.floor(s.x)) <= r && Math.abs(Math.floor(pos.z) - Math.floor(s.z)) <= r;
+}
+
 export const isHostile = (e) => Boolean(e && (e.type === "hostile" || HOSTILE.has(e.name)));
 export const FOOD_ITEMS = FOOD;
 export const isNight = (bot) => {

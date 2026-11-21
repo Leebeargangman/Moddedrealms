@@ -11,9 +11,29 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 
 > **Status: Phase 1** — one bot, the AI decision loop, the JSON action system, and token/cost logging.
 > Coming next: Phase 2 (3 bots, task board, bot-to-bot chat, rate limiter, 30-minute test mode with a
-> 20-bot projection), Phase 3 (20 bots, roles, village, progression, world log), Phase 4 (17:30–20:30
+> 20-bot projection), Phase 3 (20 bots, roles, village, progression, world log, leaders and laws,
+> imposters, permadeath and newcomers: see "The game" below), Phase 4 (17:30–20:30
 > UK schedule, saving/loading, dashboard on the website's Bots page, pm2, optional Sonnet leader),
 > later Phase 5 (recording/streaming the bots).
+
+## The game (design, built in Phase 3)
+
+- **Goal:** the villagers build a civilisation together: village, homes, farms, roles, trade.
+- **They govern themselves:** they choose their own leaders and write their own laws. The current
+  leader and laws go into every bot's prompt, and elections and law changes are logged in the world log.
+- **Two imposters** are hidden among the 20. Everyone knows two imposters exist, but not who they are.
+  - Imposters act like normal villagers and make sure nobody suspects them.
+  - Every few **Minecraft days** (a day is 20 minutes, so a 3-hour session has about 9) they secretly
+    kill one or more villagers, only when nobody else is near enough to see it.
+  - There is no built-in vote: what happens to suspects (trial, exile, punishment) is decided by the
+    leader and the laws the villagers made.
+- **Permadeath:** a villager who dies (or is exiled) never comes back. A completely new villager (new name,
+  personality, role and memory) arrives at the village instead. At most 20 are alive at once.
+- **Villagers can win:** a newcomer is always a normal villager, even when an imposter died, so once both
+  imposters are caught the village is safe.
+- **Real players can be dangerous.** Bots remember who attacked them and are careful around them.
+- Death messages must be hidden (`/gamerule showDeathMessages false`) or the server would announce
+  the killer to everyone.
 
 ## How it keeps costs down
 

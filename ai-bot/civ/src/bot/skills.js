@@ -8,7 +8,7 @@
 
 import pf from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
-import { FOOD_ITEMS, isHostile, isNight, countItem } from "./state.js";
+import { FOOD_ITEMS, isHostile, isNight, countItem, isProtected } from "./state.js";
 
 const { goals } = pf;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -78,8 +78,8 @@ async function gather(bot, a, task) {
 
   while (got < want && !task.cancelled && Date.now() < deadline) {
     const pos = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 48, count: 30 })
-      .find((p) => !skip.has(p.toString()));
-    if (!pos) return { ok: got > 0, detail: got ? `got ${got}, no more ${a.target} within 48 blocks` : `no ${a.target} within 48 blocks (explore to find some)` };
+      .find((p) => !skip.has(p.toString()) && !isProtected(bot, p)); // can't break blocks in spawn protection
+    if (!pos) return { ok: got > 0, detail: got ? `got ${got}, no more ${a.target} within 48 blocks` : `no ${a.target} I can break within 48 blocks (blocks near the world spawn are protected; explore to find some)` };
     const block = bot.blockAt(pos);
     // Stone and ores drop nothing without the right tool.
     if (block.harvestTools && !bot.inventory.items().some((it) => block.harvestTools[it.type])) {
@@ -125,6 +125,14 @@ async function ensureTable(bot) {
   }
   const item = bot.inventory.items().find((it) => it.name === "crafting_table");
   if (!item) return null;
+  // Placing is not allowed in spawn protection: walk out of it first.
+  if (isProtected(bot, bot.entity.position)) {
+    const s = bot.civWorldSpawn, me = bot.entity.position;
+    const out = me.minus(s); out.y = 0;
+    const dir = out.norm() > 0.1 ? out.normalize() : new Vec3(1, 0, 0);
+    const r = bot.civSpawnProtection + 4;
+    try { await walkTo(bot, new goals.GoalNearXZ(Math.round(s.x + dir.x * r), Math.round(s.z + dir.z * r), 2), 60000); } catch { /* try anyway */ }
+  }
   const base = bot.entity.position.floored();
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]]) {
     const spot = base.offset(dx, 0, dz);
