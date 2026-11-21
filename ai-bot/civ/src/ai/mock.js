@@ -27,6 +27,17 @@ export function mockReply(kind, user) {
   if (logs >= 10 && Math.random() < 0.5) return JSON.stringify({ action: "deposit", target: "wood" });
   if (/food ([0-9]|1[0-3])\//.test(user) && /(bread|beef|porkchop|apple|chicken|mutton|potato|carrot)/.test(inv)) return JSON.stringify({ action: "eat" });
   if (/\[new\]/.test(user) && /says: .*\[new\]/.test(user) && Math.random() < 0.5) return JSON.stringify({ action: "chat", say: "Hello! I'm busy gathering, want to help?" });
+  // Free for all: found a civilisation, or join one that exists.
+  if (/You are on your own/.test(user) && Math.random() < 0.5) {
+    const civs = [...user.matchAll(/Civilisations: (.*)\./g)].map((m) => m[1])[0] || "";
+    const names = [...civs.matchAll(/(\w+) \(\d+ members/g)].map((m) => m[1]);
+    if (names.length && Math.random() < 0.7) return JSON.stringify({ action: "join", target: names[Math.floor(Math.random() * names.length)] });
+    return JSON.stringify({ action: "found", target: ["Stonehold", "Ashvale", "Redwater", "Oakmere"][Math.floor(Math.random() * 4)] });
+  }
+  if (/Leader: YOU/.test(user) && /Civilisations: .*,/.test(user) && Math.random() < 0.15) {
+    const other = (user.match(/Civilisations: .*?(\w+) \(\d+ members, leader \w+, (?:neutral|peace)/) || [])[1];
+    if (other) return JSON.stringify({ action: "diplomacy", target: `war ${other}` });
+  }
   // Sometimes take an open job from the task board, or post one.
   const open = [...user.matchAll(/- #(\d+) [^\n]*· open/g)].map((m) => m[1]);
   if (!/taken by you/.test(user) && open.length && Math.random() < 0.35) return JSON.stringify({ action: "claim", target: open[Math.floor(Math.random() * open.length)] });

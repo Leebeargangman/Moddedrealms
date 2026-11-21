@@ -19,7 +19,8 @@ import * as board from "../village/board.js";
 import * as society from "../village/society.js";
 import * as crime from "../village/crime.js";
 import * as builder from "../build/builder.js";
-import { village, onDeath, exile, announce, positions } from "../village/village.js";
+import { village, onDeath, exile, announce, positions, centreFor, areEnemies, civAction } from "../village/village.js";
+import * as roster from "../village/roster.js";
 
 // Every plain-code skill, by action name.
 const ALL_SKILLS = { ...SKILLS, ...VILLAGE_SKILLS, build: builder.build, kill: murder };
@@ -107,7 +108,11 @@ export class CivBot {
     this.ready = true;
     this.wasNight = isNight(bot);
     log.info(this.def.name, `joined at ${bot.entity.position.floored()}`);
-    this.brain.notify(this.brain.memory ? "I logged back in." : "I just arrived in this world. Time to start the village.", "arrived");
+    // Several civilisations: each has its own village site; tell the villager where theirs is.
+    const home = centreFor(this.def.name);
+    const far = home && bot.entity.position.distanceTo(home) > 40;
+    const where = far ? ` My village is at ${Math.round(home.x)},${Math.round(home.z)}: go there first (goto village).` : "";
+    this.brain.notify((this.brain.memory ? "I logged back in." : "I just arrived in this world. Time to start the village.") + where, "arrived");
 
     // Cheap 5-second check for night/morning and being idle (no AI involved).
     this.ticker = setInterval(() => this.tick(), 5000);
@@ -150,7 +155,7 @@ export class CivBot {
   }
 
   snapshot() {
-    return snapshot(this.bot, this.village.pos);
+    return snapshot(this.bot, centreFor(this.def.name) || this.village.pos, this.def.name);
   }
 
   // --- events -----------------------------------------------------------------------------------
@@ -365,6 +370,11 @@ export class CivBot {
       if (r.ok && r.announce) announce(r.announce, "society");
       return quick(r.ok ? `I ${r.detail}.` : `No law: ${r.detail}.`);
     }
+    // Free for all: create, join and leave civilisations; leaders set war, peace or alliance.
+    if (["found", "join", "leave", "diplomacy"].includes(action.action)) {
+      const r = civAction(me, action, this.bot.entity.position);
+      return quick(r.ok ? r.detail : `Couldn't ${action.action}: ${r.detail}.`);
+    }
     if (action.action === "exile") {
       const r = exile(me, action.target, action.say);
       return quick(r.ok ? `I ${r.detail}.` : `Couldn't exile: ${r.detail}.`);
@@ -387,7 +397,9 @@ export class CivBot {
     this.currentTask = task;
     this.lastActivity = Date.now();
     const ctx = {
-      village: this.village.pos,
+      village: centreFor(me) || this.village.pos,
+      faction: roster.factionOf(me),
+      isEnemy: (other) => areEnemies(me, other),
       name: me,
       day: village.day,
       post: (job) => board.post({ by: me, ...job }),

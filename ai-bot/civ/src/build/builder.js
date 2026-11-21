@@ -15,6 +15,7 @@ import { db } from "../village/db.js";
 import * as board from "../village/board.js";
 import * as chests from "../village/chests.js";
 import * as worldlog from "../village/worldlog.js";
+import * as roster from "../village/roster.js";
 import { isProtected } from "../bot/state.js";
 import { walkTo, sleep, craftSafely } from "../bot/skills.js";
 import * as blueprints from "./blueprints.js";
@@ -35,7 +36,9 @@ db.exec(`
     finished  INTEGER
   );
 `);
+if (!db.prepare("PRAGMA table_info(buildings)").all().some((c) => c.name === "faction")) db.exec("ALTER TABLE buildings ADD COLUMN faction TEXT");
 const q = {
+  setFaction: db.prepare("UPDATE buildings SET faction = ? WHERE id = ?"),
   all: db.prepare("SELECT * FROM buildings ORDER BY id"),
   get: db.prepare("SELECT * FROM buildings WHERE id = ?"),
   add: db.prepare("INSERT INTO buildings (blueprint, x, y, z, sx, sy, sz, builder, total, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
@@ -52,9 +55,12 @@ export function insideBuilding(pos) {
   return cache.list.some((b) => pos.x >= b.x && pos.x < b.x + b.sx && pos.z >= b.z && pos.z < b.z + b.sz && pos.y >= b.y && pos.y < b.y + b.sy);
 }
 
-/** Prompt lines: buildings done and in progress. */
-export function text() {
-  const list = all();
+const firstF = () => roster.factionNames()[0];
+const mine = (b, f) => (b.faction || firstF()) === (f || firstF());
+
+/** Prompt lines: this civilisation's buildings, done and in progress. */
+export function text(f) {
+  const list = all().filter((b) => mine(b, f));
   if (!list.length) return "Buildings: none yet.";
   const done = list.filter((b) => b.status === "done");
   const open = list.filter((b) => b.status !== "done");
@@ -99,7 +105,7 @@ function groundY(bot, x, z, fromY) {
 function findPlot(bot, centre, size) {
   const others = all();
   const overlaps = (x, z) => others.some((b) => x < b.x + b.sx + 2 && x + size.x + 2 > b.x && z < b.z + b.sz + 2 && z + size.z + 2 > b.z);
-  const nearChests = (x, z) => chests.all().some((c) => c.x >= x - 2 && c.x <= x + size.x + 1 && c.z >= z - 2 && c.z <= z + size.z + 1);
+  const nearChests = (x, z) => chests.everyChest().some((c) => c.x >= x - 2 && c.x <= x + size.x + 1 && c.z >= z - 2 && c.z <= z + size.z + 1);
   const candidates = [];
   for (let r = 8; r <= 48; r += 3) for (let a = 0; a < 16; a++) {
     const ang = (a / 16) * Math.PI * 2;
@@ -164,7 +170,7 @@ export async function build(bot, a, task, ctx) {
     if (row.status === "done") return { ok: false, detail: `building #${row.id} is already finished` };
   } else {
     // Continue our own unfinished building of this type instead of starting a second one.
-    row = q.unfinished.all().find((b) => b.blueprint === want);
+    row = q.unfinished.all().find((b) => b.blueprint === want && mine(b, ctx.faction));
   }
   const bp = list[row ? row.blueprint : want];
   if (!bp) return { ok: false, detail: `unknown blueprint "${a.target}": choose one of ${Object.keys(list).join(", ")}` };
@@ -195,9 +201,10 @@ export async function build(bot, a, task, ctx) {
   }
 
   if (!row) {
-    const plot = findPlot(bot, ctx.village, bp.size);
+    const plot = findPlot(bot, ctx.village || bot.entity.position.floored(), bp.size); // on your own: build where you are
     if (!plot) return { ok: false, detail: "found no flat free plot near the village (try after clearing some trees)" };
     const id = Number(q.add.run(want, plot.x, plot.y, plot.z, bp.size.x, bp.size.y, bp.size.z, ctx.name, bp.blocks.length, Date.now()).lastInsertRowid);
+    q.setFaction.run(ctx.faction || firstF(), id);
     row = q.get.get(id);
     worldlog.write("build", `${ctx.name} started building a ${want} at ${plot.x},${plot.z}.`, { day: ctx.day });
   }

@@ -114,6 +114,49 @@
                     <p class="small" data-civ-result></p>
                   </div>
                   <div class="app-card">
+                    <div class="app-card-head"><h2>Settings</h2><span class="muted small" data-civ-settings-who></span></div>
+                    <form class="civ-settings" data-civ-settings>
+                      <label class="civ-mode">Mode
+                        <select class="input" name="mode">
+                          <option value="village">One village (optional secret imposters)</option>
+                          <option value="civilisations">Set civilisations (you choose them; peace or war)</option>
+                          <option value="free">Free for all (villagers found, join and leave civilisations, ally or go to war)</option>
+                        </select>
+                      </label>
+                      <div class="civ-settings-grid">
+                        <label>Villagers <input class="input" type="number" name="botCount" min="1" max="60" required></label>
+                        <label data-civ-only="civilisations">Civilisations
+                          <select class="input" name="factionCount">
+                            <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                          </select>
+                        </label>
+                        <label>Daily budget ($) <input class="input" type="number" name="budget" min="0" max="100" step="0.5" required></label>
+                        <label>Start (UK) <input class="input" type="time" name="start" required></label>
+                        <label>End (UK) <input class="input" type="time" name="end" required></label>
+                        <label data-civ-only="civilisations">Villages apart (blocks) <input class="input" type="number" name="factionDistance" min="60" max="2000" step="10"></label>
+                      </div>
+                      <fieldset class="civ-days">
+                        <legend class="small muted">Days</legend>
+                        <label><input type="checkbox" name="day" value="1"> Mon</label><label><input type="checkbox" name="day" value="2"> Tue</label><label><input type="checkbox" name="day" value="3"> Wed</label><label><input type="checkbox" name="day" value="4"> Thu</label><label><input type="checkbox" name="day" value="5"> Fri</label><label><input type="checkbox" name="day" value="6"> Sat</label><label><input type="checkbox" name="day" value="0"> Sun</label>
+                      </fieldset>
+                      <div class="civ-faction-names" data-civ-only="civilisations" data-civ-faction-names></div>
+                      <div class="civ-checks">
+                        <label data-civ-only="civilisations"><input type="checkbox" name="war"> The civilisations are at war</label>
+                        <label data-civ-only="village"><input type="checkbox" name="imposters"> Two secret imposters</label>
+                      </div>
+                      <p class="muted small" data-civ-mode-help></p>
+                      <label class="civ-instructions">Custom instructions for every villager
+                        <textarea class="input" name="instructions" rows="3" maxlength="1500" placeholder="e.g. Build a castle on the hill. Red and Blue compete to have the biggest town; whoever loses a war must pay tribute."></textarea>
+                      </label>
+                      <p class="civ-cost" data-civ-cost></p>
+                      <div class="civ-actions">
+                        <button class="btn btn-sm" type="submit" data-civ-save>Save</button>
+                        <button class="btn btn-ghost btn-sm" type="button" data-civ-save-restart>Save and restart the session</button>
+                      </div>
+                      <p class="small" data-civ-settings-result></p>
+                    </form>
+                  </div>
+                  <div class="app-card">
                     <div class="app-card-head"><h2>Villagers</h2><label class="small civ-secret-toggle"><input type="checkbox" data-civ-secrets> Show secrets</label></div>
                     <div class="civ-table-wrap"><table class="civ-table" data-civ-villagers></table></div>
                     <p class="muted small" data-civ-gone></p>
@@ -130,9 +173,8 @@
                 </div>
                 <aside class="app-side">
                   <div class="app-card">
-                    <h2>Leader &amp; laws</h2>
-                    <p data-civ-leader></p>
-                    <ol class="civ-laws" data-civ-laws></ol>
+                    <h2>Leaders &amp; laws</h2>
+                    <div data-civ-factions></div>
                   </div>
                   <div class="app-card">
                     <h2>Buildings</h2>

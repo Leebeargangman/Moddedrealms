@@ -10,6 +10,9 @@
 
 import { log } from "../log.js";
 import { db } from "./db.js";
+import * as roster from "./roster.js";
+
+const first = () => roster.factionNames()[0];
 
 const CLAIM_EXPIRES_MS = 15 * 60000;
 const MAX_OPEN = 12;          // keep the board short: it is part of every prompt
@@ -32,12 +35,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS tasks_status ON tasks(status);
 `);
 
+// Each civilisation has its own board (faction column; NULL = the first/only village).
+if (!db.prepare("PRAGMA table_info(tasks)").all().some((c) => c.name === "faction")) db.exec("ALTER TABLE tasks ADD COLUMN faction TEXT");
+const F = "COALESCE(faction, ?) = ?";
 const q = {
-  insert: db.prepare("INSERT INTO tasks (action, target, amount, posted_by, posted_at) VALUES (?, ?, ?, ?, ?)"),
+  insert: db.prepare("INSERT INTO tasks (action, target, amount, posted_by, posted_at, faction) VALUES (?, ?, ?, ?, ?, ?)"),
   get: db.prepare("SELECT * FROM tasks WHERE id = ?"),
-  sameOpen: db.prepare("SELECT id FROM tasks WHERE status != 'done' AND action = ? AND COALESCE(target,'') = COALESCE(?,'')"),
-  countOpen: db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE status != 'done'"),
-  open: db.prepare("SELECT * FROM tasks WHERE status != 'done' ORDER BY status = 'claimed', id LIMIT ?"),
+  sameOpen: db.prepare(`SELECT id FROM tasks WHERE status != 'done' AND action = ? AND COALESCE(target,'') = COALESCE(?,'') AND ${F}`),
+  countOpen: db.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status != 'done' AND ${F}`),
+  open: db.prepare(`SELECT * FROM tasks WHERE status != 'done' AND ${F} ORDER BY status = 'claimed', id LIMIT ?`),
+  totalF: db.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE ${F}`),
   claim: db.prepare("UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ? WHERE id = ? AND status = 'open'"),
   finish: db.prepare("UPDATE tasks SET status = 'done', done_at = ?, result = ? WHERE id = ?"),
   reopen: db.prepare("UPDATE tasks SET status = 'open', claimed_by = NULL, claimed_at = NULL, result = ? WHERE id = ?"),
@@ -51,11 +58,13 @@ const q = {
 const label = (t) => [t.action, t.target, t.amount ? `x${t.amount}` : ""].filter(Boolean).join(" ");
 
 /** Post a job. Returns { ok, id?, detail }. Duplicates of an unfinished job are refused. */
-export function post({ by, action, target = null, amount = null }) {
+export function post({ by, action, target = null, amount = null, faction = null }) {
+  const f = faction || (roster.isVillagerName(by) ? roster.factionOf(by) : first());
+  if (!f) return { ok: false, detail: "you are on your own: there is no task board for you" };
   if (!BOARD_ACTIONS.has(action)) return { ok: false, detail: `the board only takes ${[...BOARD_ACTIONS].join("/")} jobs` };
-  if (q.sameOpen.get(action, target)) return { ok: false, detail: `"${label({ action, target, amount })}" is already on the board` };
-  if (q.countOpen.get().n >= MAX_OPEN) return { ok: false, detail: "the board is full: finish some jobs first" };
-  const id = Number(q.insert.run(action, target, amount, by, Date.now()).lastInsertRowid);
+  if (q.sameOpen.get(action, target, first(), f)) return { ok: false, detail: `"${label({ action, target, amount })}" is already on the board` };
+  if (q.countOpen.get(first(), f).n >= MAX_OPEN) return { ok: false, detail: "the board is full: finish some jobs first" };
+  const id = Number(q.insert.run(action, target, amount, by, Date.now(), f).lastInsertRowid);
   log.info("board", `#${id} ${label({ action, target, amount })} posted by ${by}`);
   return { ok: true, id, detail: `posted job #${id}` };
 }
@@ -64,7 +73,7 @@ export function post({ by, action, target = null, amount = null }) {
 export function claim(id, bot) {
   q.expire.run(Date.now() - CLAIM_EXPIRES_MS);
   const t = q.get.get(id);
-  if (!t) return { ok: false, detail: `there is no job #${id}` };
+  if (!t || (t.faction || first()) !== roster.factionOf(bot)) return { ok: false, detail: `there is no job #${id} on your board` };
   if (t.status === "done") return { ok: false, detail: `job #${id} is already done` };
   if (t.status === "claimed" && t.claimed_by !== bot) return { ok: false, detail: `job #${id} is taken by ${t.claimed_by}` };
   q.releaseAll.run(bot); // drop any other job this bot held
@@ -84,9 +93,10 @@ export function finish(id, ok, result) {
 export const release = (bot) => q.releaseAll.run(bot);
 
 /** The few lines of the board this bot sees in its prompt. */
-export function text(bot) {
+export function text(bot, f = roster.isVillagerName(bot) ? roster.factionOf(bot) : first()) {
+  if (!f) return "";
   q.expire.run(Date.now() - CLAIM_EXPIRES_MS);
-  const rows = q.open.all(6);
+  const rows = q.open.all(first(), f, 6);
   if (!rows.length) return "Task board: empty (post jobs the village needs).";
   // Show why the last try failed, so nobody claims an impossible job again without fixing the reason.
   return "Task board:\n" + rows.map((t) => `- #${t.id} ${label(t)} · ${t.status === "open" ? "open" : t.claimed_by === bot ? "taken by you" : `taken by ${t.claimed_by}`} · from ${t.posted_by}` +
@@ -94,15 +104,17 @@ export function text(bot) {
 }
 
 /** Starter jobs so a new village has something to split up. Only posted on an empty board. */
-export function seed() {
-  if (q.total.get().n > 0) return;
+export function seed(f = first()) {
+  if (q.totalF.get(first(), f).n > 0) return;
   for (const job of [
     { action: "gather", target: "wood", amount: 32 },
     { action: "explore" },
     { action: "craft", target: "wooden_pickaxe", amount: 1 },
     { action: "gather", target: "stone", amount: 24 },
-  ]) post({ by: "village", ...job });
+  ]) post({ by: "village", faction: f, ...job });
 }
 
-export const stats = (since) => ({ open: q.countOpen.get().n, doneSince: q.doneSince.get(since).n });
+export const stats = (since) => ({ open: roster.factionNames().reduce((n, f) => n + q.countOpen.get(first(), f).n, 0), doneSince: q.doneSince.get(since).n });
+/** Open jobs of one civilisation (for the website). */
+export const openJobs = (f = first()) => q.open.all(first(), f, 12).map((r) => ({ ...r }));
 export { label };

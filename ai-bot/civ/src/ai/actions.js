@@ -38,6 +38,8 @@ export const ACTIONS = [
 ];
 // Imposters have one more action. It is only in THEIR schema and prompt; normal villagers never see it.
 export const IMPOSTER_ACTIONS = [...ACTIONS, "kill"]; // kill: secretly attack a villager: target = their name
+// Free for all mode only: create, join and leave civilisations, and (leaders) set relations.
+export const FREE_ACTIONS = [...ACTIONS, "found", "join", "leave", "diplomacy"];
 
 // Words the AI sometimes uses instead of the real action names.
 const ALIASES = { mine: "gather", chop: "gather", collect: "gather", dig: "gather", walk: "goto", move: "goto",
@@ -59,17 +61,18 @@ const schemaFor = (actions) => ({
 });
 export const ACTION_SCHEMA = schemaFor(ACTIONS);
 export const IMPOSTER_SCHEMA = schemaFor(IMPOSTER_ACTIONS);
+export const FREE_SCHEMA = schemaFor(FREE_ACTIONS);
 
 const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30, withdraw: 16, give: 1 };
 // Which actions use a target / an amount (anything else the AI sends for them is dropped).
-const USES_TARGET = new Set(["whisper", "gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
-const NEEDS_TARGET = new Set(["whisper", "post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
+const USES_TARGET = new Set(["found", "join", "diplomacy", "whisper", "gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
+const NEEDS_TARGET = new Set(["found", "join", "diplomacy", "whisper", "post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
 
 /**
  * Parse and check the AI's reply. Returns { ok: true, action } or { ok: false, error }.
  * `text` is the raw text the model wrote.
  */
-export function parseAction(text, { imposter = false } = {}) {
+export function parseAction(text, { imposter = false, free = false } = {}) {
   let obj;
   try {
     // Be forgiving about stray text around the object (only needed if structured outputs are off).
@@ -84,12 +87,12 @@ export function parseAction(text, { imposter = false } = {}) {
 
   let name = String(obj.action || "").toLowerCase().trim();
   name = ALIASES[name] || name;
-  if (!(imposter ? IMPOSTER_ACTIONS : ACTIONS).includes(name)) return { ok: false, error: `unknown action "${obj.action}"` };
+  if (!(imposter ? IMPOSTER_ACTIONS : free ? FREE_ACTIONS : ACTIONS).includes(name)) return { ok: false, error: `unknown action "${obj.action}"` };
 
   const action = { action: name };
   if (USES_TARGET.has(name) && typeof obj.target === "string" && obj.target.trim()) {
     // Laws keep their wording; everything else is a name, which we compare in lower case.
-    action.target = name === "law" || name === "write" ? cleanSay(obj.target).slice(0, 120) : obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
+    action.target = name === "law" || name === "write" || name === "found" || name === "join" || name === "diplomacy" ? cleanSay(obj.target).slice(0, 120) : obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
   }
   const amount = !(name in DEFAULT_AMOUNT) && !(name === "post" && Number.isFinite(obj.amount)) ? undefined : Number.isFinite(obj.amount) ? Math.round(obj.amount) : DEFAULT_AMOUNT[name];
   if (amount !== undefined) action.amount = Math.max(1, Math.min(name === "follow" || name === "wait" || name === "withdraw" ? 300 : 64, amount));

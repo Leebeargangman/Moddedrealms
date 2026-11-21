@@ -13,7 +13,8 @@ import { config, DATA_DIR } from "../config.js";
 import { log } from "../log.js";
 import { ask, cooldownMultiplier } from "../ai/client.js";
 import { SYSTEM_PROMPT, IMPOSTER_PROMPT, MEMORY_SYSTEM } from "../ai/prompts.js";
-import { ACTION_SCHEMA, IMPOSTER_SCHEMA, parseAction, fallbackAction, describe } from "../ai/actions.js";
+import { ACTION_SCHEMA, IMPOSTER_SCHEMA, FREE_SCHEMA, parseAction, fallbackAction, describe } from "../ai/actions.js";
+import * as factions from "../village/factions.js";
 import * as board from "../village/board.js";
 import * as roster from "../village/roster.js";
 import * as society from "../village/society.js";
@@ -23,6 +24,7 @@ import * as worldlog from "../village/worldlog.js";
 import * as builder from "../build/builder.js";
 import { village, positions } from "../village/village.js";
 import { elderLine } from "../ai/leader.js";
+import * as settings from "../settings.js";
 
 const MEMORY_DIR = path.join(DATA_DIR, "memory");
 fs.mkdirSync(MEMORY_DIR, { recursive: true });
@@ -30,12 +32,42 @@ fs.mkdirSync(MEMORY_DIR, { recursive: true });
 // The system prompt as an API "system block" with cache_control: this is what gets cached.
 // It is built once and is byte-for-byte identical for every bot and every call (that is what makes
 // the cache hit).
-const SYSTEM_BLOCKS = [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }];
-// Imposters: the same rules plus their secret block (a second cache entry, shared by the two of them).
-const IMPOSTER_BLOCKS = [
-  { type: "text", text: SYSTEM_PROMPT },
-  { type: "text", text: IMPOSTER_PROMPT, cache_control: { type: "ephemeral" } },
-];
+/**
+ * The fixed part of every prompt: the rules, then (if set on the website) a "this world" block with the
+ * civilisations, war and the owner's custom instructions, then for imposters their secret block.
+ * Only the LAST block is marked for caching, so everything before it is cached together; all villagers
+ * with the same settings share one cache entry (imposters a second one).
+ */
+let worldCache = { key: null, text: "" };
+function worldBlock() {
+  const s = settings.get();
+  const key = JSON.stringify([s.mode, s.factions, s.war, s.instructions]);
+  if (worldCache.key === key) return worldCache.text;
+  const lines = [];
+  if (s.mode === "free") {
+    lines.push("- FREE FOR ALL. Nobody is told what to do: you choose your own path. You can stay on your own, found a civilisation where you stand (found, target = its name; you become its leader and that spot is its village), join an existing one (join, target = its name) or leave yours (leave).");
+    lines.push("- Leaders choose relations with other civilisations: diplomacy with target \"war <name>\", \"peace <name>\" or \"ally <name>\". A leader may throw a member out (exile).");
+    lines.push("- Anyone outside your own civilisation may attack you, and you may attack them (attack, target = their name), unless your civilisations are allies. Strength is in numbers: a lone villager is easy prey, but a civilisation must feed and protect its people. Betrayal is possible: watch what people do, not only what they say.");
+  } else if (s.factions.length > 1) {
+    lines.push(`- There are ${s.factions.length} separate civilisations: ${s.factions.map((f) => f.name).join(", ")}. Each has its own village site, leader, laws, chests and task board. "Village" in your actions always means YOUR civilisation's village. Villagers of other civilisations are not your neighbours.`);
+    if (s.war) {
+      lines.push("- The civilisations are AT WAR. Enemy villagers appear under ENEMIES in your state. You may attack an enemy by name at any time (attack, target = their name), not only in self-defence. Protect your village and people first: guards and fighters defend and keep watch, others keep the village fed, armed and built (swords, armour, walls). Attack when you are strong (good health, a weapon, with others), retreat when hurt, and tell your leader what you see. Never attack your own people or outsider players. A fallen villager never returns, on either side.");
+    } else {
+      lines.push("- The civilisations are at peace. Trade, talk and compete fairly; don't attack anyone except in self-defence.");
+    }
+  }
+  if (s.instructions) lines.push(`- Instructions from the server owner (follow them): ${s.instructions}`);
+  worldCache = { key, text: lines.length ? `THIS WORLD\n${lines.join("\n")}` : "" };
+  return worldCache.text;
+}
+function systemBlocks(imposter) {
+  const blocks = [{ type: "text", text: SYSTEM_PROMPT }];
+  const world = worldBlock();
+  if (world) blocks.push({ type: "text", text: world });
+  if (imposter) blocks.push({ type: "text", text: IMPOSTER_PROMPT });
+  blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: { type: "ephemeral" } };
+  return blocks;
+}
 const MEMORY_BLOCKS = [{ type: "text", text: MEMORY_SYSTEM }];
 
 const ago = (ms) => (ms < 15000 ? "now" : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`);
@@ -130,8 +162,17 @@ export class Brain {
     const loop = c.length >= 3 && c.slice(-3).every((x) => x === c[c.length - 1]);
     const grudges = Object.entries(this.grudges).map(([n, k]) => `${n}${k > 1 ? ` (${k}x)` : ""}`).join(", ");
     const news = worldlog.publicNews(2).map((n) => n.text).join(" ");
+    const fs = factions.isFree() ? factions.active().map((c) => ({ name: c.name })) : settings.get().factions;
+    const mine = roster.factionOf(this.name);
+    const count = (f) => roster.alive().filter((v) => v.faction === f).length;
+    const factionLine = factions.isFree()
+      ? `${mine ? `You belong to ${mine}.` : "You are on your own (no civilisation)."} Civilisations: ${fs.length ? fs.map((f) => `${f.name} (${count(f.name)} members, leader ${society.leader(f.name)?.name || "none"}${f.name !== mine && mine ? `, ${factions.relation(mine, f.name)} with yours` : ""})`).join(", ") : "none yet"}.`
+      : fs.length > 1
+      ? `You belong to the ${mine} civilisation (${roster.alive().filter((v) => v.faction === mine).length} alive). Others: ${fs.filter((f) => f.name !== mine).map((f) => `${f.name} (${roster.alive().filter((v) => v.faction === f.name).length} alive${settings.get().war ? ", AT WAR with you" : ""})`).join(", ")}.`
+      : "";
     return [
       `You are ${d.name}, preferred role ${d.role}. Personality: ${d.personality}. Day ${village.day ?? "?"}.`,
+      factionLine,
       this.imposter && this.imposterLines(),
       `Memory: ${this.memory || "nothing yet, you just arrived."}`,
       grudges && `People who hurt you: ${grudges}.`,
@@ -139,10 +180,10 @@ export class Brain {
       `Recent events (oldest first):\n${events}`,
       `State:\n${stateText}`,
       society.text(this.name),
-      chests.text(),
-      `${builder.text()} Blueprints: ${village.blueprintText || "hut, house"}.`,
+      chests.text(mine),
+      `${builder.text(mine)} Blueprints: ${village.blueprintText || "hut, house"}.`,
       news && `Village news: ${news}`,
-      elderLine(),
+      elderLine(this.name),
       board.text(this.name),
       loop && `Note: you chose "${c[c.length - 1]}" 3 times in a row. Choose something different that makes progress.`,
     ].filter(Boolean).join("\n");
@@ -164,10 +205,11 @@ export class Brain {
       // Only events that asked for a call count (chat that was just remembered rides along for free).
       const wake = batch.filter((e) => e.woke).map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
       const imp = this.imposter;
-      const res = await ask({ bot: this.name, kind: "decide", system: imp ? IMPOSTER_BLOCKS : SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : ACTION_SCHEMA, trigger: wake });
+      const free = factions.isFree();
+      const res = await ask({ bot: this.name, kind: "decide", system: systemBlocks(imp), user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : free ? FREE_SCHEMA : ACTION_SCHEMA, trigger: wake });
       let action;
       if (res.text) {
-        const parsed = parseAction(res.text, { imposter: imp });
+        const parsed = parseAction(res.text, { imposter: imp, free });
         if (parsed.ok) action = parsed.action;
         else log.warn(this.name, `unusable reply (${parsed.error}): ${res.text.slice(0, 120)}`);
       }

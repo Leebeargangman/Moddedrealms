@@ -14,6 +14,7 @@ import * as chests from "../village/chests.js";
 import * as worldlog from "../village/worldlog.js";
 import * as builder from "../build/builder.js";
 import { village } from "../village/village.js";
+import * as settings from "../settings.js";
 
 const SYSTEM = `You are the council of elders of an AI villager civilisation in Minecraft survival. Every 15 minutes you read a summary of the village and give it direction. Reply with ONE JSON object:
 {"plan":"<at most 3 short sentences: what the village should focus on next and why>","jobs":[{"action":"gather|craft|explore|attack","target":"<item, block or mob>","amount":<number>}]}
@@ -29,37 +30,45 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-function summary() {
-  const alive = roster.alive();
+function summary(f) {
+  const alive = roster.alive().filter((v) => (v.faction || roster.factionNames()[0]) === f);
   const roles = {};
   for (const v of alive) roles[v.role] = (roles[v.role] || 0) + 1;
-  const bots = [...village.bots.values()].filter((b) => b.ready);
+  const bots = [...village.bots.values()].filter((b) => b.ready && roster.factionOf(b.def.name) === f);
   const hungry = bots.filter((b) => b.bot.food <= 10).length;
-  const lead = society.leader();
+  const lead = society.leader(f);
+  const many = roster.factionNames().length > 1;
   return [
+    many ? `You advise the ${f} civilisation only. Others: ${roster.factionNames().filter((x) => x !== f).join(", ")}${settings.get().war ? " (at war)" : ""}.` : "",
     `Day ${village.day ?? "?"}. ${alive.length} villagers alive (${Object.entries(roles).map(([r, n]) => `${n} ${r}`).join(", ")}), ${bots.length} online, ${hungry} hungry.`,
-    `Leader: ${lead?.name || "none"}. Laws: ${society.laws().map((l) => l.text).join(" | ") || "none"}.`,
-    chests.text(),
-    builder.text(),
-    board.text("nobody"),
+    `Leader: ${lead?.name || "none"}. Laws: ${society.laws(f).map((l) => l.text).join(" | ") || "none"}.`,
+    chests.text(f),
+    builder.text(f),
+    board.text("nobody", f),
     `Recent news: ${worldlog.publicNews(6).map((n) => n.text).join(" ")}`,
-    `Last plan: ${kv("elderPlan")?.plan || "none"}`,
-  ].join("\n");
+    `Last plan: ${kv(planKey(f))?.plan || "none"}`,
+  ].filter(Boolean).join("\n");
 }
 
-async function consult() {
+const planKey = (f) => (f === roster.factionNames()[0] ? "elderPlan" : `elderPlan:${f}`);
+
+async function consultAll() {
+  for (const f of roster.factionNames()) await consult(f);
+}
+
+async function consult(f) {
   const model = options.mock ? null : provider === "openai" ? config.leader.openaiModel : config.leader.model;
-  const res = await ask({ bot: "elders", kind: "leader", trigger: "leader", system: [{ type: "text", text: SYSTEM }], user: summary(), maxTokens: 400, schema: SCHEMA, model });
+  const res = await ask({ bot: "elders", kind: "leader", trigger: "leader", system: [{ type: "text", text: SYSTEM }], user: summary(f), maxTokens: 400, schema: SCHEMA, model });
   if (!res.text) return log.warn("elders", `no plan this time (${res.reason})`);
   let out;
   try { out = JSON.parse(res.text.slice(res.text.indexOf("{"), res.text.lastIndexOf("}") + 1)); } catch { return log.warn("elders", "unusable plan"); }
   const plan = String(out.plan || "").replace(/\s+/g, " ").slice(0, 300);
   if (!plan) return;
-  kv("elderPlan", { plan, at: Date.now() });
+  kv(planKey(f), { plan, at: Date.now() });
   for (const j of (out.jobs || []).slice(0, 3)) {
-    board.post({ by: "the elders", action: String(j.action).toLowerCase(), target: String(j.target || "").toLowerCase().replace(/^minecraft:/, "") || null, amount: Number.isFinite(j.amount) ? Math.max(1, Math.min(64, j.amount)) : null });
+    board.post({ by: "the elders", faction: f, action: String(j.action).toLowerCase(), target: String(j.target || "").toLowerCase().replace(/^minecraft:/, "") || null, amount: Number.isFinite(j.amount) ? Math.max(1, Math.min(64, j.amount)) : null });
   }
-  worldlog.write("plan", `The elders advise: ${plan}`, { day: village.day });
+  worldlog.write("plan", `${roster.factionNames().length > 1 ? `${f}'s` : "The"} elders advise: ${plan}`, { day: village.day });
   log.info("elders", `${plan}${res.cost ? ` [$${res.cost.toFixed(5)}]` : ""}`);
 }
 
@@ -67,13 +76,13 @@ async function consult() {
 export function startElders() {
   if (!config.leader?.enabled) return null;
   log.info("elders", `elder AI on: every ${config.leader.everyMinutes} min`);
-  setTimeout(() => consult().catch((e) => log.error("elders", e.message)), 90000); // once the villagers are in
-  return setInterval(() => consult().catch((e) => log.error("elders", e.message)), config.leader.everyMinutes * 60000);
+  setTimeout(() => consultAll().catch((e) => log.error("elders", e.message)), 90000); // once the villagers are in
+  return setInterval(() => consultAll().catch((e) => log.error("elders", e.message)), config.leader.everyMinutes * 60000);
 }
 
 /** The line every villager sees (empty when the elders are off or haven't spoken). */
-export function elderLine() {
+export function elderLine(name) {
   if (!config.leader?.enabled) return "";
-  const p = kv("elderPlan");
+  const p = kv(planKey(roster.factionOf(name)));
   return p ? `Elders' plan: ${p.plan}` : "";
 }

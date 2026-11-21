@@ -5,6 +5,7 @@
 //   nearby: players Brynn 5m · mobs zombie 12m · animals cow 9m · blocks oak_log 4m, iron_ore 9m, crafting_table 6m
 
 import * as roster from "../village/roster.js";
+import { standing } from "../village/village.js";
 
 const HOSTILE = new Set(["zombie", "husk", "drowned", "skeleton", "stray", "spider", "cave_spider", "creeper", "witch",
   "enderman", "slime", "phantom", "pillager", "vindicator", "zombie_villager", "silverfish", "bogged", "breeze"]);
@@ -47,7 +48,7 @@ export function countItem(bot, test) {
 }
 
 /** Look around once and return both the summary text and a few facts the code uses for fallbacks. */
-export function snapshot(bot, village) {
+export function snapshot(bot, village, myName = bot.username) {
   const me = bot.entity.position;
   const facts = {
     food: bot.food,
@@ -60,11 +61,15 @@ export function snapshot(bot, village) {
   };
 
   // Entities: players, hostile mobs and animals, nearest first.
-  const villagers = [], players = [], mobs = [], animals = [];
+  const villagers = [], enemies = [], allies = [], others = [], players = [], mobs = [], animals = [];
   for (const e of Object.values(bot.entities)) {
     if (e === bot.entity || !e.position) continue;
     const d = dist(e.position, me);
-    if (e.type === "player" && d <= 48) (isVillager(e.username) ? villagers : players).push([e.username, d]);
+    if (e.type === "player" && d <= 48) {
+      if (!isVillager(e.username)) { players.push([e.username, d]); continue; }
+      const st = standing(myName, e.username);
+      (st === "enemy" ? enemies : st === "ally" ? allies : st === "other" ? others : villagers).push([e.username, d]);
+    }
     // Hostiles: only those within 16 m and roughly on our level count (a creeper in a cave 15 blocks
     // below is no threat). Within 8 m = danger.
     else if (isHostile(e) && d <= 16 && Math.abs(e.position.y - me.y) <= 6) mobs.push([e.name, d]);
@@ -91,7 +96,10 @@ export function snapshot(bot, village) {
   const invText = inv.length ? inv.slice(0, 10).map(([n, c]) => `${n} ${c}`).join(", ") + (inv.length > 10 ? `, +${inv.length - 10} more kinds` : "") : "empty";
   const villageText = village ? ` (${dist(village, me)} m from village)` : "";
   const nearby = [
-    villagers.length && `villagers ${fmt(villagers)}`,
+    enemies.length && `ENEMIES (${[...new Set(enemies.map(([n]) => roster.factionOf(n)))].join("/")}) ${fmt(enemies)}`,
+    villagers.length && `your people ${fmt(villagers)}`,
+    allies.length && `allies ${fmt(allies)}`,
+    others.length && `other villagers ${others.sort((a, b) => a[1] - b[1]).slice(0, 4).map(([n, dd]) => `${n} (${roster.factionOf(n) || "alone"}) ${dd}m`).join(", ")}`,
     players.length && `players (not villagers) ${fmt(players)}`,
     danger.length && `DANGER ${fmt(danger)}`,
     far.length && `hostile but not close ${fmt(far)}`,
