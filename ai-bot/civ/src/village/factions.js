@@ -36,11 +36,12 @@ export const active = () => q.active.all().map((r) => ({ ...r }));
 export const get = (name) => { const r = q.get.get(name); return r && r.active ? { ...r } : null; };
 
 /** A new civilisation founded by `founder` at `pos`. Returns { ok, detail, name }. */
-export function found(founder, name, pos, day) {
+export function found(founder, name, pos, day, isWet = () => false) {
   const clean = String(name || "").replace(/[^\w '-]/g, "").trim().slice(0, 20);
   if (clean.length < 2) return { ok: false, detail: "a civilisation needs a name (2-20 letters)" };
   if (get(clean)) return { ok: false, detail: `${clean} already exists: join it or choose another name` };
   if (active().length >= 8) return { ok: false, detail: "there are already 8 civilisations: join one" };
+  if (isWet(pos)) return { ok: false, detail: "this spot is in or right next to water: found your civilisation on dry land (villagers drown, and drowned live in water)" };
   const near = active().find((c) => Math.hypot(c.x - pos.x, c.z - pos.z) < 40);
   if (near) return { ok: false, detail: `too close to ${near.name}'s village: found yours at least 40 blocks away` };
   q.add.run(clean, founder, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), Date.now(), day ?? null);

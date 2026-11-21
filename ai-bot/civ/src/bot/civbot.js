@@ -59,6 +59,7 @@ export class CivBot {
     // On 1.20+ the server says who caused the damage (the shooter for arrows), so no guessing.
     bot.on("entityHurt", (entity, source) => { if (entity === bot.entity) this.onHurt(source); });
     bot.on("health", () => this.onHealth());
+    bot.on("breath", () => this.onBreath());
     bot.on("death", () => {
       // Permadeath: this villager is gone for good (the village records it, tells witnesses and
       // brings a newcomer later). Its items stay where it died: a clue for whoever finds them.
@@ -84,6 +85,7 @@ export class CivBot {
     const moves = new Movements(bot);
     moves.allowParkour = false;   // fewer odd jumps: looks more natural and upsets anti-cheats less
     moves.canDig = true;
+    moves.liquidCost = 20;        // go around water when there is any other way (villagers were drowning)
     // Spawn protection: the server undoes any block we break or place near the world spawn, and the
     // pathfinder would try the same dig forever. So paths must not break or place blocks there.
     bot.civWorldSpawn = (bot.spawnPoint || bot.entity.position).clone();
@@ -244,6 +246,22 @@ export class CivBot {
     }
   }
 
+  /**
+   * Reflex: running out of air (0-20). Drop everything, swim up and get to land: no AI call needed,
+   * and waiting 20 s for one is how villagers drowned.
+   */
+  onBreath() {
+    const bot = this.bot;
+    if (!this.ready || bot.oxygenLevel === undefined) return;
+    if (bot.oxygenLevel <= 12 && !this.surfacing) {
+      this.surfacing = true;
+      this.cancelTask();
+      log.warn(this.def.name, `running out of air (${bot.oxygenLevel}/20): swimming up and out`);
+      this.perform({ action: "flee", reflex: true, toLand: true }, true);
+      this.brain.notify("I nearly drowned! Keep out of deep water: drowned live there and you run out of air.", "health");
+    } else if (bot.oxygenLevel >= 20) this.surfacing = false;
+  }
+
   onHealth() {
     const bot = this.bot;
     if (!this.ready) return;
@@ -372,7 +390,7 @@ export class CivBot {
     }
     // Free for all: create, join and leave civilisations; leaders set war, peace or alliance.
     if (["found", "join", "leave", "diplomacy"].includes(action.action)) {
-      const r = civAction(me, action, this.bot.entity.position);
+      const r = civAction(me, action, this.bot.entity.position, this.bot);
       return quick(r.ok ? r.detail : `Couldn't ${action.action}: ${r.detail}.`);
     }
     if (action.action === "exile") {
