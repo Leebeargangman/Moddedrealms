@@ -4,7 +4,7 @@
 //   inventory: oak_log 12, cobblestone 30, stone_pickaxe 1
 //   nearby: players Brynn 5m · mobs zombie 12m · animals cow 9m · blocks oak_log 4m, iron_ore 9m, crafting_table 6m
 
-import { config } from "../config.js";
+import * as roster from "../village/roster.js";
 
 const HOSTILE = new Set(["zombie", "husk", "drowned", "skeleton", "stray", "spider", "cave_spider", "creeper", "witch",
   "enderman", "slime", "phantom", "pillager", "vindicator", "zombie_villager", "silverfish", "bogged", "breeze"]);
@@ -15,9 +15,8 @@ const INTERESTING = ["oak_log", "birch_log", "spruce_log", "jungle_log", "acacia
   "stone", "coal_ore", "iron_ore", "copper_ore", "gold_ore", "diamond_ore", "deepslate_iron_ore", "deepslate_coal_ore",
   "crafting_table", "furnace", "chest", "white_bed", "red_bed", "wheat", "water", "sand", "clay"];
 
-const VILLAGERS = new Set(config.bots.map((b) => b.name.toLowerCase()));
-/** True if this username is one of our AI villagers (anyone else is a real player). */
-export const isVillager = (name) => VILLAGERS.has(String(name).toLowerCase());
+/** True if this username is one of our AI villagers, including newcomers (anyone else is a real player). */
+export const isVillager = (name) => roster.isVillagerName(String(name));
 
 /** True if `pos` is inside the server's spawn protection (non-ops can't break or place blocks there). */
 export function isProtected(bot, pos) {

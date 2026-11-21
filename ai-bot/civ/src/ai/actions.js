@@ -21,36 +21,50 @@ export const ACTIONS = [
   "chat",     // only talk (put the message in "say")
   "post",     // put a job on the village task board: target = "gather oak_log" / "craft stone_pickaxe" / "explore", amount
   "claim",    // take a job from the task board and do it: target = the job number, e.g. "4"
+  "deposit",  // put things in the village chests: target = item name, "wood" or "all"
+  "withdraw", // take from the village chests: target = item name, amount
+  "give",     // give a nearby villager something you carry: target = "Name item", amount
+  "build",    // build from a blueprint near the village: target = "hut", "house"... or "#3" to continue one
+  "hide",     // night only: dig an emergency shelter here and stay in it until morning
+  "vote",     // during an election: target = the villager you vote for as leader
+  "law",      // leader only: make a law (target = the law, short) or "repeal 2"
+  "exile",    // leader only: send a villager away forever: target = their name (give the reason in "say")
   "wait",     // stand still: amount = seconds (default 30)
   "continue", // keep doing the current task
 ];
+// Imposters have one more action. It is only in THEIR schema and prompt; normal villagers never see it.
+export const IMPOSTER_ACTIONS = [...ACTIONS, "kill"]; // kill: secretly attack a villager: target = their name
 
 // Words the AI sometimes uses instead of the real action names.
 const ALIASES = { mine: "gather", chop: "gather", collect: "gather", dig: "gather", walk: "goto", move: "goto",
-  go: "goto", talk: "chat", say: "chat", fight: "attack", run: "flee", rest: "wait", idle: "wait", wander: "explore" };
+  go: "goto", talk: "chat", say: "chat", fight: "attack", run: "flee", rest: "wait", idle: "wait", wander: "explore",
+  store: "deposit", put: "deposit", take: "withdraw", shelter: "hide", elect: "vote", banish: "exile" };
 
 // The JSON schema sent with each request (structured outputs), so the API itself guarantees valid JSON.
-export const ACTION_SCHEMA = {
+const schemaFor = (actions) => ({
   type: "object",
   properties: {
-    action: { type: "string", enum: ACTIONS },
+    action: { type: "string", enum: actions },
     target: { type: "string" },
     amount: { type: "integer" },
     say: { type: "string" },
   },
   required: ["action"],
   additionalProperties: false,
-};
+});
+export const ACTION_SCHEMA = schemaFor(ACTIONS);
+export const IMPOSTER_SCHEMA = schemaFor(IMPOSTER_ACTIONS);
 
-const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30 };
+const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30, withdraw: 16, give: 1 };
 // Which actions use a target / an amount (anything else the AI sends for them is dropped).
-const USES_TARGET = new Set(["gather", "craft", "goto", "follow", "attack", "post", "claim"]);
+const USES_TARGET = new Set(["gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
+const NEEDS_TARGET = new Set(["post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
 
 /**
  * Parse and check the AI's reply. Returns { ok: true, action } or { ok: false, error }.
  * `text` is the raw text the model wrote.
  */
-export function parseAction(text) {
+export function parseAction(text, { imposter = false } = {}) {
   let obj;
   try {
     // Be forgiving about stray text around the object (only needed if structured outputs are off).
@@ -65,18 +79,19 @@ export function parseAction(text) {
 
   let name = String(obj.action || "").toLowerCase().trim();
   name = ALIASES[name] || name;
-  if (!ACTIONS.includes(name)) return { ok: false, error: `unknown action "${obj.action}"` };
+  if (!(imposter ? IMPOSTER_ACTIONS : ACTIONS).includes(name)) return { ok: false, error: `unknown action "${obj.action}"` };
 
   const action = { action: name };
   if (USES_TARGET.has(name) && typeof obj.target === "string" && obj.target.trim()) {
-    action.target = obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
+    // Laws keep their wording; everything else is a name, which we compare in lower case.
+    action.target = name === "law" ? cleanSay(obj.target).slice(0, 120) : obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
   }
   const amount = !(name in DEFAULT_AMOUNT) && !(name === "post" && Number.isFinite(obj.amount)) ? undefined : Number.isFinite(obj.amount) ? Math.round(obj.amount) : DEFAULT_AMOUNT[name];
-  if (amount !== undefined) action.amount = Math.max(1, Math.min(name === "follow" || name === "wait" ? 300 : 64, amount));
+  if (amount !== undefined) action.amount = Math.max(1, Math.min(name === "follow" || name === "wait" || name === "withdraw" ? 300 : 64, amount));
   const say = cleanSay(obj.say);
   if (say) action.say = say;
   if (name === "chat" && !action.say) return { ok: false, error: "chat without a message" };
-  if ((name === "post" || name === "claim") && !action.target) return { ok: false, error: `${name} without a target` };
+  if (NEEDS_TARGET.has(name) && !action.target) return { ok: false, error: `${name} without a target` };
   if (name === "claim") action.target = action.target.replace(/[^0-9]/g, "");
   return { ok: true, action };
 }
@@ -91,7 +106,7 @@ export function cleanSay(s) {
 export function fallbackAction(s) {
   if (s.food <= 14 && s.hasFood) return { action: "eat" };
   if (s.dangerNear) return { action: "flee" };
-  if (s.isNight) return s.bedNear ? { action: "sleep" } : { action: "goto", target: "village" };
+  if (s.isNight) return s.bedNear ? { action: "sleep" } : { action: "hide" };
   if (s.logs < 16) return { action: "gather", target: "wood", amount: 8 };
   return { action: "explore" };
 }

@@ -4,7 +4,6 @@
 // token & cost summary every few minutes, and on stop (Ctrl+C, or after --minutes) logs the bots off
 // cleanly, saves their memories and writes the session report.
 
-import { Vec3 } from "vec3";
 import { config, options, provider, model } from "./config.js";
 import { KEY_NAME as ANTHROPIC_KEY } from "./ai/providers/anthropic.js";
 import { KEY_NAME as OPENAI_KEY } from "./ai/providers/openai.js";
@@ -12,10 +11,11 @@ import { log } from "./log.js";
 import { CivBot } from "./bot/civbot.js";
 import { summaryText, writeSessionReport } from "./usage/report.js";
 import * as board from "./village/board.js";
+import * as roster from "./village/roster.js";
+import * as blueprints from "./build/blueprints.js";
+import { village, start as startVillage } from "./village/village.js";
 
-const c = config.village.centre;
-const village = { pos: c ? new Vec3(c.x, c.y, c.z) : null }; // shared by all bots
-const bots = [];
+const bots = []; // every bot started this session (for the report)
 
 const keyName = provider === "openai" ? OPENAI_KEY : ANTHROPIC_KEY;
 if (!options.mock && !process.env[keyName]) {
@@ -28,28 +28,39 @@ log.info("civ", `starting ${config.botCount} bot(s) on ${config.server.host}:${c
   (options.minutes ? ` · stopping after ${options.minutes} min` : ""));
 
 board.seed(); // starter jobs for a brand-new village (only if the board has never had any)
+startVillage(); // creates the villagers the first time, then runs the world rules every 5 s
+village.blueprintText = await blueprints.text();
 
-config.bots.slice(0, config.botCount).forEach((def, i) => {
-  setTimeout(() => {
-    if (stopping) return;
-    const b = new CivBot(def, village);
-    bots.push(b);
-    b.start();
-  }, i * config.server.loginDelayMs);
-});
+/** Start one villager's bot (also used for newcomers who arrive later). */
+village.makeBot = (def) => {
+  if (stopping) return null;
+  const b = new CivBot(def, village);
+  village.bots.set(def.name, b);
+  bots.push(b);
+  b.start();
+  return b;
+};
 
-const statsTimer = setInterval(() => console.log("\n" + summaryText(bots.length) + "\n"), config.stats.printEveryMinutes * 60000);
+// The living villagers log in one after another; top up to botCount if some died last time.
+const living = roster.alive().slice(0, config.botCount);
+while (living.length < config.botCount) living.push(roster.nextVillager(null));
+living.forEach((def, i) => setTimeout(() => village.makeBot(def), i * config.server.loginDelayMs));
+
+const online = () => [...village.bots.values()].filter((b) => b.ready).length || 1;
+const statsTimer = setInterval(() => console.log("\n" + summaryText(online()) + "\n"), config.stats.printEveryMinutes * 60000);
 
 let stopping = false;
 async function shutdown(why) {
   if (stopping) return;
   stopping = true;
+  village.stopping = true;
   log.info("civ", `stopping (${why}): logging bots off`);
   clearInterval(statsTimer);
-  for (const b of bots) b.quit("session over");
+  for (const b of village.bots.values()) b.quit("session over");
   await new Promise((r) => setTimeout(r, 1500)); // let the quit packets go out
-  console.log("\n" + summaryText(bots.length) + "\n");
-  const file = writeSessionReport(bots.length, { reason: why, mock: options.mock });
+  const n = Math.max(1, Math.min(config.botCount, bots.length));
+  console.log("\n" + summaryText(n) + "\n");
+  const file = writeSessionReport(n, { reason: why, mock: options.mock, villagersStarted: bots.length });
   log.info("civ", `session report written to ${file}`);
   process.exit(0);
 }

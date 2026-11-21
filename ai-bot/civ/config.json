@@ -29,6 +29,24 @@
     "backoff": { "firstMs": 5000, "maxMs": 300000 }
   },
 
+  "_imposterComment": "2 secret imposters, chosen once at least minVillagers are alive. They may kill when a kill window is open (every killEveryDays Minecraft days, the first firstKillAfterDays after they were chosen; up to killsPerWindow kills), and only with nobody within witnessRadius blocks. Villagers within seeRadius of a death see it.",
+  "imposters": {
+    "count": 2,
+    "minVillagers": 6,
+    "firstKillAfterDays": 2,
+    "killEveryDays": 3,
+    "killsPerWindow": 2,
+    "witnessRadius": 20,
+    "seeRadius": 16
+  },
+
+  "_societyComment": "Elections start when there is no leader or the term (in Minecraft days) is over; they close when all voted or after electionMinutes real minutes.",
+  "society": {
+    "leaderTermDays": 5,
+    "electionMinutes": 4,
+    "maxLaws": 6
+  },
+
   "leader": {
     "enabled": false,
     "model": "claude-sonnet-5-5",
@@ -64,7 +82,7 @@
     "_comment": "centre null = use the world spawn point. Set {\"x\":..,\"y\":..,\"z\":..} to pick a spot.",
     "centre": null,
     "radius": 48,
-    "chests": []
+    "newcomerDelayMinutes": 2
   },
 
   "chat": {

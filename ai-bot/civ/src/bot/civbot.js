@@ -12,18 +12,25 @@ import { log } from "../log.js";
 import { Brain } from "./brain.js";
 import { installEdgeGap } from "./edgegap.js";
 import { SKILLS, eat, flee, escape } from "./skills.js";
+import { VILLAGE_SKILLS, murder } from "./skills-village.js";
 import { snapshot, isHostile, isNight, isProtected, isVillager } from "./state.js";
 import { describe } from "../ai/actions.js";
 import * as board from "../village/board.js";
+import * as society from "../village/society.js";
+import * as crime from "../village/crime.js";
+import * as builder from "../build/builder.js";
+import { village, onDeath, exile, announce, positions } from "../village/village.js";
 
+// Every plain-code skill, by action name.
+const ALL_SKILLS = { ...SKILLS, ...VILLAGE_SKILLS, build: builder.build, kill: murder };
 
 const { pathfinder, Movements } = pf;
 
 export class CivBot {
-  /** def = { name, role, personality } from config.json · village = shared { pos } object */
-  constructor(def, village) {
+  /** def = { name, role, personality } (from the roster) · village = the shared village object */
+  constructor(def, villageObj = village) {
     this.def = def;
-    this.village = village;
+    this.village = villageObj;
     this.brain = new Brain(this);
     this.currentTask = null;
     this.ready = false;
@@ -47,10 +54,14 @@ export class CivBot {
     bot.on("entityHurt", (entity) => { if (entity === bot.entity) this.onHurt(); });
     bot.on("health", () => this.onHealth());
     bot.on("death", () => {
+      // Permadeath: this villager is gone for good (the village records it, tells witnesses and
+      // brings a newcomer later). Its items stay where it died: a clue for whoever finds them.
+      const pos = this.lastPos || bot.entity?.position;
       this.cancelTask();
-      board.release(this.def.name);
-      this.brain.notify("I died and respawned. My items were dropped where I died.", "death");
+      log.warn(this.def.name, `died at ${pos?.floored?.()}`);
+      if (pos) onDeath(this, pos, this.lastHurtBy ? `hurt by ${this.lastHurtBy}` : null);
     });
+    bot.on("move", () => { if (bot.entity?.position) this.lastPos = bot.entity.position.clone(); });
     bot.on("kicked", (reason) => log.warn(this.def.name, `kicked: ${typeof reason === "string" ? reason : JSON.stringify(reason)}`));
     bot.on("error", (err) => log.error(this.def.name, err.message));
     bot.on("end", (reason) => this.onEnd(reason));
@@ -76,6 +87,8 @@ export class CivBot {
       moves.exclusionAreasBreak.push(forbid);
       moves.exclusionAreasPlace.push(forbid);
     }
+    // Never dig through the village's buildings to take a shortcut.
+    moves.exclusionAreasBreak.push((block) => (builder.insideBuilding(block.position) ? 1e6 : 0));
     bot.pathfinder.setMovements(moves);
     // More time to plan paths (default 5 s gave "took too long to decide path" in hilly forests).
     bot.pathfinder.thinkTimeout = 10000;
@@ -162,14 +175,17 @@ export class CivBot {
       .filter((e) => e !== bot.entity && e.position && e.position.distanceTo(me) < 6 && (isHostile(e) || e.type === "player"))
       .sort((a, b) => a.position.distanceTo(me) - b.position.distanceTo(me))[0];
 
+    if (attacker?.type === "player") this.lastHurtBy = attacker.username;
+    else if (attacker) this.lastHurtBy = `a ${attacker.name}`;
     // Reflex (plain code): fight back if healthy and it's a mob, otherwise run.
-    if (this.currentTask?.action.action !== "attack" && this.currentTask?.action.action !== "flee") {
+    if (!["attack", "flee", "kill"].includes(this.currentTask?.action.action)) {
       if (attacker && attacker.type !== "player" && bot.health > 10) this.perform({ action: "attack", target: attacker.name }, true);
       else this.perform({ action: "flee", reflex: true }, true);
     }
     // Tell the brain, but at most once every 15 s (a fight is many hits).
     if (!this.flags.hurtAt || Date.now() - this.flags.hurtAt > 15000) {
       this.flags.hurtAt = Date.now();
+      if (attacker?.type === "player") this.brain.grudge(attacker.username); // remembered in every prompt
       this.brain.notify(`I was attacked${attacker ? ` by ${attacker.username || attacker.name}` : ""}! Health ${Math.round(bot.health)}/20.`, "attacked");
     }
   }
@@ -253,13 +269,48 @@ export class CivBot {
       const t = res.task;
       action = { action: t.action, target: t.target || undefined, amount: t.amount || undefined, boardId: t.id, say: undefined };
     }
-    const skill = SKILLS[action.action];
+    // Government: quick actions that don't stop the current task.
+    const me = this.def.name;
+    const alive = () => [...village.bots.values()].filter((b) => b.ready).map((b) => b.def.name);
+    const quick = (text) => (this.currentTask ? this.brain.note(text, "society") : this.brain.notify(text, "society"));
+    if (action.action === "vote") {
+      const r = society.vote(me, action.target, alive());
+      return quick(r.ok ? `I ${r.detail}.` : `My vote didn't count: ${r.detail}.`);
+    }
+    if (action.action === "law") {
+      const r = society.law(me, action.target, village.day);
+      if (r.ok && r.announce) announce(r.announce, "society");
+      return quick(r.ok ? `I ${r.detail}.` : `No law: ${r.detail}.`);
+    }
+    if (action.action === "exile") {
+      const r = exile(me, action.target, action.say);
+      return quick(r.ok ? `I ${r.detail}.` : `Couldn't exile: ${r.detail}.`);
+    }
+    if (action.action === "kill") {
+      // Imposters only (the schema already hides it from everyone else). The rules are checked in plain code.
+      const name = [...village.bots.keys()].find((n) => n.toLowerCase() === String(action.target).toLowerCase()) || action.target;
+      const r = crime.canKill(me, name, village.day, positions());
+      if (!r.ok) return this.brain.notify(`I didn't attack ${name}: ${r.detail}.`, "task");
+      crime.attackStarted(me, name);
+      action = { ...action, target: name };
+    }
+    const skill = ALL_SKILLS[action.action];
     if (!skill) return;
+    // Asked to do exactly what we are already doing (e.g. "hide" while hiding): just carry on.
+    const cur = this.currentTask?.action;
+    if (cur && cur.action === action.action && (cur.target || "") === (action.target || "")) return;
     this.cancelTask();
     const task = { action, started: Date.now(), cancelled: false };
     this.currentTask = task;
     this.lastActivity = Date.now();
-    const ctx = { village: this.village.pos };
+    const ctx = {
+      village: this.village.pos,
+      name: me,
+      day: village.day,
+      post: (job) => board.post({ by: me, ...job }),
+      withdraw: (target, amount) => VILLAGE_SKILLS.withdraw(this.bot, { target, amount }, task, ctx),
+      announce: (text) => announce(text, "news"),
+    };
 
     skill(this.bot, action, task, ctx)
       .catch((e) => ({ ok: false, detail: e.message }))
@@ -273,6 +324,12 @@ export class CivBot {
         const job = action.boardId ? ` [job #${action.boardId} ${result.ok ? "done" : "back on the board"}]` : "";
         if (!reflex || !result.ok) this.brain.notify(`${verb}: ${describe(action)} (${result.detail})${job}`, "task");
       });
+  }
+
+  /** Leave the village for good (died or exiled): log off and never reconnect. */
+  leave(why) {
+    log.info(this.def.name, `leaves the village for good (${why})`);
+    setTimeout(() => this.quit(why), 1500); // give the death screen / exile message a moment
   }
 
   /** Leave the server cleanly. */

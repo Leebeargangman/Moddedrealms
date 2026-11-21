@@ -12,9 +12,16 @@ import path from "node:path";
 import { config, DATA_DIR } from "../config.js";
 import { log } from "../log.js";
 import { ask, cooldownMultiplier } from "../ai/client.js";
-import { SYSTEM_PROMPT, MEMORY_SYSTEM } from "../ai/prompts.js";
-import { ACTION_SCHEMA, parseAction, fallbackAction, describe } from "../ai/actions.js";
+import { SYSTEM_PROMPT, IMPOSTER_PROMPT, MEMORY_SYSTEM } from "../ai/prompts.js";
+import { ACTION_SCHEMA, IMPOSTER_SCHEMA, parseAction, fallbackAction, describe } from "../ai/actions.js";
 import * as board from "../village/board.js";
+import * as roster from "../village/roster.js";
+import * as society from "../village/society.js";
+import * as chests from "../village/chests.js";
+import * as crime from "../village/crime.js";
+import * as worldlog from "../village/worldlog.js";
+import * as builder from "../build/builder.js";
+import { village, positions } from "../village/village.js";
 
 const MEMORY_DIR = path.join(DATA_DIR, "memory");
 fs.mkdirSync(MEMORY_DIR, { recursive: true });
@@ -23,12 +30,20 @@ fs.mkdirSync(MEMORY_DIR, { recursive: true });
 // It is built once and is byte-for-byte identical for every bot and every call (that is what makes
 // the cache hit).
 const SYSTEM_BLOCKS = [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }];
+// Imposters: the same rules plus their secret block (a second cache entry, shared by the two of them).
+const IMPOSTER_BLOCKS = [
+  { type: "text", text: SYSTEM_PROMPT },
+  { type: "text", text: IMPOSTER_PROMPT, cache_control: { type: "ephemeral" } },
+];
 const MEMORY_BLOCKS = [{ type: "text", text: MEMORY_SYSTEM }];
 
 const ago = (ms) => (ms < 15000 ? "now" : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`);
 
 export class Brain {
   /** `body` is the CivBot: it supplies state and runs the chosen action. */
+  /** Imposter status is looked up each time (it is assigned during play, and is secret). */
+  get imposter() { return roster.isImposter(this.name); }
+
   constructor(body) {
     this.body = body;
     this.name = body.def.name;
@@ -41,8 +56,11 @@ export class Brain {
     this.lastChoices = [];   // the last few actions the AI chose, to spot it going round in circles
     this.memoryFile = path.join(MEMORY_DIR, `${this.name}.json`);
     this.memory = "";
+    this.grudges = {};       // who hurt this villager: { name: times }
     try {
-      this.memory = JSON.parse(fs.readFileSync(this.memoryFile, "utf8")).memory || "";
+      const saved = JSON.parse(fs.readFileSync(this.memoryFile, "utf8"));
+      this.memory = saved.memory || "";
+      this.grudges = saved.grudges || {};
     } catch {
       // first time this bot plays
     }
@@ -79,6 +97,24 @@ export class Brain {
     this.timer = null;
   }
 
+  /** Remember that someone hurt us (players or villagers): shown in every prompt from now on. */
+  grudge(name) {
+    this.grudges[name] = (this.grudges[name] || 0) + 1;
+    this.saveMemory();
+  }
+
+  /** Secret lines only an imposter sees: partner, kill window, who could be killed unseen right now. */
+  imposterLines() {
+    const partner = roster.livingImposters().map((v) => v.name).filter((n) => n !== this.name);
+    const w = crime.window(village.day);
+    const targets = w.open ? crime.easyTargets(this.name, village.day, positions()) : [];
+    return [
+      `SECRET: you are an imposter. Partner: ${partner.length ? partner.join(", ") : "none (you are the last one)"}.`,
+      w.open ? `Kill window OPEN today (up to ${w.killsLeft} more). Alone with you, nobody watching: ${targets.length ? targets.join(", ") : "nobody right now"}.`
+        : `Kill window closed: next chance on day ${w.opensDay}. Act normal until then.`,
+    ].join("\n");
+  }
+
   /** The small, changing part of the prompt. */
   buildMessage(stateText) {
     const d = this.body.def;
@@ -88,12 +124,20 @@ export class Brain {
     const taskText = task ? `${describe(task.action)} (for ${Math.round((now - task.started) / 1000)} s)` : "none";
     const c = this.lastChoices;
     const loop = c.length >= 3 && c.slice(-3).every((x) => x === c[c.length - 1]);
+    const grudges = Object.entries(this.grudges).map(([n, k]) => `${n}${k > 1 ? ` (${k}x)` : ""}`).join(", ");
+    const news = worldlog.publicNews(2).map((n) => n.text).join(" ");
     return [
-      `You are ${d.name}, preferred role ${d.role}. Personality: ${d.personality}.`,
+      `You are ${d.name}, preferred role ${d.role}. Personality: ${d.personality}. Day ${village.day ?? "?"}.`,
+      this.imposter && this.imposterLines(),
       `Memory: ${this.memory || "nothing yet, you just arrived."}`,
+      grudges && `People who hurt you: ${grudges}.`,
       `Current task: ${taskText}`,
       `Recent events (oldest first):\n${events}`,
       `State:\n${stateText}`,
+      society.text(this.name),
+      chests.text(),
+      `${builder.text()} Blueprints: ${village.blueprintText || "hut, house"}.`,
+      news && `Village news: ${news}`,
       board.text(this.name),
       loop && `Note: you chose "${c[c.length - 1]}" 3 times in a row. Choose something different that makes progress.`,
     ].filter(Boolean).join("\n");
@@ -111,12 +155,13 @@ export class Brain {
       batch.forEach((e) => { e.seen = true; });
 
       // What woke us: the most important new event (attacked beats chat beats task results...).
-      const order = ["attacked", "health", "death", "chat-player", "chat-villager", "task", "board", "night", "morning", "arrived", "idle", "other"];
+      const order = ["attacked", "witness", "health", "death", "clue", "chat-player", "chat-villager", "society", "news", "task", "board", "night", "morning", "arrived", "idle", "other"];
       const wake = batch.map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
-      const res = await ask({ bot: this.name, kind: "decide", system: SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: ACTION_SCHEMA, trigger: wake });
+      const imp = this.imposter;
+      const res = await ask({ bot: this.name, kind: "decide", system: imp ? IMPOSTER_BLOCKS : SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : ACTION_SCHEMA, trigger: wake });
       let action;
       if (res.text) {
-        const parsed = parseAction(res.text);
+        const parsed = parseAction(res.text, { imposter: imp });
         if (parsed.ok) action = parsed.action;
         else log.warn(this.name, `unusable reply (${parsed.error}): ${res.text.slice(0, 120)}`);
       }
@@ -167,6 +212,6 @@ export class Brain {
   }
 
   saveMemory() {
-    fs.writeFileSync(this.memoryFile, JSON.stringify({ name: this.name, memory: this.memory, updatedAt: new Date().toISOString() }, null, 2));
+    fs.writeFileSync(this.memoryFile, JSON.stringify({ name: this.name, memory: this.memory, grudges: this.grudges, updatedAt: new Date().toISOString() }, null, 2));
   }
 }

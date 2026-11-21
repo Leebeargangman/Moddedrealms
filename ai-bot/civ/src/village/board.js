@@ -8,16 +8,13 @@
 //
 // Each bot sees a few lines of the board in its prompt, so they can split the work without long chats.
 
-import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { DATA_DIR } from "../config.js";
 import { log } from "../log.js";
+import { db } from "./db.js";
 
 const CLAIM_EXPIRES_MS = 15 * 60000;
 const MAX_OPEN = 12;          // keep the board short: it is part of every prompt
 const BOARD_ACTIONS = new Set(["gather", "craft", "goto", "explore", "attack"]); // jobs a bot can actually do
 
-const db = new DatabaseSync(path.join(DATA_DIR, "civ.db"));
 db.exec(`
   CREATE TABLE IF NOT EXISTS tasks (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,

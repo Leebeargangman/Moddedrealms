@@ -10,6 +10,10 @@ import { config, DATA_DIR, model } from "../config.js";
 import * as ledger from "./ledger.js";
 import { stats as rateStats } from "../ai/ratelimit.js";
 import * as board from "../village/board.js";
+import * as roster from "../village/roster.js";
+import * as society from "../village/society.js";
+import * as worldlog from "../village/worldlog.js";
+import * as builder from "../build/builder.js";
 
 const usd = (n) => `$${n.toFixed(n < 0.1 ? 5 : 3)}`;
 const int = (n) => Math.round(n).toLocaleString("en-GB");
@@ -107,6 +111,18 @@ export function writeSessionReport(botsOnline, extra = {}) {
     "",
     `- Rate limiter (${s.rateLimit.limitPerMinute}/min): ${s.rateLimit.waited} of ${s.rateLimit.calls} calls had to wait, longest wait ${(s.rateLimit.maxWaitMs / 1000).toFixed(1)} s, longest queue ${s.rateLimit.maxQueue}`,
     `- Task board: ${s.board.doneSince} jobs finished this session, ${s.board.open} still open or taken`,
+    "",
+    "## The village",
+    "",
+    `- Alive: ${roster.alive().map((v) => v.name).join(", ") || "nobody"}`,
+    `- Gone: ${roster.all().filter((v) => v.status !== "alive").map((v) => `${v.name} (${v.status}${v.imposter ? ", imposter" : ""})`).join(", ") || "nobody"}`,
+    `- Secret imposters still alive: ${roster.livingImposters().map((v) => v.name).join(", ") || "none"}`,
+    `- ${society.text("").replace(/\n/g, "\n- ")}`,
+    `- ${builder.text()}`,
+    "",
+    "World log this session:",
+    "",
+    ...worldlog.recent(80, true).filter((r) => r.at >= ledger.SESSION_STARTED).map((r) => `- ${r.public ? "" : "[secret] "}${r.text}`),
     "",
   ].join("\n");
   fs.writeFileSync(`${base}.md`, md);

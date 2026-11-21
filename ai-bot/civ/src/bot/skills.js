@@ -115,6 +115,10 @@ function blockMatcher(bot, target) {
   return null;
 }
 
+// Blocks a bot is on its way to break, so 20 bots don't all run to the same log.
+const reserved = new Map(); // "x,y,z" -> { by, until }
+const isReserved = (key, me) => { const r = reserved.get(key); return r && r.by !== me && r.until > Date.now(); };
+
 async function gather(bot, a, task) {
   const test = blockMatcher(bot, a.target);
   if (!test) return { ok: false, detail: `"${a.target}" is not a block I can gather` };
@@ -130,7 +134,7 @@ async function gather(bot, a, task) {
     const me = bot.entity.position;
     const score = (p) => p.distanceTo(me) + 2 * Math.max(0, p.y - me.y - 1);
     const pos = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 48, count: 40 })
-      .filter((p) => !skip.has(p.toString()) && !skipColumns.has(`${p.x},${p.z}`) && !isProtected(bot, p)) // can't break blocks in spawn protection
+      .filter((p) => !skip.has(p.toString()) && !skipColumns.has(`${p.x},${p.z}`) && !isProtected(bot, p) && !isReserved(p.toString(), bot.username)) // can't break blocks in spawn protection
       .sort((a, b) => score(a) - score(b))[0];
     if (!pos) return { ok: got > 0, detail: got ? `got ${got}, no more ${a.target} within 48 blocks` : `no ${a.target} I can break within 48 blocks (blocks near the world spawn are protected; explore to find some)` };
     const block = bot.blockAt(pos);
@@ -138,6 +142,7 @@ async function gather(bot, a, task) {
     if (block.harvestTools && !bot.inventory.items().some((it) => block.harvestTools[it.type])) {
       return { ok: got > 0, detail: `${got ? `got ${got}, then ` : ""}need a ${block.name.includes("iron") || block.name.includes("gold") || block.name.includes("diamond") ? "stone or better " : ""}pickaxe to gather ${block.name}` };
     }
+    reserved.set(pos.toString(), { by: bot.username, until: Date.now() + 25000 });
     try {
       await withTimeout(bot, bot.collectBlock.collect(block, { ignoreNoPath: false }), 20000, "collecting");
       got++;
@@ -171,6 +176,16 @@ function resolveItemName(bot, name) {
 }
 
 /** Find a crafting table nearby (walk to it), or place one from the inventory. */
+/** The inventory updates a moment after crafting or picking up: wait up to `ms` for an item to show. */
+export async function waitForItem(bot, name, ms = 2000) {
+  for (let t = 0; t <= ms; t += 200) {
+    const it = bot.inventory.items().find((i) => i.name === name);
+    if (it) return it;
+    await sleep(200);
+  }
+  return null;
+}
+
 async function ensureTable(bot) {
   const tableId = bot.registry.blocksByName.crafting_table.id;
   const found = bot.findBlock({ matching: tableId, maxDistance: 32 });
@@ -178,7 +193,7 @@ async function ensureTable(bot) {
     await walkTo(bot, new goals.GoalNear(found.position.x, found.position.y, found.position.z, 2), 60000);
     return bot.blockAt(found.position);
   }
-  const item = bot.inventory.items().find((it) => it.name === "crafting_table");
+  const item = await waitForItem(bot, "crafting_table", 2000);
   if (!item) return null;
   // Placing is not allowed in spawn protection: walk out of it first.
   if (isProtected(bot, bot.entity.position)) {
@@ -215,17 +230,15 @@ function ingredientsText(bot, itemId) {
 async function prepareWood(bot, needs) {
   const count = (test) => bot.inventory.items().filter((it) => test(it.name)).reduce((n, it) => n + it.count, 0);
   let made = false;
-  const wantPlanks = /planks/.test(needs) || /stick/.test(needs);
-  for (let i = 0; i < 2 && wantPlanks && count((n) => n.endsWith("_planks")) < 8; i++) {
+  if ((/planks/.test(needs) || /stick/.test(needs)) && count((n) => n.endsWith("_planks")) < 8) {
     const log = bot.inventory.items().find((it) => it.name.endsWith("_log") && !it.name.startsWith("stripped_"));
     const planks = log && bot.registry.itemsByName[log.name.replace(/_log$/, "_planks")];
     const r = planks && bot.recipesFor(planks.id, null, 1, null)[0];
-    if (!r) break;
-    try { await bot.craft(r, 1, null); made = true; } catch { break; }
+    if (r) made = (await craftSafely(bot, r, Math.min(2, log.count))) > 0; // 2 logs = 8 planks
   }
   if (/stick/.test(needs) && count((n) => n === "stick") < 4) {
     const r = bot.recipesFor(bot.registry.itemsByName.stick.id, null, 1, null)[0];
-    if (r) { try { await bot.craft(r, 1, null); made = true; } catch { /* no planks */ } }
+    if (r) made = (await craftSafely(bot, r, 1)) > 0 || made;
   }
   return made;
 }
@@ -238,11 +251,40 @@ async function craftTableFromWood(bot) {
     const log = bot.inventory.items().find((it) => it.name.endsWith("_log") && !it.name.startsWith("stripped_"));
     const planks = log && bot.registry.itemsByName[log.name.replace(/_log$/, "_planks")];
     const r = planks && bot.recipesFor(planks.id, null, 1, null)[0];
-    if (r) { try { await bot.craft(r, 1, null); } catch { /* fall through */ } }
+    if (r) await craftSafely(bot, r, 1);
   }
   const r = bot.recipesFor(tableItem.id, null, 1, null)[0];
   if (!r) return false;
-  try { await bot.craft(r, 1, null); return true; } catch { return false; }
+  return (await craftSafely(bot, r, 1)) > 0;
+}
+
+/**
+ * Craft `times` times, ONE at a time with a pause after each. On 1.21.11, crafting several at once
+ * (or quickly one after another) makes mineflayer's inventory fall behind the server: logs vanished
+ * into the crafting grid and stray oak buttons appeared. One by one with 350 ms pauses is reliable.
+ * Returns how many crafts worked.
+ */
+export async function craftSafely(bot, recipe, times, table = null) {
+  // A chest window that is still closing would receive the items instead of the crafting grid
+  // (we saw withdrawn logs go straight back into the chest), so wait until no window is open.
+  for (let i = 0; i < 10 && bot.currentWindow; i++) { try { bot.closeWindow(bot.currentWindow); } catch { /* closed */ } await sleep(300); }
+  let done = 0;
+  for (let i = 0; i < times; i++) {
+    if (!bot.recipesFor(recipe.result.id, null, 1, table).length) break;
+    try { await bot.craft(recipe, 1, table); done++; } catch { break; }
+    await sleep(350);
+  }
+  return done;
+}
+
+/** How many times we can craft this recipe with what we carry. */
+function maxTimes(bot, recipe) {
+  let n = Infinity;
+  for (const d of recipe.delta.filter((x) => x.count < 0)) {
+    const have = bot.inventory.items().filter((it) => it.type === d.id).reduce((s, it) => s + it.count, 0);
+    n = Math.min(n, Math.floor(have / -d.count));
+  }
+  return Number.isFinite(n) ? n : 1;
 }
 
 async function craft(bot, a) {
@@ -266,17 +308,17 @@ async function craft(bot, a) {
       }
       if (!table) return { ok: false, detail: `${name} needs a crafting table (craft one from 4 planks)` };
       recipes = bot.recipesFor(item.id, null, 1, table);
+      // Making the table may have used the planks the recipe needs: make more from logs and look again.
+      if (!recipes.length && await prepareWood(bot, ingredientsText(bot, item.id))) recipes = bot.recipesFor(item.id, null, 1, table);
     }
     if (!recipes.length) return { ok: false, detail: `missing ingredients for ${name}: needs ${ingredientsText(bot, item.id)}` };
   }
   const recipe = recipes[0];
-  const times = Math.ceil((a.amount ?? 1) / recipe.result.count);
+  // As many as we can make, up to the amount asked for, one at a time (see craftSafely).
+  const possible = bot.recipesFor(item.id, null, 1, table).length ? Math.max(1, maxTimes(bot, recipe)) : 0;
+  const times = Math.min(Math.ceil((a.amount ?? 1) / recipe.result.count), possible);
   let made = 0;
-  for (let i = 0; i < times; i++) {
-    if (!bot.recipesFor(item.id, null, 1, table).length) break;
-    await bot.craft(recipe, 1, table);
-    made += recipe.result.count;
-  }
+  if (times > 0) made = (await craftSafely(bot, recipe, times, table)) * recipe.result.count;
   return made ? { ok: true, detail: `made ${made} ${name}` } : { ok: false, detail: `ran out of ingredients for ${name}` };
 }
 
@@ -410,4 +452,4 @@ async function wait(bot, a, task) {
 }
 
 export const SKILLS = { gather, craft, eat, goto, follow, explore, attack, flee, sleep: sleepInBed, wait };
-export { countItem };
+export { countItem, walkTo, withTimeout, sleep, prepareWood, equipWeapon };
