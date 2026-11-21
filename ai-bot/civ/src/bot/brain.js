@@ -71,9 +71,9 @@ export class Brain {
    * `wake` says what kind of event it is (task, attacked, chat, night...): it is logged with the call,
    * so the report shows what the money is spent on.
    */
-  notify(text, wake = "other") {
+  notify(text, wake = "other", { urgent = false } = {}) {
     this.note(text, wake);
-    this.schedule();
+    this.schedule(urgent);
   }
 
   /** Remember an event for the next call WITHOUT waking the AI for it. */
@@ -84,9 +84,12 @@ export class Brain {
     if (this.history.length > 30) this.history.shift();
   }
 
-  schedule() {
-    if (this.timer || this.thinking || this.stopped) return; // already waiting: this event joins that batch
-    const cooldown = config.ai.cooldownMs * cooldownMultiplier();
+  /** `urgent` (attacked by a player or villager): skip the cooldown, but never twice within 5 s. */
+  schedule(urgent = false) {
+    if (this.stopped || this.thinking) return;
+    if (urgent && this.timer && Date.now() - this.lastCall > 5000) { clearTimeout(this.timer); this.timer = null; }
+    if (this.timer) return; // already waiting: this event joins that batch
+    const cooldown = urgent ? 5000 : config.ai.cooldownMs * cooldownMultiplier();
     const wait = Math.max(0, this.lastCall + cooldown - Date.now());
     this.timer = setTimeout(() => this.think(), wait);
   }

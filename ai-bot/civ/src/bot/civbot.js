@@ -53,7 +53,8 @@ export class CivBot {
 
     bot.once("spawn", () => this.onFirstSpawn());
     bot.on("chat", (username, message) => this.onChat(username, message));
-    bot.on("entityHurt", (entity) => { if (entity === bot.entity) this.onHurt(); });
+    // On 1.20+ the server says who caused the damage (the shooter for arrows), so no guessing.
+    bot.on("entityHurt", (entity, source) => { if (entity === bot.entity) this.onHurt(source); });
     bot.on("health", () => this.onHealth());
     bot.on("death", () => {
       // Permadeath: this villager is gone for good (the village records it, tells witnesses and
@@ -173,25 +174,44 @@ export class CivBot {
     }
   }
 
-  onHurt() {
+  onHurt(source) {
     const bot = this.bot;
     const me = bot.entity.position;
-    const attacker = Object.values(bot.entities)
-      .filter((e) => e !== bot.entity && e.position && e.position.distanceTo(me) < 6 && (isHostile(e) || e.type === "player"))
-      .sort((a, b) => a.position.distanceTo(me) - b.position.distanceTo(me))[0];
+    // Who hit us: the damage source from the server. Without one (fall, fire, drowning, starving) it was
+    // nobody. We only guess for monsters (the nearest hostile mob), never for players or villagers:
+    // guessing blamed innocent villagers who just stood nearby.
+    let attacker = source && source !== bot.entity ? source : null;
+    if (attacker && attacker.type !== "player" && !isHostile(attacker) && attacker.name !== "player") {
+      attacker = null; // e.g. an arrow or projectile entity without a known shooter
+    }
+    if (!attacker && !source) {
+      attacker = Object.values(bot.entities)
+        .filter((e) => e !== bot.entity && e.position && isHostile(e) && e.position.distanceTo(me) < 4)
+        .sort((a, b) => a.position.distanceTo(me) - b.position.distanceTo(me))[0] || null;
+    }
+    const byPlayer = attacker?.type === "player";
+    const who = byPlayer ? attacker.username : attacker ? `a ${attacker.name}` : null;
+    if (who) this.lastHurtBy = who;
 
-    if (attacker?.type === "player") this.lastHurtBy = attacker.username;
-    else if (attacker) this.lastHurtBy = `a ${attacker.name}`;
     // Reflex (plain code): fight back if healthy and it's a mob, otherwise run.
     if (!["attack", "flee", "kill"].includes(this.currentTask?.action.action)) {
-      if (attacker && attacker.type !== "player" && bot.health > 10) this.perform({ action: "attack", target: attacker.name }, true);
-      else this.perform({ action: "flee", reflex: true }, true);
+      if (attacker && !byPlayer && bot.health > 10) this.perform({ action: "attack", target: attacker.name }, true);
+      else if (attacker) this.perform({ action: "flee", reflex: true }, true);
     }
-    // Tell the brain, but at most once every 15 s (a fight is many hits).
-    if (!this.flags.hurtAt || Date.now() - this.flags.hurtAt > 15000) {
-      this.flags.hurtAt = Date.now();
-      if (attacker?.type === "player") this.brain.grudge(attacker.username); // remembered in every prompt
-      this.brain.notify(`I was attacked${attacker ? ` by ${attacker.username || attacker.name}` : ""}! Health ${Math.round(bot.health)}/20.`, "attacked");
+    // Tell the brain, but at most once every 15 s per attacker (a fight is many hits). An attack by a
+    // player or villager is urgent: it skips the cooldown, so the bot reacts within seconds.
+    const key = `hurt:${who || "unknown"}`;
+    if (!this.flags[key] || Date.now() - this.flags[key] > 15000) {
+      this.flags[key] = Date.now();
+      if (byPlayer) {
+        this.brain.grudge(attacker.username); // remembered in every prompt
+        const kind = isVillager(attacker.username) ? "villager" : "player, not a villager";
+        this.brain.notify(`${attacker.username} (${kind}) ATTACKED ME! I'm running. Health ${Math.round(bot.health)}/20.`, "attacked", { urgent: true });
+      } else if (attacker) {
+        this.brain.notify(`I was attacked by ${who}! Health ${Math.round(bot.health)}/20.`, "attacked");
+      } else if (bot.health <= 10) {
+        this.brain.notify(`I got hurt (no attacker: a fall, fire, drowning or hunger). Health ${Math.round(bot.health)}/20.`, "health");
+      }
     }
   }
 
