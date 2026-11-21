@@ -32,8 +32,11 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 - **Villagers can win:** a newcomer is always a normal villager, even when an imposter died, so once both
   imposters are caught the village is safe.
 - **Real players can be dangerous.** Bots remember who attacked them and are careful around them.
-- Death messages must be hidden (`/gamerule showDeathMessages false`) or the server would announce
-  the killer to everyone.
+- **Only witnesses know.** A villager learns about a death only if it is close enough to see it happen.
+  Death messages are hidden (`/gamerule showDeathMessages false`) so the server doesn't announce the killer.
+- **Deaths leave clues** that others can find later: the dropped items where the body fell, who was last seen
+  near the victim and when, who was missing at the time, a villager who suddenly carries the victim's things.
+  Villagers have to work out the rest themselves.
 
 ## How it keeps costs down
 
