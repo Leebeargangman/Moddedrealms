@@ -98,10 +98,21 @@ export function snapshot(bot, village) {
     nearest.size && `blocks ${fmt([...nearest.entries()], 8)}`,
   ].filter(Boolean).join(" · ");
 
+  // Signs close by (laws on the village notice board, messages from other villagers).
+  const signs = [];
+  try {
+    for (const p of bot.findBlocks({ matching: (b) => b.name.endsWith("_sign"), maxDistance: 6, count: 3 })) {
+      const [front] = bot.blockAt(p)?.getSignText?.() || [];
+      const t = String(front || "").replace(/\s+/g, " ").trim();
+      if (t) signs.push(`"${t.slice(0, 60)}"`);
+    }
+  } catch { /* sign text not loaded yet */ }
+
   const text = [
     `pos ${Math.round(me.x)},${Math.round(me.y)},${Math.round(me.z)}${villageText} · hp ${Math.round(bot.health)}/20 · food ${bot.food}/20 · ${facts.isNight ? "night" : "day"}`,
     `inventory: ${invText}`,
     `nearby: ${nearby || "nothing notable"}`,
-  ].join("\n");
+    signs.length ? `signs here: ${signs.join(" · ")}` : "",
+  ].filter(Boolean).join("\n");
   return { text, facts };
 }

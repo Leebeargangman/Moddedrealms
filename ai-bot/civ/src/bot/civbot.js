@@ -38,6 +38,7 @@ export class CivBot {
     this.lastActivity = Date.now();
     this.lastSay = 0;
     this.flags = {}; // remembers which warnings we already reported (low food, low health...)
+    this.attackedBy = {}; // player name -> when they last hurt us (self-defence is allowed for 2 min)
   }
 
   start() {
@@ -193,10 +194,15 @@ export class CivBot {
     const who = byPlayer ? attacker.username : attacker ? `a ${attacker.name}` : null;
     if (who) this.lastHurtBy = who;
 
-    // Reflex (plain code): fight back if healthy and it's a mob, otherwise run.
-    if (!["attack", "flee", "kill"].includes(this.currentTask?.action.action)) {
-      if (attacker && !byPlayer && bot.health > 10) this.perform({ action: "attack", target: attacker.name }, true);
-      else if (attacker) this.perform({ action: "flee", reflex: true }, true);
+    if (byPlayer) this.attackedBy[attacker.username] = Date.now(); // allows self-defence for 2 minutes
+    // Reflex (plain code, no AI). Don't just run: run from a close creeper or when badly hurt, otherwise
+    // fight monsters, and fight back against a person who attacks us while we are healthy.
+    if (attacker && !["attack", "flee", "kill"].includes(this.currentTask?.action.action)) {
+      const creeper = Object.values(bot.entities).some((e) => e.name === "creeper" && e.position?.distanceTo(me) < 4);
+      if (creeper || bot.health <= 8) this.perform({ action: "flee", reflex: true }, true);
+      else if (!byPlayer) this.perform({ action: "attack", target: attacker.name }, true);
+      else if (bot.health > 10) this.perform({ action: "attack", target: attacker.username }, true);
+      else this.perform({ action: "flee", reflex: true }, true);
     }
     // Tell the brain, but at most once every 15 s per attacker (a fight is many hits). An attack by a
     // player or villager is urgent: it skips the cooldown, so the bot reacts within seconds.
@@ -206,7 +212,8 @@ export class CivBot {
       if (byPlayer) {
         this.brain.grudge(attacker.username); // remembered in every prompt
         const kind = isVillager(attacker.username) ? "villager" : "player, not a villager";
-        this.brain.notify(`${attacker.username} (${kind}) ATTACKED ME! I'm running. Health ${Math.round(bot.health)}/20.`, "attacked", { urgent: true });
+        const doing = this.currentTask?.action.action === "attack" ? "I'm fighting back" : "I'm getting away";
+        this.brain.notify(`${attacker.username} (${kind}) ATTACKED ME! ${doing}. Health ${Math.round(bot.health)}/20.`, "attacked", { urgent: true });
       } else if (attacker) {
         this.brain.notify(`I was attacked by ${who}! Health ${Math.round(bot.health)}/20.`, "attacked");
       } else if (bot.health <= 10) {
@@ -335,6 +342,7 @@ export class CivBot {
       post: (job) => board.post({ by: me, ...job }),
       withdraw: (target, amount) => VILLAGE_SKILLS.withdraw(this.bot, { target, amount }, task, ctx),
       announce: (text) => announce(text, "news"),
+      attackedBy: this.attackedBy,
     };
 
     skill(this.bot, action, task, ctx)

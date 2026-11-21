@@ -26,6 +26,9 @@ export const ACTIONS = [
   "give",     // give a nearby villager something you carry: target = "Name item", amount
   "build",    // build from a blueprint near the village: target = "hut", "house"... or "#3" to continue one
   "hide",     // night only: dig an emergency shelter here and stay in it until morning
+  "sign",     // put up a sign: target = "here" or "village" (notice board), text = what it says
+  "write",    // write and sign a book: target = title, text = content (needs a writable_book)
+  "read",     // read the signs nearby and the books you carry
   "vote",     // during an election: target = the villager you vote for as leader
   "law",      // leader only: make a law (target = the law, short) or "repeal 2"
   "exile",    // leader only: send a villager away forever: target = their name (give the reason in "say")
@@ -48,6 +51,7 @@ const schemaFor = (actions) => ({
     target: { type: "string" },
     amount: { type: "integer" },
     say: { type: "string" },
+    text: { type: "string" },  // only for sign and write
   },
   required: ["action"],
   additionalProperties: false,
@@ -57,7 +61,7 @@ export const IMPOSTER_SCHEMA = schemaFor(IMPOSTER_ACTIONS);
 
 const DEFAULT_AMOUNT = { gather: 8, craft: 1, follow: 60, wait: 30, withdraw: 16, give: 1 };
 // Which actions use a target / an amount (anything else the AI sends for them is dropped).
-const USES_TARGET = new Set(["gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
+const USES_TARGET = new Set(["gather", "craft", "goto", "follow", "attack", "post", "claim", "deposit", "withdraw", "give", "build", "vote", "law", "exile", "kill", "sign", "write"]);
 const NEEDS_TARGET = new Set(["post", "claim", "withdraw", "give", "build", "vote", "law", "exile", "kill"]);
 
 /**
@@ -84,12 +88,18 @@ export function parseAction(text, { imposter = false } = {}) {
   const action = { action: name };
   if (USES_TARGET.has(name) && typeof obj.target === "string" && obj.target.trim()) {
     // Laws keep their wording; everything else is a name, which we compare in lower case.
-    action.target = name === "law" ? cleanSay(obj.target).slice(0, 120) : obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
+    action.target = name === "law" || name === "write" ? cleanSay(obj.target).slice(0, 120) : obj.target.trim().toLowerCase().replace(/^minecraft:/, "").slice(0, 48);
   }
   const amount = !(name in DEFAULT_AMOUNT) && !(name === "post" && Number.isFinite(obj.amount)) ? undefined : Number.isFinite(obj.amount) ? Math.round(obj.amount) : DEFAULT_AMOUNT[name];
   if (amount !== undefined) action.amount = Math.max(1, Math.min(name === "follow" || name === "wait" || name === "withdraw" ? 300 : 64, amount));
   const say = cleanSay(obj.say);
   if (say) action.say = say;
+  if ((name === "sign" || name === "write") && typeof obj.text === "string") {
+    // Same safety as chat (no "/" commands, no colour codes), but longer: signs 120, books 1000 characters.
+    const t = obj.text.replace(/[\r\n]+/g, " ").replace(/§./g, "").replace(/^[\s/]+/, "").trim().slice(0, name === "sign" ? 120 : 1000);
+    if (t) action.text = t;
+  }
+  if ((name === "sign" || name === "write") && !action.text) return { ok: false, error: `${name} without text` };
   if (name === "chat" && !action.say) return { ok: false, error: "chat without a message" };
   if (NEEDS_TARGET.has(name) && !action.target) return { ok: false, error: `${name} without a target` };
   if (name === "claim") action.target = action.target.replace(/[^0-9]/g, "");
@@ -113,6 +123,6 @@ export function fallbackAction(s) {
 
 /** Short text for logs, e.g. `gather oak_log x16 "Getting wood"`. */
 export function describe(a) {
-  return [a.action, a.target, a.amount !== undefined && a.action !== "eat" ? `x${a.amount}` : "", a.say ? `"${a.say}"` : ""]
+  return [a.action, a.target, a.amount !== undefined && a.action !== "eat" ? `x${a.amount}` : "", a.text ? `[${a.text.slice(0, 40)}${a.text.length > 40 ? "…" : ""}]` : "", a.say ? `"${a.say}"` : ""]
     .filter(Boolean).join(" ");
 }

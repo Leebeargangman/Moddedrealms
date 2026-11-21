@@ -419,14 +419,43 @@ async function equipWeapon(bot) {
   if (w) await bot.equip(w, "hand");
 }
 
-export async function attack(bot, a, task) {
+/** Fight a player (self-defence): stay close, hit every ~0.55 s, stop when they are gone or we are hurt. */
+async function fightPlayer(bot, name, task, seconds = 20) {
+  await equipWeapon(bot);
+  const until = Date.now() + seconds * 1000;
+  let hits = 0;
+  while (Date.now() < until && !task.cancelled && bot.health > 7) {
+    const e = bot.players[name]?.entity;
+    if (!e || e.position.distanceTo(bot.entity.position) > 16) break;
+    bot.pathfinder.setGoal(new goals.GoalFollow(e, 1.5), true);
+    if (e.position.distanceTo(bot.entity.position) < 3.2) {
+      await bot.lookAt(e.position.offset(0, 1.4, 0), true);
+      bot.attack(e);
+      hits++;
+    }
+    await sleep(550);
+  }
+  bot.pathfinder.setGoal(null);
+  if (bot.health <= 7) return { ok: false, detail: `I fought ${name} but got badly hurt and stopped` };
+  const still = bot.players[name]?.entity;
+  return { ok: true, detail: still ? `fought back against ${name} (${hits} hits); they are still around` : `drove ${name} away (${hits} hits)` };
+}
+
+export async function attack(bot, a, task, ctx = {}) {
   const me = bot.entity.position;
+  // A player or villager: only in self-defence, against someone who hurt us in the last 2 minutes.
+  const playerName = a.target && Object.keys(bot.players).find((n) => n.toLowerCase() === a.target.toLowerCase() && n !== bot.username);
+  if (playerName) {
+    const when = ctx.attackedBy?.[playerName];
+    if (!when || Date.now() - when > 120000) return { ok: false, detail: `I only fight people in self-defence: ${playerName} hasn't attacked me recently` };
+    return fightPlayer(bot, playerName, task);
+  }
   const want = a.target && a.target !== "hostile" ? a.target : null;
   const mob = Object.values(bot.entities)
     .filter((e) => e !== bot.entity && e.position && e.position.distanceTo(me) < 16 && (want ? e.name === want : isHostile(e)))
     .sort((x, y) => x.position.distanceTo(me) - y.position.distanceTo(me))[0];
   if (!mob) return { ok: false, detail: `no ${want || "hostile mob"} nearby` };
-  if (mob.type === "player") return { ok: false, detail: "I don't attack players" };
+  if (mob.type === "player") return { ok: false, detail: "to fight a person, name them (only in self-defence)" };
   await equipWeapon(bot);
   // Our own small fight loop (the mineflayer-pvp plugin broke block collecting): keep close, look at
   // the mob and hit it about every 0.6 s, which is the sword cooldown.

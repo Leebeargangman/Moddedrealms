@@ -217,3 +217,133 @@ export async function murder(bot, a, task) {
 }
 
 export const VILLAGE_SKILLS = { deposit, withdraw, give, hide };
+
+// --- signs, books, reading -------------------------------------------------------------------------
+/** Wrap text into sign lines: up to 4 lines of 15 characters (what fits visibly on a sign). */
+function signLines(text) {
+  const words = String(text).replace(/\s+/g, " ").trim().split(" ");
+  const lines = [""];
+  for (const w of words) {
+    const cur = lines[lines.length - 1];
+    if ((cur + " " + w).trim().length <= 15) lines[lines.length - 1] = (cur + " " + w).trim();
+    else lines.push(w.slice(0, 15));
+  }
+  return lines;
+}
+
+async function getSigns(bot, n, ctx) {
+  const have = () => bot.inventory.items().filter((it) => it.name.endsWith("_sign") && !it.name.includes("hanging")).reduce((s, it) => s + it.count, 0);
+  if (have() >= n) return true;
+  // 6 planks + 1 stick = 3 signs (needs a crafting table: the craft skill handles that and the planks).
+  await SKILLS.craft(bot, { action: "craft", target: "oak_sign", amount: 3 * Math.ceil((n - have()) / 3) }, { cancelled: false }, ctx);
+  for (let i = 0; i < 10 && have() < n; i++) await sleep(300);
+  return have() >= n;
+}
+
+/** Find free ground spots for signs: here, or the village notice board (near the centre). */
+function signSpots(bot, around, count, radius) {
+  const free = (b) => b && b.boundingBox === "empty" && !["water", "lava"].includes(b.name);
+  const c = around.floored();
+  const spots = [];
+  for (let r = radius[0]; r <= radius[1] && spots.length < count; r++) {
+    for (let dx = -r; dx <= r && spots.length < count; dx++) for (let dz = -r; dz <= r && spots.length < count; dz++) {
+      if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+      for (let dy = -2; dy <= 2; dy++) {
+        const p = c.offset(dx, dy, dz);
+        if (free(bot.blockAt(p)) && free(bot.blockAt(p.offset(0, 1, 0))) && bot.blockAt(p.offset(0, -1, 0))?.boundingBox === "block" &&
+            !spots.some((s) => s.distanceTo(p) < 1.5 && s.y === p.y && false)) { spots.push(p); break; }
+      }
+    }
+  }
+  return spots;
+}
+
+/**
+ * "sign": put text on signs. target = "here" (default) or "village" (the notice board near the village
+ * centre, where laws belong). text = what to write (up to 120 characters: 1 or 2 signs).
+ */
+async function placeSign(bot, a, task, ctx) {
+  const text = String(a.text || a.say || "").trim();
+  if (text.length < 2) return { ok: false, detail: "what should the sign say? (put it in \"text\")" };
+  const lines = signLines(text.slice(0, 120));
+  const groups = [];
+  for (let i = 0; i < lines.length; i += 4) groups.push(lines.slice(i, i + 4));
+  if (!(await getSigns(bot, groups.length, ctx))) return { ok: false, detail: "I have no sign and couldn't make one (a sign needs 6 planks and a stick, or 2 logs)" };
+  const atVillage = String(a.target || "").includes("village");
+  const spots = signSpots(bot, atVillage ? ctx.village : bot.entity.position, groups.length, atVillage ? [4, 9] : [1, 3]);
+  if (spots.length < groups.length) return { ok: false, detail: "found no free ground for a sign here" };
+  const placed = [];
+  for (let i = 0; i < groups.length && !task.cancelled; i++) {
+    const p = spots[i];
+    await walkTo(bot, new goals.GoalNear(p.x, p.y, p.z, 2), 60000);
+    const sign = bot.inventory.items().find((it) => it.name.endsWith("_sign") && !it.name.includes("hanging"));
+    if (!sign) break;
+    await bot.equip(sign, "hand");
+    await bot.lookAt(p.offset(0.5, 0.5, 0.5), true);
+    try { await bot.placeBlock(bot.blockAt(p.offset(0, -1, 0)), new Vec3(0, 1, 0)); } catch { /* checked below */ }
+    await sleep(500);
+    const b = bot.blockAt(p);
+    if (!b || !b.name.endsWith("_sign")) continue;
+    bot.updateSign(b, groups[i].join("\n"));
+    placed.push(`${p.x},${p.z}`);
+    await sleep(300);
+  }
+  if (!placed.length) return { ok: false, detail: "couldn't place the sign" };
+  return { ok: true, detail: `put up ${placed.length} sign(s) at ${placed.join(" and ")}${atVillage ? " (village notice board)" : ""}: "${text.slice(0, 60)}"` };
+}
+
+/** "write": write a book. target = the title, text = the content. Needs a book and quill (writable_book). */
+async function writeBook(bot, a) {
+  const book = bot.inventory.items().find((it) => it.name === "writable_book");
+  if (!book) {
+    return { ok: false, detail: "I need a book and quill (writable_book): craft it from a book + ink_sac + feather; a book is 3 paper (from sugar_cane) + leather (from cows)" };
+  }
+  const text = String(a.text || "").trim();
+  if (text.length < 5) return { ok: false, detail: "what should the book say? (put it in \"text\")" };
+  const pages = [];
+  for (let i = 0; i < text.length && pages.length < 10; i += 240) pages.push(text.slice(i, i + 240));
+  const title = String(a.target || "Village records").replace(/[^\w ,.'!?-]/g, "").slice(0, 30) || "Village records";
+  try {
+    await bot.signBook(book.slot, pages, bot.username, title);
+  } catch (e) {
+    return { ok: false, detail: `couldn't write the book: ${e.message}` };
+  }
+  return { ok: true, detail: `wrote and signed the book "${title}" (${pages.length} page${pages.length > 1 ? "s" : ""}); deposit it so others can read it` };
+}
+
+/** Text of the signs within `radius` blocks (for the state and for "read"). */
+export function nearbySigns(bot, radius = 6, max = 3) {
+  const out = [];
+  try {
+    for (const p of bot.findBlocks({ matching: (b) => b.name.endsWith("_sign"), maxDistance: radius, count: max })) {
+      const b = bot.blockAt(p);
+      const [front] = b?.getSignText?.() || [];
+      const t = String(front || "").replace(/\s+/g, " ").trim();
+      if (t) out.push({ x: p.x, z: p.z, text: t });
+    }
+  } catch { /* no sign data yet */ }
+  return out;
+}
+
+/** Text of a written book's pages. 1.21: componentMap "written_book_content" = { rawTitle, author, pages: [{ content }] }. */
+function bookText(item) {
+  const plain = (v) => (v == null ? "" : typeof v === "string" ? v : v.value ?? v.raw ?? v.text ?? (typeof v.content !== "undefined" ? plain(v.content) : ""));
+  const c = item.componentMap?.get?.("written_book_content")?.data;
+  if (c) return { title: plain(c.rawTitle ?? c.title) || "untitled", author: plain(c.author), text: (c.pages || []).map((p) => plain(p.content ?? p)).join(" ").replace(/\s+/g, " ").trim() };
+  const n = item.nbt?.value; // older versions
+  return { title: n?.title?.value || "untitled", author: n?.author?.value || "", text: (n?.pages?.value?.value || []).map(plain).join(" ").trim() };
+}
+
+/** "read": read the signs within 16 blocks and the books you carry. */
+async function read(bot) {
+  const signs = nearbySigns(bot, 16, 6);
+  const books = bot.inventory.items().filter((it) => it.name === "written_book").map(bookText);
+  if (!signs.length && !books.length) return { ok: false, detail: "there are no signs near me and I carry no written books (books may be in the village chests: withdraw written_book)" };
+  const parts = [
+    ...signs.map((s) => `sign at ${s.x},${s.z}: "${s.text.slice(0, 80)}"`),
+    ...books.map((b) => `book "${b.title}"${b.author ? ` by ${b.author}` : ""}: "${b.text.slice(0, 200)}"`),
+  ];
+  return { ok: true, detail: `I read: ${parts.join(" | ")}` };
+}
+
+Object.assign(VILLAGE_SKILLS, { sign: placeSign, write: writeBook, read });
