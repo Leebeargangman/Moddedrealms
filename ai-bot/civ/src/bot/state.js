@@ -4,6 +4,8 @@
 //   inventory: oak_log 12, cobblestone 30, stone_pickaxe 1
 //   nearby: players Brynn 5m · mobs zombie 12m · animals cow 9m · blocks oak_log 4m, iron_ore 9m, crafting_table 6m
 
+import { config } from "../config.js";
+
 const HOSTILE = new Set(["zombie", "husk", "drowned", "skeleton", "stray", "spider", "cave_spider", "creeper", "witch",
   "enderman", "slime", "phantom", "pillager", "vindicator", "zombie_villager", "silverfish", "bogged", "breeze"]);
 const FOOD = ["cooked_beef", "cooked_porkchop", "cooked_mutton", "cooked_chicken", "cooked_cod", "cooked_salmon", "bread",
@@ -12,6 +14,10 @@ const FOOD = ["cooked_beef", "cooked_porkchop", "cooked_mutton", "cooked_chicken
 const INTERESTING = ["oak_log", "birch_log", "spruce_log", "jungle_log", "acacia_log", "dark_oak_log", "cherry_log", "mangrove_log",
   "stone", "coal_ore", "iron_ore", "copper_ore", "gold_ore", "diamond_ore", "deepslate_iron_ore", "deepslate_coal_ore",
   "crafting_table", "furnace", "chest", "white_bed", "red_bed", "wheat", "water", "sand", "clay"];
+
+const VILLAGERS = new Set(config.bots.map((b) => b.name.toLowerCase()));
+/** True if this username is one of our AI villagers (anyone else is a real player). */
+export const isVillager = (name) => VILLAGERS.has(String(name).toLowerCase());
 
 /** True if `pos` is inside the server's spawn protection (non-ops can't break or place blocks there). */
 export function isProtected(bot, pos) {
@@ -55,11 +61,11 @@ export function snapshot(bot, village) {
   };
 
   // Entities: players, hostile mobs and animals, nearest first.
-  const players = [], mobs = [], animals = [];
+  const villagers = [], players = [], mobs = [], animals = [];
   for (const e of Object.values(bot.entities)) {
     if (e === bot.entity || !e.position) continue;
     const d = dist(e.position, me);
-    if (e.type === "player" && d <= 48) players.push([e.username, d]);
+    if (e.type === "player" && d <= 48) (isVillager(e.username) ? villagers : players).push([e.username, d]);
     // Hostiles: only those within 16 m and roughly on our level count (a creeper in a cave 15 blocks
     // below is no threat). Within 8 m = danger.
     else if (isHostile(e) && d <= 16 && Math.abs(e.position.y - me.y) <= 6) mobs.push([e.name, d]);
@@ -85,7 +91,8 @@ export function snapshot(bot, village) {
   const invText = inv.length ? inv.slice(0, 10).map(([n, c]) => `${n} ${c}`).join(", ") + (inv.length > 10 ? `, +${inv.length - 10} more kinds` : "") : "empty";
   const villageText = village ? ` (${dist(village, me)} m from village)` : "";
   const nearby = [
-    players.length && `players ${fmt(players)}`,
+    villagers.length && `villagers ${fmt(villagers)}`,
+    players.length && `players (not villagers) ${fmt(players)}`,
     danger.length && `DANGER ${fmt(danger)}`,
     far.length && `hostile but not close ${fmt(far)}`,
     animals.length && `animals ${fmt(animals, 3)}`,

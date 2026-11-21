@@ -12,8 +12,10 @@ import { log } from "../log.js";
 import { Brain } from "./brain.js";
 import { installEdgeGap } from "./edgegap.js";
 import { SKILLS, eat, flee, escape } from "./skills.js";
-import { snapshot, isHostile, isNight, isProtected } from "./state.js";
+import { snapshot, isHostile, isNight, isProtected, isVillager } from "./state.js";
 import { describe } from "../ai/actions.js";
+import * as board from "../village/board.js";
+
 
 const { pathfinder, Movements } = pf;
 
@@ -46,7 +48,8 @@ export class CivBot {
     bot.on("health", () => this.onHealth());
     bot.on("death", () => {
       this.cancelTask();
-      this.brain.notify("I died and respawned. My items were dropped where I died.");
+      board.release(this.def.name);
+      this.brain.notify("I died and respawned. My items were dropped where I died.", "death");
     });
     bot.on("kicked", (reason) => log.warn(this.def.name, `kicked: ${typeof reason === "string" ? reason : JSON.stringify(reason)}`));
     bot.on("error", (err) => log.error(this.def.name, err.message));
@@ -74,6 +77,8 @@ export class CivBot {
       moves.exclusionAreasPlace.push(forbid);
     }
     bot.pathfinder.setMovements(moves);
+    // More time to plan paths (default 5 s gave "took too long to decide path" in hilly forests).
+    bot.pathfinder.thinkTimeout = 10000;
     if (!this.village.pos) {
       this.village.pos = (bot.spawnPoint || bot.entity.position).clone();
       log.info("village", `centre set to the world spawn ${this.village.pos.floored()}`);
@@ -81,7 +86,7 @@ export class CivBot {
     this.ready = true;
     this.wasNight = isNight(bot);
     log.info(this.def.name, `joined at ${bot.entity.position.floored()}`);
-    this.brain.notify(this.brain.memory ? "I logged back in." : "I just arrived in this world. Time to start the village.");
+    this.brain.notify(this.brain.memory ? "I logged back in." : "I just arrived in this world. Time to start the village.", "arrived");
 
     // Cheap 5-second check for night/morning and being idle (no AI involved).
     this.ticker = setInterval(() => this.tick(), 5000);
@@ -93,12 +98,12 @@ export class CivBot {
     const night = isNight(this.bot);
     if (night !== this.wasNight) {
       this.wasNight = night;
-      this.brain.notify(night ? "Night is falling: monsters will come out." : "Morning has come.");
+      this.brain.notify(night ? "Night is falling: monsters will come out." : "Morning has come.", night ? "night" : "morning");
     }
     const idleFor = Date.now() - this.lastActivity;
     if (!this.currentTask && idleFor > config.ai.idleMs) {
       this.lastActivity = Date.now();
-      this.brain.notify(`I have been idle for ${Math.round(idleFor / 60000)} min.`);
+      this.brain.notify(`I have been idle for ${Math.round(idleFor / 60000)} min.`, "idle");
     }
   }
 
@@ -118,7 +123,8 @@ export class CivBot {
     this.cancelTask();
     this.progress = null;
     escape(this.bot).catch(() => false).then((free) => {
-      this.brain.notify(`Task failed: ${describe(t.action)} (I was stuck for 45 s${free ? " and got free" : " and couldn't get free"}; try another place or action)`);
+      if (t.action.boardId) board.finish(t.action.boardId, false, "stuck");
+      this.brain.notify(`Task failed: ${describe(t.action)} (I was stuck for 45 s${free ? " and got free" : " and couldn't get free"}; try another place or action)`, "task");
     });
   }
 
@@ -134,7 +140,19 @@ export class CivBot {
     const close = speaker && speaker.position.distanceTo(this.bot.entity.position) <= config.chat.hearRadius;
     const named = message.toLowerCase().includes(this.def.name.toLowerCase());
     if (!close && !named) return;
-    this.brain.notify(`${username} says: "${message.slice(0, 120)}"`);
+    const villager = isVillager(username);
+    const text = `${username} (${villager ? "villager" : "player, not a villager"}) says: "${message.slice(0, 120)}"`;
+    if (!villager) return this.brain.notify(text, "chat-player");
+    // Villagers talking to each other could ping-pong forever (each line = an AI call). So another
+    // villager's chat wakes this bot at most chat.villagerWakesPer5Min times in 5 minutes, and only if it
+    // named us or we are idle; otherwise it is just remembered for the next call.
+    this.chatWakes = (this.chatWakes || []).filter((t) => Date.now() - t < 300000);
+    if ((named || !this.currentTask) && this.chatWakes.length < config.chat.villagerWakesPer5Min) {
+      this.chatWakes.push(Date.now());
+      this.brain.notify(text, "chat-villager");
+    } else {
+      this.brain.note(text, "chat-villager");
+    }
   }
 
   onHurt() {
@@ -152,7 +170,7 @@ export class CivBot {
     // Tell the brain, but at most once every 15 s (a fight is many hits).
     if (!this.flags.hurtAt || Date.now() - this.flags.hurtAt > 15000) {
       this.flags.hurtAt = Date.now();
-      this.brain.notify(`I was attacked${attacker ? ` by ${attacker.username || attacker.name}` : ""}! Health ${Math.round(bot.health)}/20.`);
+      this.brain.notify(`I was attacked${attacker ? ` by ${attacker.username || attacker.name}` : ""}! Health ${Math.round(bot.health)}/20.`, "attacked");
     }
   }
 
@@ -170,7 +188,7 @@ export class CivBot {
 
   /** Report a warning once when it starts being true (not on every health packet). */
   flag(key, on, text) {
-    if (on && !this.flags[key]) this.brain.notify(text);
+    if (on && !this.flags[key]) this.brain.notify(text, "health");
     this.flags[key] = on;
   }
 
@@ -221,6 +239,20 @@ export class CivBot {
       if (!this.currentTask) this.lastActivity = Date.now();
       return; // keep whatever we were doing
     }
+    if (action.action === "post") {
+      // "gather oak_log" -> job { action: gather, target: oak_log }. Posting doesn't stop the current task.
+      const [jobAction, ...rest] = action.target.split(/\s+/);
+      const res = board.post({ by: this.def.name, action: jobAction, target: rest.join("_") || null, amount: action.amount ?? null });
+      const text = res.ok ? `I posted job #${res.id}: ${action.target}${action.amount ? ` x${action.amount}` : ""}.` : `Couldn't post the job: ${res.detail}.`;
+      if (this.currentTask) this.brain.note(text, "board"); else this.brain.notify(text, "board");
+      return;
+    }
+    if (action.action === "claim") {
+      const res = board.claim(Number(action.target), this.def.name);
+      if (!res.ok) return this.brain.notify(`Couldn't take the job: ${res.detail}.`, "board");
+      const t = res.task;
+      action = { action: t.action, target: t.target || undefined, amount: t.amount || undefined, boardId: t.id, say: undefined };
+    }
     const skill = SKILLS[action.action];
     if (!skill) return;
     this.cancelTask();
@@ -236,14 +268,17 @@ export class CivBot {
         this.currentTask = null;
         this.lastActivity = Date.now();
         const verb = result.ok ? "Task done" : "Task failed";
+        if (action.boardId) board.finish(action.boardId, result.ok, result.detail);
         log.info(this.def.name, `${verb.toLowerCase()}: ${describe(action)} -> ${result.detail}`);
-        if (!reflex || !result.ok) this.brain.notify(`${verb}: ${describe(action)} (${result.detail})`);
+        const job = action.boardId ? ` [job #${action.boardId} ${result.ok ? "done" : "back on the board"}]` : "";
+        if (!reflex || !result.ok) this.brain.notify(`${verb}: ${describe(action)} (${result.detail})${job}`, "task");
       });
   }
 
   /** Leave the server cleanly. */
   quit(reason = "session over") {
     this.stopping = true;
+    board.release(this.def.name);
     this.brain.stop();
     this.brain.saveMemory();
     this.cancelTask();

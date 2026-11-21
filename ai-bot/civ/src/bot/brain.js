@@ -14,6 +14,7 @@ import { log } from "../log.js";
 import { ask, cooldownMultiplier } from "../ai/client.js";
 import { SYSTEM_PROMPT, MEMORY_SYSTEM } from "../ai/prompts.js";
 import { ACTION_SCHEMA, parseAction, fallbackAction, describe } from "../ai/actions.js";
+import * as board from "../village/board.js";
 
 const MEMORY_DIR = path.join(DATA_DIR, "memory");
 fs.mkdirSync(MEMORY_DIR, { recursive: true });
@@ -47,14 +48,22 @@ export class Brain {
     }
   }
 
-  /** Something happened. Remember it and schedule an AI call (respecting the cooldown). */
-  notify(text) {
-    const ev = { at: Date.now(), text, seen: false };
-    this.events.push(ev);
+  /**
+   * Something happened. Remember it and schedule an AI call (respecting the cooldown).
+   * `wake` says what kind of event it is (task, attacked, chat, night...): it is logged with the call,
+   * so the report shows what the money is spent on.
+   */
+  notify(text, wake = "other") {
+    this.note(text, wake);
+    this.schedule();
+  }
+
+  /** Remember an event for the next call WITHOUT waking the AI for it. */
+  note(text, wake = "other") {
+    this.events.push({ at: Date.now(), text, seen: false, wake });
     if (this.events.length > config.ai.recentEvents) this.events.shift();
     this.history.push(text);
     if (this.history.length > 30) this.history.shift();
-    this.schedule();
   }
 
   schedule() {
@@ -85,6 +94,7 @@ export class Brain {
       `Current task: ${taskText}`,
       `Recent events (oldest first):\n${events}`,
       `State:\n${stateText}`,
+      board.text(this.name),
       loop && `Note: you chose "${c[c.length - 1]}" 3 times in a row. Choose something different that makes progress.`,
     ].filter(Boolean).join("\n");
   }
@@ -100,7 +110,10 @@ export class Brain {
       const user = this.buildMessage(stateText);
       batch.forEach((e) => { e.seen = true; });
 
-      const res = await ask({ bot: this.name, kind: "decide", system: SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: ACTION_SCHEMA });
+      // What woke us: the most important new event (attacked beats chat beats task results...).
+      const order = ["attacked", "health", "death", "chat-player", "chat-villager", "task", "board", "night", "morning", "arrived", "idle", "other"];
+      const wake = batch.map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
+      const res = await ask({ bot: this.name, kind: "decide", system: SYSTEM_BLOCKS, user, maxTokens: config.ai.maxTokens, schema: ACTION_SCHEMA, trigger: wake });
       let action;
       if (res.text) {
         const parsed = parseAction(res.text);
@@ -145,7 +158,7 @@ export class Brain {
   /** Rewrite the short memory summary from the old one plus what happened since. */
   async updateMemory() {
     const user = `Old memory: ${this.memory || "(none)"}\n\nSince then:\n${this.history.map((h) => `- ${h}`).join("\n")}`;
-    const res = await ask({ bot: this.name, kind: "memory", system: MEMORY_BLOCKS, user, maxTokens: config.ai.memoryMaxTokens });
+    const res = await ask({ bot: this.name, kind: "memory", system: MEMORY_BLOCKS, user, maxTokens: config.ai.memoryMaxTokens, trigger: "memory" });
     if (!res.text) return;
     this.memory = res.text.replace(/\s+/g, " ").split(" ").slice(0, 300).join(" ");
     this.history = [];

@@ -10,6 +10,7 @@ import { config, options, provider, model } from "../config.js";
 import { log } from "../log.js";
 import * as ledger from "../usage/ledger.js";
 import { mockReply } from "./mock.js";
+import { takeSlot } from "./ratelimit.js";
 import * as anthropic from "./providers/anthropic.js";
 import * as openai from "./providers/openai.js";
 
@@ -53,11 +54,12 @@ let useStructured = config.ai.structuredOutput;
  * system: array of system blocks (the big one carries cache_control) · user: the small message text.
  * Returns { text, reason } where text is null if no answer could be had.
  */
-export async function ask({ bot, kind, system, user, maxTokens, schema = null }) {
+export async function ask({ bot, kind, system, user, maxTokens, schema = null, trigger = null }) {
   if (budgetState() === "exhausted") return { text: null, reason: "budget" };
   if (Date.now() < pausedUntil) return { text: null, reason: "paused" };
 
-  if (options.mock) return mockCall({ bot, kind, system, user });
+  await takeSlot(); // global limit: at most rateLimit.requestsPerMinute calls a minute, queued in order
+  if (options.mock) return mockCall({ bot, kind, system, user, trigger });
 
   const started = Date.now();
   try {
@@ -66,11 +68,11 @@ export async function ask({ bot, kind, system, user, maxTokens, schema = null })
     const { t } = res;
     const totalIn = t.input + t.cacheRead + t.cacheWrite;
     if (totalIn > config.ai.warnInputTokens) log.warn(bot, `request used ${totalIn} input tokens (limit to watch: ${config.ai.warnInputTokens})`);
-    const cost = ledger.record({ bot, kind, model, t, ms: Date.now() - started, ok: Boolean(res.text) && !res.refused, note: res.note });
+    const cost = ledger.record({ bot, kind, trigger, model, t, ms: Date.now() - started, ok: Boolean(res.text) && !res.refused, note: res.note });
     return { text: res.refused ? null : res.text, reason: res.note, tokens: t, cost };
   } catch (err) {
     const { type, status } = api.classify(err);
-    ledger.record({ bot, kind, model, t: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, ms: Date.now() - started, ok: false, note: `error ${status ?? err.name}` });
+    ledger.record({ bot, kind, trigger, model, t: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, ms: Date.now() - started, ok: false, note: `error ${status ?? err.name}` });
 
     if (type === "schema" && useStructured) {
       useStructured = false;
@@ -95,7 +97,7 @@ export async function ask({ bot, kind, system, user, maxTokens, schema = null })
 }
 
 // --- mock mode: no API, no cost; token counts are rough estimates (4 characters per token) ---------
-function mockCall({ bot, kind, system, user }) {
+function mockCall({ bot, kind, system, user, trigger }) {
   const sysChars = system.reduce((n, b) => n + b.text.length, 0);
   const firstCall = !mockCall.warm;
   mockCall.warm = true;
@@ -106,6 +108,6 @@ function mockCall({ bot, kind, system, user }) {
     cacheWrite: firstCall ? Math.ceil(sysChars / 4) : 0,
     output: Math.ceil(text.length / 4),
   };
-  ledger.record({ bot, kind, model: "mock", t, ms: 0, ok: true, note: "mock" });
+  ledger.record({ bot, kind, trigger, model: "mock", t, ms: 0, ok: true, note: "mock" });
   return Promise.resolve({ text, reason: "mock", tokens: t, cost: 0 });
 }

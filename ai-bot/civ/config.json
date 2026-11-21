@@ -1,5 +1,5 @@
 {
-  "botCount": 1,
+  "botCount": 3,
 
   "server": {
     "host": "127.0.0.1",
@@ -70,7 +70,9 @@
   "chat": {
     "hearRadius": 24,
     "maxSayLength": 90,
-    "minSayGapMs": 8000
+    "minSayGapMs": 8000,
+    "_villagerWakesComment": "How often another villager's chat may wake a bot (each wake = one AI call). Players' chat always wakes it.",
+    "villagerWakesPer5Min": 3
   },
 
   "bots": [

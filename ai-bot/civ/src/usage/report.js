@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, DATA_DIR, model } from "../config.js";
 import * as ledger from "./ledger.js";
+import { stats as rateStats } from "../ai/ratelimit.js";
+import * as board from "../village/board.js";
 
 const usd = (n) => `$${n.toFixed(n < 0.1 ? 5 : 3)}`;
 const int = (n) => Math.round(n).toLocaleString("en-GB");
@@ -43,6 +45,9 @@ export function sessionStats(botsOnline) {
     projected20Bots: perBotMinute * 20 * sessionMinutes,
     perBot: ledger.perBot(),
     perKind: ledger.perKind(),
+    perWake: ledger.perTrigger(),
+    rateLimit: { ...rateStats, limitPerMinute: config.rateLimit.requestsPerMinute },
+    board: board.stats(ledger.SESSION_STARTED),
     budget: config.budget.dailyUsd,
   };
 }
@@ -63,6 +68,8 @@ export function summaryText(botsOnline) {
   if (s.perBot.length) {
     lines.push("Per bot: " + s.perBot.map((b) => `${b.bot} ${b.calls} calls ${usd(b.cost)}`).join(" · "));
   }
+  if (s.perWake.length) lines.push("Woken by: " + s.perWake.map((k) => `${k.wake} ${k.calls}`).join(" · "));
+  lines.push(`Rate limiter: ${s.rateLimit.waited} calls waited (longest ${(s.rateLimit.maxWaitMs / 1000).toFixed(1)} s) · board: ${s.board.doneSince} jobs done, ${s.board.open} open`);
   return lines.join("\n");
 }
 
@@ -92,9 +99,14 @@ export function writeSessionReport(botsOnline, extra = {}) {
     "|---|---:|---:|---:|---:|---:|---:|",
     ...s.perBot.map((b) => `| ${b.bot} | ${b.calls} | ${int(b.input)} | ${int(b.cacheRead)} | ${int(b.cacheWrite)} | ${int(b.output)} | ${usd(b.cost)} |`),
     "",
-    "| Kind | Calls | Cost |",
-    "|---|---:|---:|",
-    ...s.perKind.map((k) => `| ${k.kind} | ${k.calls} | ${usd(k.cost)} |`),
+    "What woke the bots up (each wake = one AI call):",
+    "",
+    "| Woken by | Calls | Share | Cost |",
+    "|---|---:|---:|---:|",
+    ...s.perWake.map((k) => `| ${k.wake} | ${k.calls} | ${t.calls ? ((k.calls / t.calls) * 100).toFixed(0) : 0}% | ${usd(k.cost)} |`),
+    "",
+    `- Rate limiter (${s.rateLimit.limitPerMinute}/min): ${s.rateLimit.waited} of ${s.rateLimit.calls} calls had to wait, longest wait ${(s.rateLimit.maxWaitMs / 1000).toFixed(1)} s, longest queue ${s.rateLimit.maxQueue}`,
+    `- Task board: ${s.board.doneSince} jobs finished this session, ${s.board.open} still open or taken`,
     "",
   ].join("\n");
   fs.writeFileSync(`${base}.md`, md);

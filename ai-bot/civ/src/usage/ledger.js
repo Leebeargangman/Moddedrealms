@@ -31,6 +31,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS api_calls_session ON api_calls(session);
 `);
 
+// Added in Phase 2: what woke the bot up (task done, attacked, chat, night...). Old databases get the column.
+if (!db.prepare("PRAGMA table_info(api_calls)").all().some((c) => c.name === "wake")) {
+  db.exec("ALTER TABLE api_calls ADD COLUMN wake TEXT");
+}
+
 // A session id is just the start time, e.g. "2026-11-20T17-30-00".
 export const SESSION = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
 export const SESSION_STARTED = Date.now();
@@ -48,13 +53,13 @@ export function costOf(model, t) {
 }
 
 const insert = db.prepare(`INSERT INTO api_calls
-  (at, day, session, bot, kind, model, input, cache_read, cache_write, output, cost, ms, ok, note)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  (at, day, session, bot, kind, wake, model, input, cache_read, cache_write, output, cost, ms, ok, note)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
 /** Save one call. `t` = { input, cacheRead, cacheWrite, output }. Returns its cost. */
-export function record({ bot, kind, model, t, ms, ok, note = null }) {
+export function record({ bot, kind, trigger = null, model, t, ms, ok, note = null }) {
   const cost = costOf(model, t);
-  insert.run(new Date().toISOString(), budgetDay(), SESSION, bot, kind, model,
+  insert.run(new Date().toISOString(), budgetDay(), SESSION, bot, kind, trigger, model,
     t.input, t.cacheRead, t.cacheWrite, t.output, cost, ms, ok ? 1 : 0, note);
   return cost;
 }
@@ -66,12 +71,14 @@ const qDay = db.prepare(`SELECT ${SUMS} FROM api_calls WHERE day = ?`);
 const qSession = db.prepare(`SELECT ${SUMS} FROM api_calls WHERE session = ?`);
 const qPerBot = db.prepare(`SELECT bot, ${SUMS} FROM api_calls WHERE session = ? GROUP BY bot ORDER BY cost DESC`);
 const qPerKind = db.prepare(`SELECT kind, ${SUMS} FROM api_calls WHERE session = ? GROUP BY kind`);
+const qPerTrigger = db.prepare(`SELECT COALESCE(wake, kind) AS wake, ${SUMS} FROM api_calls WHERE session = ? GROUP BY 1 ORDER BY calls DESC`);
 const qSessions = db.prepare(`SELECT session, MIN(at) AS first, MAX(at) AS last, ${SUMS} FROM api_calls GROUP BY session ORDER BY session DESC LIMIT ?`);
 
 export const totalsForDay = (day = budgetDay()) => ({ ...qDay.get(day) });
 export const totalsForSession = (session = SESSION) => ({ ...qSession.get(session) });
 export const perBot = (session = SESSION) => qPerBot.all(session).map((r) => ({ ...r }));
 export const perKind = (session = SESSION) => qPerKind.all(session).map((r) => ({ ...r }));
+export const perTrigger = (session = SESSION) => qPerTrigger.all(session).map((r) => ({ ...r }));
 export const recentSessions = (n = 10) => qSessions.all(n).map((r) => ({ ...r }));
 
 /** Spent so far today (budget day), in dollars. */

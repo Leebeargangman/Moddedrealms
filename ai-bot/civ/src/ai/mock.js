@@ -8,7 +8,11 @@ export function mockReply(kind, user) {
   const has = (item) => new RegExp(`\\b${item}\\b`).test(inv);
   if (/hp ([0-7])\//.test(user)) return JSON.stringify({ action: "flee" });
   if (/food ([0-9]|1[0-3])\//.test(user) && /(bread|beef|porkchop|apple|chicken|mutton|potato|carrot)/.test(inv)) return JSON.stringify({ action: "eat" });
-  if (/Recent events:[\s\S]*(chat from|says)/.test(user) && Math.random() < 0.5) return JSON.stringify({ action: "chat", say: "Hello! I'm busy gathering, want to help?" });
+  if (/\[new\]/.test(user) && /says: .*\[new\]/.test(user) && Math.random() < 0.5) return JSON.stringify({ action: "chat", say: "Hello! I'm busy gathering, want to help?" });
+  // Sometimes take an open job from the task board, or post one.
+  const open = [...user.matchAll(/- #(\d+) [^\n]*· open/g)].map((m) => m[1]);
+  if (!/taken by you/.test(user) && open.length && Math.random() < 0.35) return JSON.stringify({ action: "claim", target: open[Math.floor(Math.random() * open.length)] });
+  if (Math.random() < 0.05) return JSON.stringify({ action: "post", target: "gather oak_log", amount: 16 });
   const lastEvent = (user.match(/Recent events[^\n]*\n([\s\S]*?)\nState:/) || [])[1]?.trim().split("\n").pop() || "";
   if (/Task failed: craft/.test(lastEvent)) return JSON.stringify({ action: "gather", target: "wood", amount: 6 });
   if (!has("\\w+_log") && !has("\\w+_planks")) return JSON.stringify({ action: "gather", target: "wood", amount: 6 });

@@ -8,6 +8,8 @@
     "start": "node src/index.js",
     "test-run": "node src/index.js --minutes 10",
     "mock": "node src/index.js --mock --minutes 5",
+    "test-mode": "node src/index.js --bots 3 --minutes 30",
+    "test-mode-mock": "node src/index.js --bots 3 --minutes 30 --mock",
     "report": "node src/usage/report.js"
   },
   "engines": {

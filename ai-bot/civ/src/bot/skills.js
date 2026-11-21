@@ -121,12 +121,17 @@ async function gather(bot, a, task) {
   const ids = new Set(bot.registry.blocksArray.filter((b) => test(b.name)).map((b) => b.id));
   const want = a.amount ?? 8;
   const skip = new Set(); // blocks we couldn't reach
+  const skipColumns = new Set(); // x,z columns (trees) we gave up on
   let got = 0, failures = 0;
   const deadline = Date.now() + 4 * 60000;
 
   while (got < want && !task.cancelled && Date.now() < deadline) {
-    const pos = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 48, count: 30 })
-      .find((p) => !skip.has(p.toString()) && !isProtected(bot, p)); // can't break blocks in spawn protection
+    // Prefer blocks near our own height: the top logs of a tall tree are slow to path to and often unreachable.
+    const me = bot.entity.position;
+    const score = (p) => p.distanceTo(me) + 2 * Math.max(0, p.y - me.y - 1);
+    const pos = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 48, count: 40 })
+      .filter((p) => !skip.has(p.toString()) && !skipColumns.has(`${p.x},${p.z}`) && !isProtected(bot, p)) // can't break blocks in spawn protection
+      .sort((a, b) => score(a) - score(b))[0];
     if (!pos) return { ok: got > 0, detail: got ? `got ${got}, no more ${a.target} within 48 blocks` : `no ${a.target} I can break within 48 blocks (blocks near the world spawn are protected; explore to find some)` };
     const block = bot.blockAt(pos);
     // Stone and ores drop nothing without the right tool.
@@ -140,6 +145,8 @@ async function gather(bot, a, task) {
     } catch (e) {
       if (task.cancelled) break;
       skip.add(pos.toString());
+      // Couldn't reach it: give up on the whole tree (this column and the ones around it), not just one log.
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) skipColumns.add(`${pos.x + dx},${pos.z + dz}`);
       await unstick(bot);
       if (++failures >= 4) return { ok: got > 0, detail: `got ${got}, couldn't reach more ${a.target} (${e.message})` };
     }
@@ -204,16 +211,59 @@ function ingredientsText(bot, itemId) {
   return recipe.delta.filter((d) => d.count < 0).map((d) => `${-d.count} ${generic(bot.registry.items[d.id]?.name ?? String(d.id))}`).join(", ");
 }
 
+/** Turn logs into planks (and planks into sticks) when a recipe needs them. Returns true if it made any. */
+async function prepareWood(bot, needs) {
+  const count = (test) => bot.inventory.items().filter((it) => test(it.name)).reduce((n, it) => n + it.count, 0);
+  let made = false;
+  const wantPlanks = /planks/.test(needs) || /stick/.test(needs);
+  for (let i = 0; i < 2 && wantPlanks && count((n) => n.endsWith("_planks")) < 8; i++) {
+    const log = bot.inventory.items().find((it) => it.name.endsWith("_log") && !it.name.startsWith("stripped_"));
+    const planks = log && bot.registry.itemsByName[log.name.replace(/_log$/, "_planks")];
+    const r = planks && bot.recipesFor(planks.id, null, 1, null)[0];
+    if (!r) break;
+    try { await bot.craft(r, 1, null); made = true; } catch { break; }
+  }
+  if (/stick/.test(needs) && count((n) => n === "stick") < 4) {
+    const r = bot.recipesFor(bot.registry.itemsByName.stick.id, null, 1, null)[0];
+    if (r) { try { await bot.craft(r, 1, null); made = true; } catch { /* no planks */ } }
+  }
+  return made;
+}
+
+/** Craft a crafting table from the wood we carry (turning a log into planks if needed). */
+async function craftTableFromWood(bot) {
+  const tableItem = bot.registry.itemsByName.crafting_table;
+  const planksCount = () => bot.inventory.items().filter((it) => it.name.endsWith("_planks")).reduce((n, it) => n + it.count, 0);
+  if (planksCount() < 4) {
+    const log = bot.inventory.items().find((it) => it.name.endsWith("_log") && !it.name.startsWith("stripped_"));
+    const planks = log && bot.registry.itemsByName[log.name.replace(/_log$/, "_planks")];
+    const r = planks && bot.recipesFor(planks.id, null, 1, null)[0];
+    if (r) { try { await bot.craft(r, 1, null); } catch { /* fall through */ } }
+  }
+  const r = bot.recipesFor(tableItem.id, null, 1, null)[0];
+  if (!r) return false;
+  try { await bot.craft(r, 1, null); return true; } catch { return false; }
+}
+
 async function craft(bot, a) {
   const name = resolveItemName(bot, a.target || "");
   if (!name) return { ok: false, detail: `"${a.target}" is not an item` };
   const item = bot.registry.itemsByName[name];
   let table = null;
   let recipes = bot.recipesFor(item.id, null, 1, null);
+  // Missing planks or sticks but carrying logs? Make them first (saves an AI call for each step).
+  if (!recipes.length && name !== "stick" && !name.endsWith("_planks") && await prepareWood(bot, ingredientsText(bot, item.id))) {
+    recipes = bot.recipesFor(item.id, null, 1, null);
+  }
   if (!recipes.length) {
     // Maybe it needs a crafting table (3x3 recipes).
     if (bot.recipesAll(item.id, null, true).length && !bot.recipesAll(item.id, null, null).length) {
       table = await ensureTable(bot);
+      if (!table) {
+        // No table near and none carried: make one first if we can (planks, or logs turned into planks).
+        const made = await craftTableFromWood(bot);
+        if (made) table = await ensureTable(bot);
+      }
       if (!table) return { ok: false, detail: `${name} needs a crafting table (craft one from 4 planks)` };
       recipes = bot.recipesFor(item.id, null, 1, table);
     }

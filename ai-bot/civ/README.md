@@ -9,10 +9,11 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 `config.json` or `--provider openai`. An OpenAI account needs prepaid credit
 (platform.openai.com → Billing) or every call fails with "insufficient quota".
 
-> **Status: Phase 1** — one bot, the AI decision loop, the JSON action system, and token/cost logging.
-> Coming next: Phase 2 (3 bots, task board, bot-to-bot chat, rate limiter, 30-minute test mode with a
-> 20-bot projection), Phase 3 (20 bots, roles, village, progression, world log, leaders and laws,
-> imposters, permadeath and newcomers: see "The game" below), Phase 4 (17:30–20:30
+> **Status: Phase 2**: 3 bots, the AI decision loop, JSON actions, token/cost logging, a shared task
+> board, bot-to-bot chat (with limits), prompt caching, the $3/day budget cap, a 40-calls-a-minute rate
+> limiter and a 30-minute test mode that projects the cost of 20 bots for 3 hours.
+> Coming next: Phase 3 (20 bots, roles, village chests, building from schematics, progression, world
+> log, leaders and laws, imposters, permadeath and newcomers: see "The game" below), Phase 4 (17:30–20:30
 > UK schedule, saving/loading, dashboard on the website's Bots page, pm2, optional Sonnet leader),
 > later Phase 5 (recording/streaming the bots).
 
@@ -49,6 +50,9 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 | **Small context:** a memory summary (rewritten every 10 decisions), the last 5 events and a compact state line. Never a chat history. A warning is logged if a request goes over 5,000 input tokens. | `src/bot/brain.js`, `src/bot/state.js` |
 | **Budget cap:** $3.00/day (UK day). At 80% every cooldown doubles; at 100% bots stop calling the AI and use plain-code behaviour (or log off) until tomorrow. | `src/ai/client.js` |
 | **Backoff:** on 429/529/overloaded/connection errors all AI calls pause, 5 s doubling up to 5 min. | `src/ai/client.js` |
+| **Rate limiter:** at most 40 calls in any minute for all bots together; extra calls wait in a queue. | `src/ai/ratelimit.js` |
+| **Chat limits:** another villager's chat wakes a bot at most 3 times in 5 minutes (and only if it was named or is idle); a real player's chat always does. Otherwise it is remembered for the next call. | `src/bot/civbot.js` |
+| **Task board:** jobs are shared in plain code (SQLite), so bots split work by claiming jobs instead of talking it through. | `src/village/board.js` |
 
 Every call is logged to `data/usage.db` (SQLite) with time, bot, model, input / cache-read / cache-write /
 output tokens and cost in USD, using the pricing table in `config.json`:
@@ -84,6 +88,8 @@ $0.00013 instead of $0.00004, still far under the budget.
 ```bash
 npm run mock          # free test: fake AI replies, 5 minutes (checks movement, events and logging)
 npm run test-run      # Phase 1 test: real AI, 1 bot, stops after 10 minutes and writes the report
+npm run test-mode     # Phase 2 TEST MODE: real AI, 3 bots, 30 minutes, report with the 20-bot projection
+npm run test-mode-mock  # the same with fake AI (free)
 node src/index.js     # run until Ctrl+C
 npm run report        # token/cost totals of the last sessions
 ```
@@ -118,6 +124,9 @@ src/bot/civbot.js     one villager: Mineflayer body, events, reflexes
 src/bot/brain.js      when to call the AI (events, cooldown, batching) and what to send
 src/bot/skills.js     how each action is done, in plain code
 src/bot/state.js      the compact state summary
+src/bot/edgegap.js    keeps bots from freezing against walls on Paper
+src/village/board.js  the shared task board (post / claim jobs)
+src/ai/ratelimit.js   the global 40-calls-a-minute queue
 src/usage/ledger.js   SQLite log of every API call
 src/usage/report.js   summaries, projections and the session report
 ```

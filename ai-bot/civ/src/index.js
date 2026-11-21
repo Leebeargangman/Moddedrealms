@@ -11,6 +11,7 @@ import { KEY_NAME as OPENAI_KEY } from "./ai/providers/openai.js";
 import { log } from "./log.js";
 import { CivBot } from "./bot/civbot.js";
 import { summaryText, writeSessionReport } from "./usage/report.js";
+import * as board from "./village/board.js";
 
 const c = config.village.centre;
 const village = { pos: c ? new Vec3(c.x, c.y, c.z) : null }; // shared by all bots
@@ -25,6 +26,8 @@ if (!options.mock && !process.env[keyName]) {
 log.info("civ", `starting ${config.botCount} bot(s) on ${config.server.host}:${config.server.port}` +
   ` · model ${options.mock ? "MOCK (no API calls)" : `${model} (${provider})`} · budget $${config.budget.dailyUsd}/day` +
   (options.minutes ? ` · stopping after ${options.minutes} min` : ""));
+
+board.seed(); // starter jobs for a brand-new village (only if the board has never had any)
 
 config.bots.slice(0, config.botCount).forEach((def, i) => {
   setTimeout(() => {
