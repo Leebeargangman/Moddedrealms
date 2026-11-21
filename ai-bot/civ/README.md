@@ -9,15 +9,13 @@ Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one w
 `config.json` or `--provider openai`. An OpenAI account needs prepaid credit
 (platform.openai.com → Billing) or every call fails with "insufficient quota".
 
-> **Status: Phase 2**: 3 bots, the AI decision loop, JSON actions, token/cost logging, a shared task
-> board, bot-to-bot chat (with limits), prompt caching, the $3/day budget cap, a 40-calls-a-minute rate
-> limiter and a 30-minute test mode that projects the cost of 20 bots for 3 hours.
-> Coming next: Phase 3 (20 bots, roles, village chests, building from schematics, progression, world
-> log, leaders and laws, imposters, permadeath and newcomers: see "The game" below), Phase 4 (17:30–20:30
-> UK schedule, saving/loading, dashboard on the website's Bots page, pm2, optional Sonnet leader),
-> later Phase 5 (recording/streaming the bots).
+> **Status: Phase 3**: up to 20 villagers with roles, village chests, building (built-in blueprints or
+> your WorldEdit schematics), a leader chosen by election, laws, two secret imposters, permadeath with
+> newcomers, witnesses and clues, and a world log, on top of Phase 2's task board, chat, rate limiter
+> and budget. Coming next: Phase 4 (17:30–20:30 UK schedule, saving/loading, dashboard on the website's
+> Bots page, pm2, optional Sonnet leader), later Phase 5 (recording/streaming the bots).
 
-## The game (design, built in Phase 3)
+## The game (built in Phase 3)
 
 - **Goal:** the villagers build a civilisation together: village, homes, farms, roles, trade.
 - **They govern themselves:** they choose their own leaders and write their own laws. The current

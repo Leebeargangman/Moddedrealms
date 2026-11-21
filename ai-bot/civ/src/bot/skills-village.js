@@ -33,16 +33,18 @@ async function placeNewChest(bot, ctx) {
     for (let i = 0; i < 10 && !item; i++) { await sleep(300); item = bot.inventory.items().find((it) => it.name === "chest"); } // inventory updates a moment later
     if (!item) return { error: `no village chest yet, and I couldn't make one (${made.detail})` };
   }
-  // A free spot 3-6 blocks from the village centre, on solid ground, next to existing chests if any.
+  // A free spot 3-10 blocks from the village centre, on solid ground, next to existing chests if any.
   const c = ctx.village.floored();
   const spots = [];
-  for (let r = 3; r <= 6; r++) for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+  for (let r = 3; r <= 10; r++) for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
     if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
     for (let dy = -3; dy <= 3; dy++) spots.push(c.offset(dx, dy, dz));
   }
   const ok = (p) => {
     const here = bot.blockAt(p), below = bot.blockAt(p.offset(0, -1, 0)), above = bot.blockAt(p.offset(0, 1, 0));
-    return here?.name === "air" && below?.boundingBox === "block" && above?.name === "air" && !isProtected(bot, p);
+    // Grass and flowers count as free: placing the chest replaces them.
+    const free = (b) => b && b.boundingBox === "empty" && !["water", "lava"].includes(b.name);
+    return free(here) && below?.boundingBox === "block" && free(above) && !isProtected(bot, p);
   };
   const spot = spots.find(ok);
   if (!spot) return { error: "found no flat free spot for a chest near the village centre" };
