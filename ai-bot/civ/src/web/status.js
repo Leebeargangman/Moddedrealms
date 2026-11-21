@@ -22,6 +22,7 @@ import { schedule, inWindow, nextStart, windowText } from "../schedule.js";
 import { describe } from "../ai/actions.js";
 import * as board from "../village/board.js";
 import * as settings from "../settings.js";
+import * as routines from "../village/routines.js";
 import { costModel } from "../usage/costmodel.js";
 import { centreOfFaction } from "../village/village.js";
 import * as factions from "../village/factions.js";
@@ -85,6 +86,9 @@ export function snapshot(control) {
         };
       }),
       settings: settings.get(),
+      // Villagers' own routines and building designs (newest first).
+      routines: routines.allOf("routine", 20).map((r) => ({ name: r.name, owner: r.owner, faction: r.faction, steps: JSON.stringify(r.body).length, runs: r.runs, fails: r.fails, lastError: r.last_error, updated: r.updated })),
+      designs: routines.allOf("design", 20).map((r) => ({ name: r.name, owner: r.owner, faction: r.faction, size: r.body.size, blocks: r.body.blocks.length, updated: r.updated })),
       costModel: costModel(),
       news: worldlog.recent(25).map((r) => ({ at: r.at, day: r.day, kind: r.kind, text: r.text })),
       secret: {

@@ -150,6 +150,7 @@ function townhall() {
 }
 
 const BUILT_IN = { hut, house, storehouse, well, watchtower, wall: wallSection, pen, townhall };
+export const BUILT_IN_NAMES = Object.keys(BUILT_IN);
 
 // --- loading schematics -------------------------------------------------------------------------------------
 // Blocks we never place: air, fluids (no buckets yet), and the second half of two-block things (doors and
@@ -227,6 +228,11 @@ export async function all() {
   if (loaded) return loaded;
   loaded = {};
   for (const [name, make] of Object.entries(BUILT_IN)) loaded[name] = make();
+  // Buildings the villagers designed themselves (the "design" action).
+  try {
+    const { allOf } = await import("../village/routines.js");
+    for (const d of allOf("design")) if (!loaded[d.name]) loaded[d.name] = { ...d.body, description: `designed by ${d.owner}` };
+  } catch (e) { log.warn("build", `couldn't load villager designs: ${e.message}`); }
   if (fs.existsSync(SCHEM_DIR)) {
     for (const f of fs.readdirSync(SCHEM_DIR).filter((n) => /\.(schem|schematic|litematic)$/i.test(n))) {
       try {
