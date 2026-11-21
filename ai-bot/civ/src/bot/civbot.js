@@ -10,7 +10,8 @@ import { plugin as collectBlock } from "mineflayer-collectblock";
 import { config } from "../config.js";
 import { log } from "../log.js";
 import { Brain } from "./brain.js";
-import { SKILLS, eat, flee } from "./skills.js";
+import { installEdgeGap } from "./edgegap.js";
+import { SKILLS, eat, flee, escape } from "./skills.js";
 import { snapshot, isHostile, isNight, isProtected } from "./state.js";
 import { describe } from "../ai/actions.js";
 
@@ -37,6 +38,7 @@ export class CivBot {
     this.bot = bot;
     bot.loadPlugin(pathfinder);
     bot.loadPlugin(collectBlock);
+    installEdgeGap(bot); // stops the bot freezing against walls on Paper (see edgegap.js)
 
     bot.once("spawn", () => this.onFirstSpawn());
     bot.on("chat", (username, message) => this.onChat(username, message));
@@ -112,10 +114,12 @@ export class CivBot {
       return;
     }
     if (Date.now() - p.at < 45000) return;
-    log.warn(this.def.name, `stuck on ${describe(t.action)}: no movement or new items for 45 s`);
+    log.warn(this.def.name, `stuck on ${describe(t.action)}: no movement or new items for 45 s, trying to get free`);
     this.cancelTask();
     this.progress = null;
-    this.brain.notify(`Task failed: ${describe(t.action)} (stuck: I haven't moved or got anything for 45 s, try another place or action)`);
+    escape(this.bot).catch(() => false).then((free) => {
+      this.brain.notify(`Task failed: ${describe(t.action)} (I was stuck for 45 s${free ? " and got free" : " and couldn't get free"}; try another place or action)`);
+    });
   }
 
   snapshot() {

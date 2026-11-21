@@ -29,6 +29,54 @@ async function walkTo(bot, goal, ms = 120000) {
   await withTimeout(bot, bot.pathfinder.goto(goal), ms, "walking");
 }
 
+/**
+ * Get out of a spot where the bot can't move (the server keeps pushing it back, for example when it
+ * is wedged against a block edge in a hole). Plain code, no AI:
+ *   1. hop in each of the 4 directions,
+ *   2. if still stuck, dig the 2 blocks in front (feet and head) and walk through,
+ *   3. if still stuck, dig the block above and jump up (out of a 1-wide hole).
+ * Returns true if the bot moved at least 1.5 blocks.
+ */
+export async function escape(bot) {
+  const start = bot.entity.position.clone();
+  const moved = () => bot.entity.position.distanceTo(start) >= 1.5;
+  try { bot.pathfinder.setGoal(null); } catch { /* not moving */ }
+  bot.clearControlStates();
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5);
+  for (const [dx, dz] of dirs) {
+    const me = bot.entity.position;
+    await bot.lookAt(me.offset(dx * 3, 1.6, dz * 3), true);
+    bot.setControlState("forward", true);
+    bot.setControlState("jump", true);
+    await sleep(900);
+    bot.clearControlStates();
+    await sleep(200);
+    if (moved()) return true;
+  }
+  for (const [dx, dz] of dirs) {
+    const feet = bot.entity.position.floored();
+    for (const dy of [0, 1]) {
+      const b = bot.blockAt(feet.offset(dx, dy, dz));
+      if (b && b.boundingBox === "block" && bot.canDigBlock(b) && !isProtected(bot, b.position) && b.name !== "bedrock") {
+        try { await bot.dig(b, true); } catch { /* try the next one */ }
+      }
+    }
+    await bot.lookAt(bot.entity.position.offset(dx * 3, 1.6, dz * 3), true);
+    bot.setControlState("forward", true);
+    await sleep(900);
+    bot.clearControlStates();
+    if (moved()) return true;
+  }
+  const above = bot.blockAt(bot.entity.position.floored().offset(0, 2, 0));
+  if (above && above.boundingBox === "block" && bot.canDigBlock(above)) {
+    try { await bot.dig(above, true); } catch { /* ignore */ }
+  }
+  bot.setControlState("jump", true);
+  await sleep(600);
+  bot.clearControlStates();
+  return moved();
+}
+
 /** Step a few blocks to a random side: gets the bot out of spots where the pathfinder keeps failing. */
 async function unstick(bot) {
   const me = bot.entity.position;
