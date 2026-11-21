@@ -3,6 +3,12 @@
 Up to 20 Mineflayer bots live together on a Minecraft server and build a village. Each bot's "mind" is
 **Claude Haiku 5.5** (`claude-haiku-5-5`). The whole design is about keeping API costs low and measured.
 
+**No Claude key yet?** An OpenAI key works as a stand-in: put `OPENAI_API_KEY=sk-...` in `.env` and the
+bots use **gpt-6-luna** (same price as Haiku 5.5). With `"provider": "auto"` (the default) the bots use
+Claude as soon as `ANTHROPIC_API_KEY` is filled in, after a restart. Force one with `"provider"` in
+`config.json` or `--provider openai`. An OpenAI account needs prepaid credit
+(platform.openai.com → Billing) or every call fails with "insufficient quota".
+
 > **Status: Phase 1** — one bot, the AI decision loop, the JSON action system, and token/cost logging.
 > Coming next: Phase 2 (3 bots, task board, bot-to-bot chat, rate limiter, 30-minute test mode with a
 > 20-bot projection), Phase 3 (20 bots, roles, village, progression, world log), Phase 4 (17:30–20:30
@@ -28,8 +34,13 @@ output tokens and cost in USD, using the pricing table in `config.json`:
 |---|---:|---:|---:|---:|
 | claude-haiku-5-5 (prompts ≤ 100K) | $0.10 | $0.125 | $0.01 | $0.50 |
 | claude-sonnet-5-5 | $2.00 | $2.50 | $0.10 | $10.00 |
+| gpt-6-luna (OpenAI stand-in) | $0.10 | $0.125 | $0.01 | $0.50 |
 
 (Per million tokens. Cache writes cost 1.25× input for the 5-minute cache.)
+
+OpenAI caches automatically, but only prompts of 1,024 tokens or more. Our fixed rules are about that
+size, so check the `r` (cache read) number in the first real run. Without caching a call costs roughly
+$0.00013 instead of $0.00004, still far under the budget.
 
 ## Setup
 
@@ -41,7 +52,7 @@ output tokens and cost in USD, using the pricing table in `config.json`:
    ```bash
    cd ai-bot/civ
    npm ci
-   cp .env.example .env        # then edit .env: ANTHROPIC_API_KEY=sk-ant-...
+   cp .env.example .env        # then edit .env: ANTHROPIC_API_KEY=sk-ant-...  (or OPENAI_API_KEY=sk-...)
    ```
    `.env` is in `.gitignore`; the key is never logged.
 
@@ -54,7 +65,8 @@ node src/index.js     # run until Ctrl+C
 npm run report        # token/cost totals of the last sessions
 ```
 
-Flags: `--bots N` (or `"botCount"` in config.json), `--minutes M`, `--mock`, `--host H`, `--port P`.
+Flags: `--bots N` (or `"botCount"` in config.json), `--minutes M`, `--mock`, `--host H`, `--port P`,
+`--provider anthropic|openai`.
 
 While running, a summary prints every 5 minutes (calls, tokens, cost today, average per call, per bot,
 cache hit rate, projection for the session and for 20 bots). On exit the report is written to
@@ -74,7 +86,8 @@ cache hit rate, projection for the session and for 20 bots). On exit the report 
 config.json           every setting: bot count, server, AI, pricing, budget, village, the 20 villagers
 src/index.js          starts the bots (staggered), prints summaries, stops cleanly, writes the report
 src/config.js         loads config.json, .env and command-line flags
-src/ai/client.js      the only code that calls the API: budget, backoff, caching, usage logging
+src/ai/client.js      the only code that asks the AI: budget, backoff, usage logging
+src/ai/providers/     anthropic.js (Claude, prompt caching) and openai.js (stand-in); same answers, same logging
 src/ai/prompts.js     the cached system prompt and the memory prompt
 src/ai/actions.js     the JSON action list, schema, validation and safe fallback
 src/ai/mock.js        fake replies for --mock

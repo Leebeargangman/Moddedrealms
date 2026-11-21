@@ -1,4 +1,4 @@
-// The ONLY place that talks to the Anthropic API. Every call goes through ask(), which:
+// The ONLY place that asks the AI (Claude, or OpenAI as a stand-in; see src/ai/providers/). Every call goes through ask(), which:
 //   1. checks the daily budget (over budget = no call, the bot uses plain-code behaviour instead)
 //   2. respects a global pause after API errors (exponential backoff, never a tight retry loop)
 //   3. sends the cached system prompt + the small user message
@@ -6,21 +6,15 @@
 //
 // ask() never throws: on any problem it returns { text: null, reason } and the caller falls back.
 
-import Anthropic from "@anthropic-ai/sdk";
-import { config, options } from "../config.js";
+import { config, options, provider, model } from "../config.js";
 import { log } from "../log.js";
 import * as ledger from "../usage/ledger.js";
 import { mockReply } from "./mock.js";
+import * as anthropic from "./providers/anthropic.js";
+import * as openai from "./providers/openai.js";
 
-let client = null;
-function getClient() {
-  if (!client) {
-    if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not set: put it in ai-bot/civ/.env");
-    // maxRetries 0: we handle retries ourselves with a long backoff, so calls can never pile up.
-    client = new Anthropic({ maxRetries: 0, timeout: config.ai.requestTimeoutMs });
-  }
-  return client;
-}
+// The provider module that does the actual request (Claude or OpenAI, see config.js).
+const api = provider === "openai" ? openai : anthropic;
 
 // --- budget -------------------------------------------------------------------------------------
 // "ok": normal · "warn": 80% used, cooldowns doubled · "exhausted": 100% used, no more calls today
@@ -60,58 +54,38 @@ let useStructured = config.ai.structuredOutput;
  * Returns { text, reason } where text is null if no answer could be had.
  */
 export async function ask({ bot, kind, system, user, maxTokens, schema = null }) {
-  const model = config.ai.model;
   if (budgetState() === "exhausted") return { text: null, reason: "budget" };
   if (Date.now() < pausedUntil) return { text: null, reason: "paused" };
 
   if (options.mock) return mockCall({ bot, kind, system, user });
 
   const started = Date.now();
-  const request = {
-    model,
-    max_tokens: maxTokens,
-    // Haiku 5.5 thinks by default. Thinking tokens are billed as output and would eat the small
-    // max_tokens, so it is turned off: picking the next goal doesn't need it.
-    thinking: { type: "disabled" },
-    output_config: { effort: config.ai.effort },
-    system,
-    messages: [{ role: "user", content: user }],
-  };
-  if (schema && useStructured) request.output_config.format = { type: "json_schema", schema };
-
   try {
-    const res = await getClient().messages.create(request);
+    const res = await api.call({ model, system, user, maxTokens, schema: useStructured ? schema : null });
     errorStreak = 0;
-    const u = res.usage;
-    const t = {
-      input: u.input_tokens || 0,
-      cacheRead: u.cache_read_input_tokens || 0,
-      cacheWrite: u.cache_creation_input_tokens || 0,
-      output: u.output_tokens || 0,
-    };
+    const { t } = res;
     const totalIn = t.input + t.cacheRead + t.cacheWrite;
     if (totalIn > config.ai.warnInputTokens) log.warn(bot, `request used ${totalIn} input tokens (limit to watch: ${config.ai.warnInputTokens})`);
-
-    const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-    let note = res.stop_reason;
-    if (res.stop_reason === "refusal") note = `refusal ${res.stop_details?.category || ""}`.trim();
-    const cost = ledger.record({ bot, kind, model, t, ms: Date.now() - started, ok: Boolean(text) && res.stop_reason !== "refusal", note });
-    return { text: res.stop_reason === "refusal" ? null : text, reason: note, tokens: t, cost };
+    const cost = ledger.record({ bot, kind, model, t, ms: Date.now() - started, ok: Boolean(res.text) && !res.refused, note: res.note });
+    return { text: res.refused ? null : res.text, reason: res.note, tokens: t, cost };
   } catch (err) {
-    const ms = Date.now() - started;
-    const status = err instanceof Anthropic.APIError ? err.status : undefined;
-    ledger.record({ bot, kind, model, t: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, ms, ok: false, note: `error ${status ?? err.name}` });
+    const { type, status } = api.classify(err);
+    ledger.record({ bot, kind, model, t: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, ms: Date.now() - started, ok: false, note: `error ${status ?? err.name}` });
 
-    if (err instanceof Anthropic.BadRequestError && useStructured && /output_config|format|schema/i.test(err.message)) {
+    if (type === "schema" && useStructured) {
       useStructured = false;
       log.warn("api", "structured outputs were rejected; switching them off and validating JSON ourselves");
-    } else if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-      backoff("API key refused (check ANTHROPIC_API_KEY in .env)");
-    } else if (err instanceof Anthropic.RateLimitError) {
+    } else if (type === "retryable-setting") {
+      log.warn("api", "the model rejected the reasoning setting; sending requests without it from now on");
+    } else if (type === "auth") {
+      backoff(`API key refused (check ${api.KEY_NAME} in .env)`);
+    } else if (type === "quota") {
+      backoff("the OpenAI account has no credit left (add credit at platform.openai.com > Billing)");
+    } else if (type === "rate") {
       backoff("rate limited (429)");
-    } else if (err instanceof Anthropic.OverloadedError || err instanceof Anthropic.InternalServerError) {
+    } else if (type === "overloaded") {
       backoff(`API overloaded or failing (${status})`);
-    } else if (err instanceof Anthropic.APIConnectionError) {
+    } else if (type === "connection") {
       backoff("can't reach the API");
     } else {
       log.error("api", err.message);

@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { config, DATA_DIR } from "../config.js";
+import { config, DATA_DIR, model } from "../config.js";
 import * as ledger from "./ledger.js";
 
 const usd = (n) => `$${n.toFixed(n < 0.1 ? 5 : 3)}`;
@@ -78,7 +78,7 @@ export function writeSessionReport(botsOnline, extra = {}) {
   const md = [
     `# Session report ${s.session}`,
     "",
-    `- Length: ${s.minutes.toFixed(1)} minutes, ${s.botsOnline} bot(s), model ${config.ai.model}`,
+    `- Length: ${s.minutes.toFixed(1)} minutes, ${s.botsOnline} bot(s), model ${model}`,
     `- API calls: ${t.calls} (${t.failed} fell back to the default action)`,
     `- Calls per bot per minute: ${s.callsPerBotPerMinute.toFixed(2)}`,
     `- Input tokens: ${int(t.input)} uncached, ${int(t.cacheRead)} cache read, ${int(t.cacheWrite)} cache write`,

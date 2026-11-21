@@ -5,7 +5,9 @@
 // cleanly, saves their memories and writes the session report.
 
 import { Vec3 } from "vec3";
-import { config, options } from "./config.js";
+import { config, options, provider, model } from "./config.js";
+import { KEY_NAME as ANTHROPIC_KEY } from "./ai/providers/anthropic.js";
+import { KEY_NAME as OPENAI_KEY } from "./ai/providers/openai.js";
 import { log } from "./log.js";
 import { CivBot } from "./bot/civbot.js";
 import { summaryText, writeSessionReport } from "./usage/report.js";
@@ -14,13 +16,14 @@ const c = config.village.centre;
 const village = { pos: c ? new Vec3(c.x, c.y, c.z) : null }; // shared by all bots
 const bots = [];
 
-if (!options.mock && !process.env.ANTHROPIC_API_KEY) {
-  log.error("civ", "ANTHROPIC_API_KEY is missing. Put it in ai-bot/civ/.env, or run with --mock to test for free.");
+const keyName = provider === "openai" ? OPENAI_KEY : ANTHROPIC_KEY;
+if (!options.mock && !process.env[keyName]) {
+  log.error("civ", `${keyName} is missing. Put ANTHROPIC_API_KEY (Claude) or OPENAI_API_KEY in ai-bot/civ/.env, or run with --mock to test for free.`);
   process.exit(1);
 }
 
 log.info("civ", `starting ${config.botCount} bot(s) on ${config.server.host}:${config.server.port}` +
-  ` · model ${options.mock ? "MOCK (no API calls)" : config.ai.model} · budget $${config.budget.dailyUsd}/day` +
+  ` · model ${options.mock ? "MOCK (no API calls)" : `${model} (${provider})`} · budget $${config.budget.dailyUsd}/day` +
   (options.minutes ? ` · stopping after ${options.minutes} min` : ""));
 
 config.bots.slice(0, config.botCount).forEach((def, i) => {

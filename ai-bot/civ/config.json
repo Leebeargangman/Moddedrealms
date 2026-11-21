@@ -9,7 +9,11 @@
   },
 
   "ai": {
+    "_providerComment": "auto = use Claude if ANTHROPIC_API_KEY is in .env, otherwise OpenAI if OPENAI_API_KEY is. Or set \"anthropic\" / \"openai\".",
+    "provider": "auto",
     "model": "claude-haiku-5-5",
+    "openaiModel": "gpt-6-luna",
+    "openaiReasoningEffort": "none",
     "maxTokens": 150,
     "effort": "low",
     "structuredOutput": true,
@@ -30,9 +34,12 @@
   },
 
   "pricing": {
-    "_comment": "US dollars per million tokens. cacheWrite is the 5-minute cache write (1.25x input). Haiku 5.5 prices are for prompts up to 100K tokens.",
+    "_comment": "US dollars per million tokens. cacheWrite is the 5-minute cache write (1.25x input). Haiku 5.5 prices are for prompts up to 100K tokens. OpenAI prices from developers.openai.com/api/docs/pricing (Nov 2026).",
     "claude-haiku-5-5": { "input": 0.10, "output": 0.50, "cacheRead": 0.01, "cacheWrite": 0.125 },
-    "claude-sonnet-5-5": { "input": 2.00, "output": 10.00, "cacheRead": 0.10, "cacheWrite": 2.50 }
+    "claude-sonnet-5-5": { "input": 2.00, "output": 10.00, "cacheRead": 0.10, "cacheWrite": 2.50 },
+    "gpt-6-luna":        { "input": 0.10, "output": 0.50, "cacheRead": 0.01, "cacheWrite": 0.125 },
+    "gpt-5.4-nano":      { "input": 0.20, "output": 1.25, "cacheRead": 0.02, "cacheWrite": 0.20 },
+    "gpt-4o-mini":       { "input": 0.15, "output": 0.60, "cacheRead": 0.075, "cacheWrite": 0.15 }
   },
 
   "budget": {
