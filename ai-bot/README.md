@@ -32,6 +32,9 @@ What they do:
   `behavior.anarchy.maxNetherBlocks`, 15000 by default), then takes the next portal it finds back to the overworld
   and survives normally out there. It only uses portals other players left (anarchy worlds are full of them). Teammates take the same direction. It starts over after dying without a bed.
 
+> **New: Claude civilisation** (`civ/`): up to 20 lightweight Mineflayer villagers that think with Claude Haiku 5.5
+> and build a village together, with token and cost tracking. See [civ/README.md](civ/README.md).
+
 ## How it fits together
 
 ```
