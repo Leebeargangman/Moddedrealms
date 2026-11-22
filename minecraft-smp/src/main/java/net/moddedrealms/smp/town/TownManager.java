@@ -87,6 +87,12 @@ public final class TownManager implements Listener {
     private Bureau bureau;
     private Service service;
     private Bank bank;
+    private Casino casino;
+    private CasinoGames games;
+    private Gangs gangs;
+    private NpcGangs npcGangs;
+    private Heists heists;
+    private PrisonBreak prisonBreak;
     private boolean warnedPeaceful;
     private boolean dirty;
     private int tick;
@@ -124,6 +130,12 @@ public final class TownManager implements Listener {
         bureau = new Bureau(this);
         service = new Service(this);
         bank = new Bank(this);
+        casino = new Casino(this);
+        games = new CasinoGames(this);
+        gangs = new Gangs(this);
+        npcGangs = new NpcGangs(this);
+        heists = new Heists(this);
+        prisonBreak = new PrisonBreak(this);
     }
 
     public void loadSettings() {
@@ -152,6 +164,12 @@ public final class TownManager implements Listener {
         pm.registerEvents(townsfolk, plugin);
         pm.registerEvents(service, plugin);
         pm.registerEvents(bank, plugin);
+        pm.registerEvents(casino, plugin);
+        pm.registerEvents(games, plugin);
+        pm.registerEvents(gangs, plugin);
+        pm.registerEvents(npcGangs, plugin);
+        pm.registerEvents(heists, plugin);
+        pm.registerEvents(prisonBreak, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         Bukkit.getScheduler().runTaskTimer(plugin, this::onTick, 20L, 1L);
@@ -169,6 +187,9 @@ public final class TownManager implements Listener {
         jail.shutdown();
         service.shutdown();
         bank.shutdown();
+        heists.shutdown();
+        prisonBreak.shutdown();
+        gangs.save();
         save();
     }
 
@@ -184,6 +205,12 @@ public final class TownManager implements Listener {
     public Bureau bureau() { return bureau; }
     public Service service() { return service; }
     public Bank bank() { return bank; }
+    public Casino casino() { return casino; }
+    public CasinoGames games() { return games; }
+    public Gangs gangs() { return gangs; }
+    public NpcGangs npcGangs() { return npcGangs; }
+    public Heists heists() { return heists; }
+    public PrisonBreak prisonBreak() { return prisonBreak; }
     public Collection<Walker> walkers() { return walkers; }
 
     public TownData data(Player p) {
@@ -299,6 +326,9 @@ public final class TownManager implements Listener {
         if (tick % 10 == 7) bureau.think();
         if (tick % 600 == 300) bandits.spawnTick();
         if (tick % 200 == 100) bureau.tick();
+        if (tick % 10 == 1) casino.thinkPatrons();
+        if (tick % 10 == 9) npcGangs.think();
+        if (tick % 600 == 450) npcGangs.spawnTick();
     }
 
     // ------------------------------------------------------------------ every second
@@ -329,7 +359,8 @@ public final class TownManager implements Listener {
                 commit(p, Crime.RESISTING, p.getLocation(), "resist", null, true);
                 d.hostile = true;
             }
-            if (now - d.lastSeenByPolice > decay && now - d.lastDecay > decay) {
+            long myDecay = gangs.hasPerk(p, "lookouts") ? decay * 3 / 4 : decay;
+            if (now - d.lastSeenByPolice > myDecay && now - d.lastDecay > myDecay) {
                 d.stars--;
                 d.lastDecay = now;
                 dirty = true;
@@ -346,6 +377,11 @@ public final class TownManager implements Listener {
         }
         jail.second();
         bank.second();
+        casino.second();
+        games.second();
+        gangs.second();
+        heists.second();
+        prisonBreak.second();
     }
 
     public static String stars(int n) {
@@ -493,6 +529,16 @@ public final class TownManager implements Listener {
         d.damagedBy.clear();
         clearWanted(d);
         officers.forget(p);
+        int evidence = 0;
+        var inv = p.getInventory();
+        for (int i = 0; i < inv.getSize(); i++) {
+            var it = inv.getItem(i);
+            if (it != null && it.hasItemMeta() && it.getItemMeta().getPersistentDataContainer().has(stolenKey, PersistentDataType.INTEGER)) {
+                evidence += it.getAmount();
+                inv.setItem(i, null);
+            }
+        }
+        if (evidence > 0) p.sendMessage(SmpPlugin.mm("<gray>The watch took " + evidence + " stolen item" + (evidence == 1 ? "" : "s") + " as evidence."));
         bureau.close(d, p, d.caseOpen ? "<gray>The Bureau has closed your case." : null);
         String by2 = arrester != null ? arrester.getName() : bureauArrest ? "Bureau agents" : "The watch";
         news(by2 + " hauled " + p.getName() + " off to jail for " + reason + ".");
@@ -654,6 +700,9 @@ public final class TownManager implements Listener {
             case OFFICER -> officers.hit(w, p, by.getDamage());
             case AGENT -> bureau.hit(w, p, by.getDamage());
             case BANDIT -> bandits.hit(w, p, by.getDamage());
+            case PATRON -> casino.patronAttacked(w, p, by.getDamage());
+            case GANGSTER -> npcGangs.hit(w, p, by.getDamage());
+            case COURIER -> heists.courierHit(w, p, by.getDamage());
             default -> townsfolk.hit(w, p, by.getDamage());
         }
     }
@@ -673,6 +722,9 @@ public final class TownManager implements Listener {
             case OFFICER -> officers.clicked(w, p);
             case AGENT -> bureau.clicked(w, p);
             case BANDIT -> w.say(p, "Back off, unless you want trouble.");
+            case PATRON -> casino.patronClicked(w, p);
+            case GANGSTER -> w.say(p, npcGangs.ally(p, w.gang) ? "Good to see you, friend." : "Keep walking.");
+            case COURIER -> w.say(p, "Official business. Stand aside.");
             default -> townsfolk.clicked(w, p);
         }
     }

@@ -91,6 +91,25 @@ public final class TownCommand implements TabExecutor {
                 if (sender instanceof Player p) t.service().start(p);
                 return true;
             }
+            case "casino" -> {
+                if (!(sender instanceof Player p)) return true;
+                String g = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+                switch (g) {
+                    case "blackjack" -> t.games().blackjack(p);
+                    case "roulette" -> t.games().roulette(p);
+                    case "dice" -> t.games().dice(p, new String[0]);
+                    default -> say(p, "<gold>The Golden Rat: <gray>slots on the west wall, blackjack and roulette with the dealers, dice with the gamblers or <white>/dice <player> <stake></white>.");
+                }
+                return true;
+            }
+            case "dice" -> {
+                if (sender instanceof Player p) t.games().dice(p, args);
+                return true;
+            }
+            case "heist" -> {
+                if (sender instanceof Player p) t.heists().command(p, args);
+                return true;
+            }
             case "wanted" -> {
                 List<Player> w = t.wantedOnline();
                 if (w.isEmpty()) return say(sender, "<green>Nobody is wanted right now.");
@@ -116,6 +135,9 @@ public final class TownCommand implements TabExecutor {
         say(to, " <gray>Wanted: " + (d.stars > 0 ? TownManager.stars(d.stars) + " <gray>" + d.reason + " <gold>bounty " + Money.fmt(t.bounties().of(d)) : "<green>no"));
         if (d.caseOpen) say(to, " <dark_red>The Bureau has an open case on you <gray>(" + d.caseReason + ")");
         if (d.inService()) say(to, " <gray>Community service: <white>" + d.serviceLeft + "</white> pieces of litter left");
+        Gangs.Gang gang = t.gangs().of(p);
+        say(to, " <gray>Gang: " + (gang == null ? "<white>none" : gang.label() + " <white>" + gang.name));
+        say(to, " <gray>Street: " + t.npcGangs().standings(p));
         if (d.jailed()) say(to, " <gray>Jail: <white>" + TownManager.fmtTime(d.jailLeft) + "</white> left");
         say(to, " <gray>Arrests: <white>" + d.arrests);
         return true;
@@ -153,6 +175,8 @@ public final class TownCommand implements TabExecutor {
                         case OFFICER -> t.officers().spawn(p.getLocation());
                         case AGENT -> t.bureau().spawn(p.getLocation());
                         case BANDIT -> t.bandits().spawn(p.getLocation(), a.length > 2 ? Integer.parseInt(a[2]) : 2);
+                        case GANGSTER -> t.npcGangs().spawn(p.getLocation(), a.length > 2 ? a[2].toLowerCase(Locale.ROOT) : "vipers");
+                        case PATRON, COURIER -> throw new IllegalArgumentException("Those only appear in the casino or during a heist.");
                         default -> t.townsfolk().spawn(p.getLocation(), r);
                     };
                     say(s, "<green>Spawned " + w.name + "<green>.");
@@ -216,6 +240,16 @@ public final class TownCommand implements TabExecutor {
                 }
                 case "jail" -> jail(s, a);
                 case "bank" -> bank(s, a);
+                case "casino" -> casino(s, a);
+                case "raid" -> {
+                    if (!t.casino().ready()) return say(s, "<red>There's no casino.");
+                    var in = t.casino().playersInside();
+                    if (in.isEmpty()) return say(s, "<gray>Nobody is in the casino.");
+                    t.casino().raid(in);
+                    say(s, "<green>Raid started.");
+                }
+                case "npcgang" -> say(s, "<gold>" + t.npcGangs().reset(a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : ""));
+                case "heists" -> say(s, "<gold>" + t.heists().adminReset());
                 case "case" -> {
                     Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
                     if (p == null) return say(s, "<yellow>/mrtown case <player> [close|ambush]");
@@ -247,6 +281,7 @@ public final class TownCommand implements TabExecutor {
                     say(s, "<gold>/mrtown status | toggle | clear | spawn <role> | wanted <player> <stars> [crime] | pardon <player> | release <player> | arrest <player> | rep <player> [set|add n] | reload");
                     say(s, "<gold>/mrtown jail check <x y z> | build [x y z] | undo | addcell | clearcells | setrelease | info");
                     say(s, "<gold>/mrtown bank check <x y z> | build [x y z] | undo | setvault | info   /mrtown case <player> [close|ambush]   /mrtown service <player>");
+                    say(s, "<gold>/mrtown casino check <x floorY z> | build <x floorY z> | undo | info   /mrtown raid   /mrtown npcgang <vipers|jackals>   /mrtown heists (clear cooldowns)");
                 }
             }
         } catch (IOException | IllegalArgumentException e) {
@@ -294,6 +329,28 @@ public final class TownCommand implements TabExecutor {
         }
     }
 
+    private void casino(CommandSender s, String[] a) throws IOException {
+        String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
+        switch (what) {
+            case "check", "build" -> {
+                if (a.length < 5) {
+                    say(s, "<yellow>/mrtown casino " + what + " <x> <hall floor Y> <z> [world]  <gray>(the hall is dug out under the surface)");
+                    return;
+                }
+                World w = a.length >= 6 ? Bukkit.getWorld(a[5]) : s instanceof Player p ? p.getWorld() : t.world();
+                if (w == null) throw new IOException("World not found.");
+                int x = Integer.parseInt(a[2]), y = Integer.parseInt(a[3]), z = Integer.parseInt(a[4]);
+                say(s, what.equals("check") ? "<gold>" + t.casino().check(w, x, y, z) : "<green>" + t.casino().build(w, x, y, z));
+            }
+            case "undo" -> say(s, "<green>" + t.casino().undo());
+            default -> {
+                var c = t.casino().centre();
+                say(s, "<gold>Casino: " + (c == null ? "not built" : "hall at " + c.getBlockX() + " " + c.getBlockY() + " " + c.getBlockZ() + ", "
+                        + t.casino().playersInside().size() + " players inside" + (t.casino().raiding() ? ", <red>raid in progress" : "")));
+            }
+        }
+    }
+
     private void bank(CommandSender s, String[] a) throws IOException {
         String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
         Player p = s instanceof Player pl ? pl : null;
@@ -330,7 +387,11 @@ public final class TownCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();
         String cmd = command.getName().toLowerCase(Locale.ROOT);
-        if ((cmd.equals("tip") || cmd.equals("bounty")) && args.length == 1) return null;
+        if ((cmd.equals("tip") || cmd.equals("bounty") || cmd.equals("dice")) && args.length == 1) return null;
+        if (cmd.equals("heist") && args.length == 1) {
+            for (String x : List.of("invite", "join", "start", "status", "leave", "cancel")) if (x.startsWith(args[0].toLowerCase())) out.add(x);
+            return out;
+        }
         if (cmd.equals("police") && args.length == 1) {
             for (String x : List.of("join", "duty", "radar", "cuff", "quit")) if (x.startsWith(args[0].toLowerCase())) out.add(x);
             return out;
@@ -340,7 +401,8 @@ public final class TownCommand implements TabExecutor {
             return out;
         }
         if (args.length == 1) {
-            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "case", "service", "reload")) {
+            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "casino", "raid",
+                    "npcgang", "heists", "case", "service", "reload")) {
                 if (x.startsWith(args[0].toLowerCase())) out.add(x);
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("jail")) {

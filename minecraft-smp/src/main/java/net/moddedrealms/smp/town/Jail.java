@@ -201,6 +201,10 @@ public final class Jail implements Listener {
         }
         if (d.cell < 0 || d.cell >= cells.size()) d.cell = freeCell();
         Location c = cells.get(d.cell);
+        if (t.prisonBreak().escaping(p, d, c)) {
+            if (d.jailed()) p.sendActionBar(SmpPlugin.mm("<green><bold>RUN!</bold> <gray>Out through the hole in the back wall"));
+            return;
+        }
         if (p.getWorld() != c.getWorld() || p.getLocation().distanceSquared(c) > 25) toCell(p, d);
         p.sendActionBar(SmpPlugin.mm("<gray>Jail: <white>" + TownManager.fmtTime(d.jailLeft) + "</white> left  ·  <gold>/bail " + Money.fmt(bail(d))));
     }

@@ -235,6 +235,14 @@ public final class Officers {
                 return;
             }
         }
+        if (o.guarding != null) {
+            if (!o.guarding.valid()) {
+                o.guarding = null;
+            } else {
+                if (o.dist(o.guarding.loc()) > 3) o.moveTo(o.guarding.legs, 1.0);
+                return;
+            }
+        }
         if (now - o.lastAttack > 1500) {
             org.bukkit.entity.Entity foe = foeNear(o);
             if (foe != null) {
@@ -361,6 +369,13 @@ public final class Officers {
                 best = b.legs;
             }
         }
+        for (Walker b : t.walkers(Walker.Role.GANGSTER)) {
+            double d = o.dist(b.loc());
+            if (d < bd + 6 && b.valid() && o.legs.hasLineOfSight(b.body)) {
+                bd = d;
+                best = b.legs;
+            }
+        }
         if (best != null) return best;
         if (!cfg().getBoolean("town.officers-fight-mobs", true)) return null;
         for (org.bukkit.entity.Entity e : o.legs.getNearbyEntities(bd, 6, bd)) {
@@ -390,7 +405,12 @@ public final class Officers {
             o.lastAttack = now;
             o.lookAt(e.getLocation().add(0, 1.2, 0));
             o.swing();
-            if (bandit != null) t.bandits().hitByWalker(bandit, o, cfg().getDouble("town.officer-mob-damage", 7));
+            if (bandit != null && bandit.role == Walker.Role.BANDIT) t.bandits().hitByWalker(bandit, o, cfg().getDouble("town.officer-mob-damage", 7));
+            else if (bandit != null && bandit.role == Walker.Role.GANGSTER) t.npcGangs().hitByWalker(bandit, o, cfg().getDouble("town.officer-mob-damage", 7));
+            else if (bandit != null && bandit.role == Walker.Role.PATRON) t.casino().patronHit(bandit, cfg().getDouble("town.officer-mob-damage", 7));
+            else if (bandit != null) {
+                // anything else of ours: leave it
+            }
             else if (e instanceof org.bukkit.entity.LivingEntity le) le.damage(cfg().getDouble("town.officer-mob-damage", 7), o.body);
         }
     }
@@ -453,7 +473,8 @@ public final class Officers {
         o.bribeTried.add(p.getUniqueId());
         o.stop();
         o.lookAt(p.getEyeLocation());
-        if (o.corrupt) {
+        boolean takes = o.corrupt || t.gangs().hasPerk(p, "bribes") && r.nextDouble() < 0.15 / 0.7;
+        if (takes) {
             t.money.take(p, cost);
             t.clearWanted(d);
             forget(p);

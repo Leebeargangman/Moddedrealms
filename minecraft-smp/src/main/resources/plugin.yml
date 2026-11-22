@@ -57,6 +57,26 @@ commands:
   service:
     description: Swap your jail time for community service.
     permission: mrsmp.quests
+  casino:
+    description: Casino games (the dealers run this for you).
+    permission: mrsmp.quests
+  dice:
+    description: Challenge a player to dice in the casino.
+    usage: /dice <player> <stake> | /dice accept
+    permission: mrsmp.quests
+  heist:
+    description: Plan and run crew heists (with the Planner in the casino).
+    usage: /heist <invite|join|start|status|leave|cancel>
+    permission: mrsmp.quests
+  gang:
+    description: Gangs - create, invite, bank, perks, turf, wars.
+    aliases: [gangs]
+    usage: /gang <create|invite|join|leave|deposit|perks|claim|hideout|war|peace|list>
+    permission: mrsmp.quests
+  gc:
+    description: Gang chat.
+    aliases: [gangchat]
+    permission: mrsmp.quests
   wanted:
     description: Who the police are after.
     permission: mrsmp.quests

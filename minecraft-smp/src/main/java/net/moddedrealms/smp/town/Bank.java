@@ -141,6 +141,17 @@ public final class Bank implements Listener {
         return vault != null;
     }
 
+    public Location vault() {
+        return vault == null ? null : vault.clone();
+    }
+
+    /** A heist emptied the vault: the quick robbery has to wait too. */
+    void markRobbed() {
+        lastRobbery = System.currentTimeMillis();
+        save();
+        updateStatus();
+    }
+
     private long cooldownLeft() {
         long cd = cfg().getLong("town.bank.cooldown-minutes", 180) * 60_000L;
         return Math.max(0, lastRobbery + cd - System.currentTimeMillis());
@@ -155,6 +166,7 @@ public final class Bank implements Listener {
         e.setCancelled(true);
         Player p = e.getPlayer();
         if (!t.enabled) return;
+        if (t.heists().vaultClicked(p)) return;
         if (t.exempt(p)) {
             p.sendMessage(SmpPlugin.mm("<gray>You can't rob the bank right now."));
             return;
@@ -209,7 +221,12 @@ public final class Bank implements Listener {
             }
         } else {
             robbery.lastPresent = now;
-            robbery.progress += Math.min(3, present.size());
+            double speed = Math.min(3, present.size());
+            for (Player p : present) if (t.gangs().hasPerk(p, "safecracker")) {
+                speed *= 1.43;
+                break;
+            }
+            robbery.progress += speed;
         }
         double need = cfg().getDouble("town.bank.crack-seconds", 60);
         robbery.bar.progress((float) Math.min(1, robbery.progress / need));
@@ -241,6 +258,7 @@ public final class Bank implements Listener {
         List<String> names = new ArrayList<>();
         for (Player p : present) {
             t.money.give(p, each);
+            t.gangs().crimeIncome(p, each, 200);
             int bars = cfg().getInt("town.bank.gold-bars", 2);
             ItemStack gold = stolenGold(bars);
             for (ItemStack left : p.getInventory().addItem(gold).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);

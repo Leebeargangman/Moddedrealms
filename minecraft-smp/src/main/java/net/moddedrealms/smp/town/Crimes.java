@@ -84,6 +84,7 @@ public final class Crimes implements Listener {
             ad.attacked.put(v.getUniqueId(), now);
             vd.damagedBy.put(a.getUniqueId(), now);
             if (vd.stars > 0) return; // helping the police
+            if (t.gangs().atWar(a, v)) return; // gang war: settled between the gangs
             Long theyHitFirst = vd.attacked.get(a.getUniqueId());
             if (theyHitFirst != null && now - theyHitFirst <= selfDefenceMs()) return;
             t.commit(a, Crime.ASSAULT, v.getLocation(), v.getUniqueId().toString(), null, false);
@@ -98,6 +99,10 @@ public final class Crimes implements Listener {
         Player k = v.getKiller();
         if (k == null || k == v) return;
         TownData vd = t.data(v), kd = t.data(k);
+        if (t.gangs().atWar(k, v)) {
+            t.gangs().warKill(k, v);
+            return;
+        }
         if (vd.stars > 0) return;
         Long theyHitFirst = vd.attacked.get(k.getUniqueId());
         if (theyHitFirst != null && System.currentTimeMillis() - theyHitFirst <= selfDefenceMs() * 3) return;
@@ -218,6 +223,7 @@ public final class Crimes implements Listener {
             double took = t.money.take(v, amount);
             if (took <= 0) return;
             t.money.give(p, took);
+            t.gangs().crimeIncome(p, took, 20);
             vd.lastRobbed = now;
             p.sendMessage(SmpPlugin.mm("<dark_green>You lifted <white>" + Money.fmt(took) + "</white> from " + v.getName() + "."));
             p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);

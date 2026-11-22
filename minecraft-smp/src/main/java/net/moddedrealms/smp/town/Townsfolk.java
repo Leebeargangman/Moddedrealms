@@ -57,7 +57,10 @@ public final class Townsfolk implements Listener {
 
     /** Townsfolk only: not officers, Bureau agents or bandits. */
     static boolean civilian(Walker w) {
-        return w.role != Walker.Role.OFFICER && w.role != Walker.Role.AGENT && w.role != Walker.Role.BANDIT;
+        return switch (w.role) {
+            case MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE -> true;
+            default -> false;
+        };
     }
 
     // ------------------------------------------------------------------ spawning
@@ -613,6 +616,8 @@ public final class Townsfolk implements Listener {
         if (!t.plugin().crates().all().containsKey(crate)) crate = "mythic";
         menu.inv.setItem(15, icon(Material.TRIPWIRE_HOOK, 1, "<dark_purple>" + t.plugin().crates().keyName(crate), List.of("<gray>Fell off the back of a cart.",
                 "", "<gray>Price: <gold>" + Money.fmt(keyPrice), "<green>Click to buy")));
+        menu.inv.setItem(22, icon(Material.SHEARS, 1, "<gray>Bolt Cutters", List.of("<gray>For breaking a friend out of jail.",
+                "", "<gray>Price: <gold>" + Money.fmt(cfg().getDouble("town.prison-break.cutter-price", 1500)), "<green>Click to buy")));
         p.openInventory(menu.inv);
     }
 
@@ -654,9 +659,17 @@ public final class Townsfolk implements Listener {
             menu.inv.setItem(22, icon(Material.GOLD_NUGGET, 1, "<gold>Your balance: " + Money.fmt(t.money.balance(p)), List.of("<gray>Stock changes with every merchant.")));
         } else if (menu.kind.equals("fence")) {
             switch (slot) {
+                case 22 -> {
+                    if (!t.money.pay(p, cfg().getDouble("town.prison-break.cutter-price", 1500))) {
+                        p.sendMessage(SmpPlugin.mm("<red>You can't afford them."));
+                        return;
+                    }
+                    for (ItemStack left : p.getInventory().addItem(t.heists().boltCutters()).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
+                }
                 case 11 -> {
                     int v = stolenValue(p, true);
                     if (v <= 0) return;
+                    if (t.gangs().hasPerk(p, "fence")) v = (int) (v * 1.2);
                     t.money.give(p, v);
                     p.sendMessage(SmpPlugin.mm("<dark_green>The Fence counts out <gold>" + Money.fmt(v) + "<dark_green>. \"Pleasure doing business.\""));
                     p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 0.7f);

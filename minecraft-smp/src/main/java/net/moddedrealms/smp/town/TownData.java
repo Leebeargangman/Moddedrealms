@@ -60,6 +60,10 @@ public final class TownData {
     public final Map<UUID, Long> damagedBy = new HashMap<>();
     public final Map<String, Long> recentCrimes = new HashMap<>();
     public final Map<UUID, Long> pickedNpcs = new HashMap<>();
+    /** Standing with each NPC gang (50+ = ally). Saved. */
+    public final Map<String, Integer> npcGangRep = new HashMap<>();
+    public long breakoutUntil;
+    public long lastGangHome;
     public int pickpocketsThisHour;
     public long pickpocketHour;
 
@@ -88,11 +92,13 @@ public final class TownData {
         d.caseReason = s.getString("case.reason", "");
         d.serviceLeft = s.getInt("service.left");
         d.serviceFallback = s.getInt("service.fallback");
+        var ng = s.getConfigurationSection("npc-gangs");
+        if (ng != null) for (String k : ng.getKeys(false)) d.npcGangRep.put(k, ng.getInt(k));
         return d;
     }
 
     boolean worthSaving() {
-        return rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
+        return !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
     }
 
     void save(ConfigurationSection s) {
@@ -114,6 +120,7 @@ public final class TownData {
             s.set("case.until", caseUntil);
             s.set("case.reason", caseReason);
         }
+        for (var e : npcGangRep.entrySet()) s.set("npc-gangs." + e.getKey(), e.getValue());
         if (serviceLeft > 0) {
             s.set("service.left", serviceLeft);
             s.set("service.fallback", serviceFallback);

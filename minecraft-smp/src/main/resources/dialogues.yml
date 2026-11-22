@@ -77,6 +77,17 @@ jailguard:
   choices:
     - {text: "<red>[Who's wanted?]", action: "command:wanted"}
     - {text: "<gray>[Goodbye]", action: close}
+bartender:
+  lines:
+    - "What'll it be? Don't answer that, everything here's watered down."
+    - "Word of advice: when the siren goes, the emergency tunnel at the back comes up in the bushes. The cops never check there."
+  choices:
+    - {text: "<gold>[Casino games]", action: "command:casino"}
+    - {text: "<gray>[Goodbye]", action: close}
+bouncer:
+  lines:
+    - "You didn't see this place. Nobody sees this place."
+    - "Gamble all you like. Bring trouble and you leave through the wall."
 banker:
   lines:
     - "Welcome to the Moddedrealms Bank. Your coin has never been safer."

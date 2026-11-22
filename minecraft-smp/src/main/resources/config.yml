@@ -197,6 +197,9 @@ town:
     - "Cross the watch badly enough and the Bureau takes over. They say you're only safe 2000 blocks out."
     - "They say a third of the watch can be bought. The other two thirds take it very personally."
     - "Nobody's robbed the bank in a while... not that I'm suggesting anything."
+    - "There's a casino out in the snow, they say. Under an old hunting shack. You didn't hear it from me."
+    - "The Crimson Vipers and the Iron Jackals hate each other more than they hate us. Pick a side, maybe."
+    - "A treasury wagon goes from the bank to the station now and then. Heavily guarded, of course."
 
   # ---- Bounties: the town pays per wanted star; players can add more with /bounty.
   bounty:
@@ -266,6 +269,69 @@ town:
     loot-max: 9000
     gold-bars: 2
     gold-bar-value: 400
+
+  # ---- The underground casino (/mrtown casino build). Raids while players are inside.
+  casino:
+    slot-price: 50
+    slot-price-high: 250
+    house-cut: 0.05             # dice: share of the pot the house keeps
+    roulette-seconds: 30
+    patrons: 8
+    patrons-who-fight: 0.5      # in a raid, the rest run for the exits
+    raid-minutes-min: 8
+    raid-minutes-max: 20
+    raid-seconds: 180
+    raid-officers-max: 8
+
+  # ---- Player gangs (/gang).
+  gangs:
+    create-cost: 5000
+    max-members: 10
+    crime-tax: 0.1              # share of members' crime income that goes to the gang bank
+    claim-cost: 1000
+    no-claim-radius: 200
+    income-per-chunk: 25
+    income-minutes: 60
+    war-cost: 2000
+
+  # ---- NPC gangs in the wilds (Crimson Vipers, Iron Jackals).
+  npc-gangs:
+    enabled: true
+    min-distance: 220
+    max-distance: 1500
+    max: 12
+    chance: 0.2
+    strength: 25                # members to take down to wipe a gang out
+    respawn-hours: 48
+    wipe-reward: 5000
+    bounty: 100
+    health: 30
+    damage: 3.5
+    ally-at: 50
+
+  # ---- Heists (planned with the Planner in the casino).
+  heists:
+    plan-cost: 1000
+    min-crew: 2
+    max-crew: 4
+    alarm-seconds: 20
+    alarm-delay-seconds: 60     # how long after the drill starts the police notice, if the alarm was cut
+    drill-seconds: 120          # crew-seconds at the vault (up to 3 at once)
+    bank-bags: 3
+    bank-bag-value: 2500
+    wagon-bags: 2
+    wagon-bag-value: 2000
+    courier-health: 60
+    getaway-min: 560
+    stage-minutes: 20
+    bank-cooldown-minutes: 360
+    wagon-cooldown-minutes: 180
+
+  # ---- Prison breaks (bolt cutters on a cell's back window, generated jail only).
+  prison-break:
+    cutter-price: 1500
+    seconds: 20
+    open-seconds: 40
 
   names:
     townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
