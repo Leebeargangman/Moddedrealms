@@ -18,7 +18,10 @@ const base = {
   factionDistance: 150,
   imposters: config.imposters.count > 0,
   instructions: "",
+  permadeath: true,          // false = normal Minecraft deaths: respawn, keep identity, lose items
+  smartLeader: "off",        // off | elders (planner every 15 min) | leader (leaders think with a smarter model) | both
 };
+const SMART = ["off", "elders", "leader", "both"];
 
 export function get() {
   const s = { ...structuredClone(base), ...(kv("settings") || {}) };
@@ -35,6 +38,7 @@ export function apply() {
   config.budget.dailyUsd = s.budget;
   // Imposters only make sense inside one village; with several civilisations the rivalry is the game.
   config.imposters.count = s.imposters && s.mode === "village" ? 2 : 0;
+  config.leader.enabled = s.smartLeader === "elders" || s.smartLeader === "both";
   return s;
 }
 
@@ -74,6 +78,11 @@ export function save(input) {
     else next.mode = input.mode;
   }
   if (input.war !== undefined) next.war = Boolean(input.war);
+  if (input.permadeath !== undefined) next.permadeath = Boolean(input.permadeath);
+  if (input.smartLeader !== undefined) {
+    if (!SMART.includes(input.smartLeader)) errors.push("unknown smarter-leader option");
+    else next.smartLeader = input.smartLeader;
+  }
   if (input.imposters !== undefined) next.imposters = Boolean(input.imposters);
   if (input.factionDistance !== undefined) {
     const d = Math.round(Number(input.factionDistance));
