@@ -1,0 +1,37 @@
+name: ModdedrealmsGuard
+version: '${project.version}'
+main: net.moddedrealms.guard.GuardPlugin
+api-version: '1.21'
+author: Moddedrealms
+description: Anticheat tuned for zero false bans, with escalating bans and Hypixel-style staff replays.
+softdepend: [packetevents]
+commands:
+  mrguard:
+    description: Anticheat status, mode, history and unbans.
+    usage: /mrguard <status|mode|alerts|history|unban|exempt|reload>
+    aliases: [guard, ac]
+    permission: mrguard.staff
+  replay:
+    description: Watch, save and list player replays.
+    usage: /replay <list|play|save|stop|pause|speed|skip|pov>
+    aliases: [replays]
+    permission: mrguard.staff
+  report:
+    description: Report a player to staff. Saves a replay of the last minute.
+    usage: /report <player> <reason>
+    permission: mrguard.report
+permissions:
+  mrguard.staff:
+    description: See alerts and watch replays.
+    default: op
+  mrguard.admin:
+    description: Change the mode, unban players and exempt players.
+    default: op
+    children:
+      mrguard.staff: true
+  mrguard.report:
+    description: Use /report.
+    default: true
+  mrguard.bypass:
+    description: Skips every check. Not even ops have it unless given.
+    default: false

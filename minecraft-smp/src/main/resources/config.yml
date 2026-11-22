@@ -1,0 +1,47 @@
+# ============================================================================
+#  ModdedrealmsSMP
+# ============================================================================
+
+# Lets root/AMP send console commands by appending lines to
+# plugins/ModdedrealmsSMP/console.in (checked every second). Only people who
+# can already write the server's files can use it.
+console-bridge: true
+
+rewards:
+  # How reward lines are turned into console commands. {player} {amount} {crate}
+  money-command: "eco give {player} {amount}"
+  xp-command: "xp add {player} {amount} points"
+
+# Everyone within 48 blocks when a MythicDepths boss dies gets these.
+boss-kill-rewards: ["key:mythic:1", "money:1000"]
+
+quests:
+  daily-count: 3
+  weekly-count: 2
+  # Bonus for finishing every daily quest N days in a row.
+  streak-rewards:
+    3: ["key:rare:1", "money:500"]
+    7: ["key:mythic:1", "money:1500"]
+    14: ["key:mythic:2", "money:4000"]
+
+playtime:
+  # Every N minutes online a player gets these rewards.
+  every-minutes: 60
+  rewards: ["key:common:1", "money:100"]
+  message: "<gold>⌛ <yellow>Thanks for playing! You earned <white><rewards></white> for an hour online."
+
+welcome:
+  enabled: true
+  title: "<gradient:#f6d365:#fda085><bold>Moddedrealms</bold></gradient>"
+  subtitle: "<gray>A living world of colonies, bosses and quests"
+  first-join-message:
+    - ""
+    - "<gold><bold>Welcome to Moddedrealms, <white><player></white>!</bold>"
+    - "<gray>Talk to <yellow>Elder Rowan</yellow> by the fountain to begin your story."
+    - "<gray>Quests: <white>/quests</white>  ·  Random wild spot: <white>/warp</white>  ·  Bosses: <white>/boss</white>"
+    - ""
+  join-message:
+    - "<gray>Welcome back, <white><player></white>! <yellow>/quests</yellow> has your daily quests."
+
+# NPCs turn to look at players within this many blocks.
+npc-look-radius: 8

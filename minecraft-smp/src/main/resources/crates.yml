@@ -1,0 +1,68 @@
+# ============================================================================
+#  Crates. Keys are virtual (stored per player, can't be lost or duped).
+#  Players open crates at the vaults in the Crate Shrine, from Keeper Isolde, or with /crates.
+#
+#  rewards: chance is a weight (they don't have to add up to 100).
+#           give: the same reward lines as quests (money:, item:, xp:, key:, cmd:)
+#           announce: true broadcasts the win to the whole server
+# ============================================================================
+
+common:
+  name: "<white><bold>Common Crate"
+  icon: CHEST
+  rewards:
+    - {chance: 22, name: "$300", icon: GOLD_NUGGET, give: ["money:300"]}
+    - {chance: 16, name: "16 Iron Ingots", icon: IRON_INGOT, give: ["item:IRON_INGOT:16"]}
+    - {chance: 14, name: "32 Cooked Beef", icon: COOKED_BEEF, give: ["item:COOKED_BEEF:32"]}
+    - {chance: 12, name: "6 Gold Ingots", icon: GOLD_INGOT, give: ["item:GOLD_INGOT:6"]}
+    - {chance: 10, name: "300 XP", icon: EXPERIENCE_BOTTLE, give: ["xp:300"]}
+    - {chance: 8, name: "16 Bottles o' Enchanting", icon: EXPERIENCE_BOTTLE, give: ["item:EXPERIENCE_BOTTLE:16"]}
+    - {chance: 6, name: "2 Diamonds", icon: DIAMOND, give: ["item:DIAMOND:2"]}
+    - {chance: 5, name: "Saddle & Name Tag", icon: SADDLE, give: ["item:SADDLE:1", "item:NAME_TAG:1"]}
+    - {chance: 4, name: "$1,000", icon: GOLD_BLOCK, give: ["money:1000"]}
+    - {chance: 3, name: "Rare Key", icon: TRIPWIRE_HOOK, give: ["key:rare:1"], announce: true}
+
+rare:
+  name: "<aqua><bold>Rare Crate"
+  icon: ENDER_CHEST
+  rewards:
+    - {chance: 20, name: "$1,500", icon: GOLD_INGOT, give: ["money:1500"]}
+    - {chance: 15, name: "6 Diamonds", icon: DIAMOND, give: ["item:DIAMOND:6"]}
+    - {chance: 12, name: "Mending Book", icon: ENCHANTED_BOOK, give: ["cmd:minecraft:give {player} enchanted_book[stored_enchantments={\"minecraft:mending\":1}]"]}
+    - {chance: 12, name: "Golden Apples x4", icon: GOLDEN_APPLE, give: ["item:GOLDEN_APPLE:4"]}
+    - {chance: 10, name: "1,000 XP", icon: EXPERIENCE_BOTTLE, give: ["xp:1000"]}
+    - {chance: 8, name: "Unbreaking III Book", icon: ENCHANTED_BOOK, give: ["cmd:minecraft:give {player} enchanted_book[stored_enchantments={\"minecraft:unbreaking\":3}]"]}
+    - {chance: 8, name: "Totem of Undying", icon: TOTEM_OF_UNDYING, give: ["item:TOTEM_OF_UNDYING:1"]}
+    - {chance: 6, name: "Diamond Pickaxe", icon: DIAMOND_PICKAXE, give: ["item:DIAMOND_PICKAXE:1"]}
+    - {chance: 5, name: "Netherite Scrap x2", icon: NETHERITE_SCRAP, give: ["item:NETHERITE_SCRAP:2"]}
+    - {chance: 4, name: "2 Common Keys", icon: TRIPWIRE_HOOK, give: ["key:common:2"]}
+    - {chance: 2, name: "Mythic Key", icon: TRIAL_KEY, give: ["key:mythic:1"], announce: true}
+
+mythic:
+  name: "<light_purple><bold>Mythic Crate"
+  icon: VAULT
+  rewards:
+    - {chance: 20, name: "$5,000", icon: GOLD_BLOCK, give: ["money:5000"]}
+    - {chance: 16, name: "16 Diamonds", icon: DIAMOND_BLOCK, give: ["item:DIAMOND:16"]}
+    - {chance: 12, name: "Netherite Ingot", icon: NETHERITE_INGOT, give: ["item:NETHERITE_INGOT:1"], announce: true}
+    - {chance: 10, name: "Enchanted Golden Apple", icon: ENCHANTED_GOLDEN_APPLE, give: ["item:ENCHANTED_GOLDEN_APPLE:1"], announce: true}
+    - {chance: 10, name: "Elytra", icon: ELYTRA, give: ["item:ELYTRA:1"], announce: true}
+    - {chance: 10, name: "Mending + Unbreaking III", icon: ENCHANTED_BOOK, give: ["cmd:minecraft:give {player} enchanted_book[stored_enchantments={\"minecraft:mending\":1}]", "cmd:minecraft:give {player} enchanted_book[stored_enchantments={\"minecraft:unbreaking\":3}]"]}
+    - {chance: 8, name: "Heavy Core (Mace)", icon: HEAVY_CORE, give: ["item:HEAVY_CORE:1"], announce: true}
+    - {chance: 8, name: "3 Rare Keys", icon: TRIPWIRE_HOOK, give: ["key:rare:3"]}
+    - {chance: 4, name: "Netherite Upgrade x2", icon: NETHERITE_UPGRADE_SMITHING_TEMPLATE, give: ["item:NETHERITE_UPGRADE_SMITHING_TEMPLATE:2"]}
+    - {chance: 2, name: "$25,000 Jackpot", icon: NETHER_STAR, give: ["money:25000"], announce: true}
+
+colony:
+  name: "<gold><bold>Colony Crate"
+  icon: BARREL
+  rewards:
+    - {chance: 20, name: "$600", icon: GOLD_NUGGET, give: ["money:600"]}
+    - {chance: 16, name: "32 Bread", icon: BREAD, give: ["item:BREAD:32"]}
+    - {chance: 14, name: "20 Emeralds", icon: EMERALD, give: ["item:EMERALD:20"]}
+    - {chance: 12, name: "Bell", icon: BELL, give: ["item:BELL:1"]}
+    - {chance: 12, name: "64 Bricks", icon: BRICKS, give: ["item:BRICKS:64"]}
+    - {chance: 10, name: "Villager Spawn Egg", icon: VILLAGER_SPAWN_EGG, give: ["item:VILLAGER_SPAWN_EGG:1"], announce: true}
+    - {chance: 8, name: "Iron Golem Kit", icon: CARVED_PUMPKIN, give: ["item:IRON_BLOCK:4", "item:CARVED_PUMPKIN:1"]}
+    - {chance: 6, name: "Rare Key", icon: TRIPWIRE_HOOK, give: ["key:rare:1"]}
+    - {chance: 2, name: "Emerald Block x8", icon: EMERALD_BLOCK, give: ["item:EMERALD_BLOCK:8"], announce: true}

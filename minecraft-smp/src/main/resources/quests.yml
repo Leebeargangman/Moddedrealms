@@ -1,0 +1,328 @@
+# ============================================================================
+#  Quests
+#
+#  objective types:
+#    BREAK / PLACE     target: materials, comma separated, * wildcards (e.g. "*_LOG")
+#    HARVEST           fully grown crops broken. target: materials or ANY
+#    KILL              target: entity types, or HOSTILE / ANIMAL / ANY
+#    KILL_BOSS         a MythicDepths boss. target: ANY or a boss id (e.g. cursed_knight)
+#    FISH, BREED, TAME, ENCHANT, EAT   target: ANY (or materials / entity types)
+#    CRAFT / SMELT     target: materials of the result
+#    TRADE             villager / wandering trader trades. target: ANY
+#    COLONY_MEET       right-click different ColonySMP citizens
+#    WALK              blocks travelled on foot
+#    PLAYTIME          minutes online
+#    COMMAND           run a command. target: the command name (e.g. warp)
+#    TALK              talk to one of our NPCs. target: npc id
+#
+#  rewards: money:<n>, key:<crate>:<n>, xp:<n>, item:<MATERIAL>:<n>, cmd:<console command with {player}>
+# ============================================================================
+
+daily:
+  lumberjack:
+    name: "Lumberjack"
+    icon: OAK_LOG
+    description: "Chop logs of any kind."
+    objective: {type: BREAK, target: "*_LOG,*_STEM", amount: 64}
+    rewards: ["money:150", "xp:80"]
+  deep_miner:
+    name: "Deep Miner"
+    icon: DEEPSLATE
+    description: "Dig through deepslate."
+    objective: {type: BREAK, target: "DEEPSLATE,COBBLED_DEEPSLATE,TUFF", amount: 128}
+    rewards: ["money:200", "xp:100"]
+  stone_breaker:
+    name: "Stonebreaker"
+    icon: STONE_PICKAXE
+    description: "Mine stone."
+    objective: {type: BREAK, target: "STONE,GRANITE,DIORITE,ANDESITE", amount: 200}
+    rewards: ["money:150", "xp:80"]
+  iron_seeker:
+    name: "Iron Seeker"
+    icon: RAW_IRON
+    description: "Mine iron ore."
+    objective: {type: BREAK, target: "IRON_ORE,DEEPSLATE_IRON_ORE", amount: 16}
+    rewards: ["money:250", "key:common:1"]
+  coal_run:
+    name: "Coal Run"
+    icon: COAL
+    description: "Mine coal ore."
+    objective: {type: BREAK, target: "COAL_ORE,DEEPSLATE_COAL_ORE", amount: 24}
+    rewards: ["money:150", "xp:60"]
+  farmer:
+    name: "Harvest Day"
+    icon: WHEAT
+    description: "Harvest fully grown crops."
+    objective: {type: HARVEST, target: ANY, amount: 64}
+    rewards: ["money:150", "item:BREAD:16"]
+  monster_slayer:
+    name: "Night Watch"
+    icon: IRON_SWORD
+    description: "Slay hostile mobs."
+    objective: {type: KILL, target: HOSTILE, amount: 20}
+    rewards: ["money:250", "key:common:1"]
+  bone_collector:
+    name: "Bone Collector"
+    icon: BONE
+    description: "Defeat skeletons."
+    objective: {type: KILL, target: "SKELETON,STRAY,BOGGED", amount: 10}
+    rewards: ["money:200", "xp:100"]
+  creeper_patrol:
+    name: "Creeper Patrol"
+    icon: GUNPOWDER
+    description: "Take out creepers before they take out your house."
+    objective: {type: KILL, target: CREEPER, amount: 6}
+    rewards: ["money:250", "xp:100"]
+  angler:
+    name: "Angler"
+    icon: FISHING_ROD
+    description: "Catch fish."
+    objective: {type: FISH, target: ANY, amount: 10}
+    rewards: ["money:200", "key:common:1"]
+  rancher:
+    name: "Rancher"
+    icon: WHEAT_SEEDS
+    description: "Breed animals."
+    objective: {type: BREED, target: ANY, amount: 8}
+    rewards: ["money:150", "xp:80"]
+  trader:
+    name: "Haggler"
+    icon: EMERALD
+    description: "Trade with villagers or wandering traders."
+    objective: {type: TRADE, target: ANY, amount: 6}
+    rewards: ["money:250", "xp:100"]
+  enchanter:
+    name: "Arcane Practice"
+    icon: ENCHANTING_TABLE
+    description: "Enchant items at an enchanting table."
+    objective: {type: ENCHANT, target: ANY, amount: 2}
+    rewards: ["money:200", "key:common:1"]
+  smelter:
+    name: "Smelter"
+    icon: FURNACE
+    description: "Take smelted items out of a furnace."
+    objective: {type: SMELT, target: ANY, amount: 48}
+    rewards: ["money:150", "xp:60"]
+  builder:
+    name: "Builder"
+    icon: BRICKS
+    description: "Place blocks."
+    objective: {type: PLACE, target: ANY, amount: 250}
+    rewards: ["money:200", "xp:80"]
+  explorer:
+    name: "Wanderer"
+    icon: COMPASS
+    description: "Travel on foot."
+    objective: {type: WALK, target: ANY, amount: 2000}
+    rewards: ["money:200", "key:common:1"]
+  chef:
+    name: "Hearty Meals"
+    icon: COOKED_BEEF
+    description: "Eat food."
+    objective: {type: EAT, target: ANY, amount: 10}
+    rewards: ["money:100", "xp:50"]
+  baker:
+    name: "Baker"
+    icon: BREAD
+    description: "Craft bread."
+    objective: {type: CRAFT, target: BREAD, amount: 12}
+    rewards: ["money:150", "xp:60"]
+  torch_bearer:
+    name: "Light the Way"
+    icon: TORCH
+    description: "Craft torches."
+    objective: {type: CRAFT, target: "TORCH,LANTERN,SOUL_TORCH", amount: 32}
+    rewards: ["money:100", "xp:50"]
+  colony_friend:
+    name: "Good Neighbour"
+    icon: BELL
+    description: "Meet citizens of the colonies."
+    objective: {type: COLONY_MEET, target: ANY, amount: 3}
+    rewards: ["money:200", "key:colony:1"]
+  zombie_hunter:
+    name: "Undead Hunter"
+    icon: ROTTEN_FLESH
+    description: "Defeat zombies of any kind."
+    objective: {type: KILL, target: "ZOMBIE,HUSK,DROWNED,ZOMBIE_VILLAGER", amount: 12}
+    rewards: ["money:200", "xp:100"]
+  spider_squasher:
+    name: "Web Cutter"
+    icon: STRING
+    description: "Defeat spiders."
+    objective: {type: KILL, target: "SPIDER,CAVE_SPIDER", amount: 8}
+    rewards: ["money:150", "xp:80"]
+  copper_age:
+    name: "Copper Age"
+    icon: RAW_COPPER
+    description: "Mine copper ore."
+    objective: {type: BREAK, target: "COPPER_ORE,DEEPSLATE_COPPER_ORE", amount: 24}
+    rewards: ["money:150", "xp:60"]
+  active:
+    name: "Dedicated"
+    icon: CLOCK
+    description: "Play for a while."
+    objective: {type: PLAYTIME, target: ANY, amount: 45}
+    rewards: ["money:200", "key:common:1"]
+
+weekly:
+  diamond_rush:
+    name: "Diamond Rush"
+    icon: DIAMOND
+    description: "Mine diamond ore."
+    objective: {type: BREAK, target: "DIAMOND_ORE,DEEPSLATE_DIAMOND_ORE", amount: 20}
+    rewards: ["money:1500", "key:rare:2"]
+  boss_hunter:
+    name: "Boss Hunter"
+    icon: WITHER_SKELETON_SKULL
+    description: "Defeat MythicDepths bosses."
+    objective: {type: KILL_BOSS, target: ANY, amount: 2}
+    rewards: ["money:2500", "key:mythic:1"]
+  exterminator:
+    name: "Exterminator"
+    icon: NETHERITE_SWORD
+    description: "Slay hostile mobs."
+    objective: {type: KILL, target: HOSTILE, amount: 300}
+    rewards: ["money:1500", "key:rare:2"]
+  master_lumberjack:
+    name: "Master Lumberjack"
+    icon: DIAMOND_AXE
+    description: "Chop logs."
+    objective: {type: BREAK, target: "*_LOG,*_STEM", amount: 1000}
+    rewards: ["money:1200", "key:rare:1"]
+  great_harvest:
+    name: "The Great Harvest"
+    icon: HAY_BLOCK
+    description: "Harvest fully grown crops."
+    objective: {type: HARVEST, target: ANY, amount: 800}
+    rewards: ["money:1200", "key:rare:1"]
+  architect:
+    name: "Architect"
+    icon: SCAFFOLDING
+    description: "Place blocks."
+    objective: {type: PLACE, target: ANY, amount: 3000}
+    rewards: ["money:1200", "key:rare:1"]
+  nether_raider:
+    name: "Nether Raider"
+    icon: ANCIENT_DEBRIS
+    description: "Mine ancient debris."
+    objective: {type: BREAK, target: ANCIENT_DEBRIS, amount: 6}
+    rewards: ["money:2000", "key:mythic:1"]
+  trailblazer:
+    name: "Trailblazer"
+    icon: FILLED_MAP
+    description: "Travel on foot."
+    objective: {type: WALK, target: ANY, amount: 25000}
+    rewards: ["money:1500", "key:rare:2"]
+  diplomat:
+    name: "Diplomat"
+    icon: GOLDEN_HELMET
+    description: "Meet colony citizens."
+    objective: {type: COLONY_MEET, target: ANY, amount: 20}
+    rewards: ["money:1500", "key:colony:2"]
+  master_trader:
+    name: "Master Trader"
+    icon: EMERALD_BLOCK
+    description: "Trade with villagers or wandering traders."
+    objective: {type: TRADE, target: ANY, amount: 60}
+    rewards: ["money:1500", "key:rare:1"]
+
+# The story is done in order. "talk" is what the quest giver says when the chapter starts.
+story:
+  - id: arrival
+    name: "A New Arrival"
+    icon: OAK_SAPLING
+    giver: elder
+    description: "Speak with Elder Rowan at the fountain."
+    objective: {type: TALK, target: elder, amount: 1}
+    rewards: ["money:150", "key:common:1"]
+  - id: tools
+    name: "Tools of the Trade"
+    icon: IRON_PICKAXE
+    giver: elder
+    talk:
+      - "Every legend in this land started with a humble pickaxe."
+      - "Craft one, any kind will do, and you'll be ready for what lies beyond the walls."
+    description: "Craft any pickaxe."
+    objective: {type: CRAFT, target: "*_PICKAXE", amount: 1}
+    rewards: ["money:100", "item:TORCH:16"]
+  - id: wilds
+    name: "Into the Wilds"
+    icon: COMPASS
+    giver: captain
+    talk:
+      - "Spawn's too crowded to build a life in. Want to see the wild lands?"
+      - "Type <white>/warp</white> and I'll send you somewhere safe, far from here."
+    description: "Use /warp to travel to the wilds."
+    objective: {type: COMMAND, target: warp, amount: 1}
+    rewards: ["money:150", "item:BREAD:8"]
+  - id: envoy
+    name: "The Colonies"
+    icon: BELL
+    giver: envoy
+    talk:
+      - "You won't be alone out there. Colonies of settlers farm, mine and trade across this land."
+      - "Some are friendly. Some go to war. Find their citizens and make yourself known."
+    description: "Come back to the Colony Envoy at spawn after warping."
+    objective: {type: TALK, target: envoy, amount: 1}
+    rewards: ["money:150", "key:colony:1"]
+  - id: iron
+    name: "Iron Will"
+    icon: RAW_IRON
+    giver: elder
+    talk:
+      - "The colonies respect strength. Strength needs iron."
+      - "Mine sixteen iron ore and forge yourself proper gear."
+    description: "Mine iron ore."
+    objective: {type: BREAK, target: "IRON_ORE,DEEPSLATE_IRON_ORE", amount: 16}
+    rewards: ["money:300", "key:common:1"]
+  - id: arcane
+    name: "The Arcane"
+    icon: ENCHANTED_BOOK
+    giver: enchanter
+    talk:
+      - "Mmm. I sense untapped potential in you."
+      - "This land hides enchantments no table in the old world knew. Enchant something, and see."
+    description: "Enchant an item."
+    objective: {type: ENCHANT, target: ANY, amount: 1}
+    rewards: ["money:250", "key:rare:1"]
+  - id: hunter
+    name: "Monster Hunter"
+    icon: IRON_SWORD
+    giver: herald
+    talk:
+      - "Nights grow darker. Something stirs in the depths."
+      - "Prove you can handle the small fry first: twenty-five hostile mobs."
+    description: "Slay hostile mobs."
+    objective: {type: KILL, target: HOSTILE, amount: 25}
+    rewards: ["money:400", "key:rare:1"]
+  - id: warning
+    name: "The Herald's Warning"
+    icon: WITHER_SKELETON_SKULL
+    giver: herald
+    talk:
+      - "You did well. Now listen closely."
+      - "Ancient bosses roam this world: cursed knights, serpents of the deep, and worse."
+      - "And if you ever see a figure with white eyes watching from the trees... don't follow it."
+    description: "Hear the Herald out."
+    objective: {type: TALK, target: herald, amount: 1}
+    rewards: ["money:200"]
+  - id: first_boss
+    name: "First Blood"
+    icon: NETHERITE_SWORD
+    giver: herald
+    talk:
+      - "Find a boss. Bring friends. Use <white>/boss</white> to learn what's out there."
+      - "Come back a hero, or don't come back at all."
+    description: "Defeat any MythicDepths boss."
+    objective: {type: KILL_BOSS, target: ANY, amount: 1}
+    rewards: ["money:2000", "key:mythic:1"]
+  - id: legend
+    name: "Legend of Moddedrealms"
+    icon: NETHER_STAR
+    giver: elder
+    talk:
+      - "The whole square speaks of you now."
+      - "Five bosses felled, and your name will be carved in this fountain's stone."
+    description: "Defeat five MythicDepths bosses."
+    objective: {type: KILL_BOSS, target: ANY, amount: 5}
+    rewards: ["money:10000", "key:mythic:3", "cmd:broadcast {player} has become a Legend of Moddedrealms!"]

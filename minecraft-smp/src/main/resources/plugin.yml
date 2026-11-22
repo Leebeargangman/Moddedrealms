@@ -1,0 +1,32 @@
+name: ModdedrealmsSMP
+version: '${project.version}'
+main: net.moddedrealms.smp.SmpPlugin
+api-version: '1.21'
+author: Moddedrealms
+description: NPC-driven survival - quest givers, story, daily and weekly quests, playtime keys and the spawn plaza.
+softdepend: [Essentials, MythicDepths, ColonySMP]
+commands:
+  quests:
+    description: Open your quests.
+    aliases: [quest, q, dailies]
+    permission: mrsmp.quests
+  crates:
+    description: Open your crates and see your keys.
+    aliases: [keys, crate]
+    permission: mrsmp.quests
+  mrsmp:
+    description: ModdedrealmsSMP admin and NPC dialogue.
+    usage: /mrsmp <reload|spawn|talk|quest>
+    permission: mrsmp.use
+  mrnpc:
+    description: Manage the server's NPCs.
+    usage: /mrnpc <list|create|move|skin|name|title|action|remove|tp>
+    permission: mrsmp.admin
+permissions:
+  mrsmp.quests:
+    default: true
+  mrsmp.use:
+    description: Talking to NPCs (the NPCs run /mrsmp talk for the player).
+    default: true
+  mrsmp.admin:
+    default: op

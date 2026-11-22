@@ -1,0 +1,60 @@
+# What each NPC says when clicked (when the player's story doesn't give them something else to say).
+# MiniMessage formatting. choices actions: quests, story, close, command:<player command>, console:<console command with {player}>
+elder:
+  lines:
+    - "Welcome, traveller, to the square at the heart of Moddedrealms."
+    - "Colonies rise and fall out there, and older things than colonies sleep beneath the stone."
+  choices:
+    - {text: "<green>[My story]", action: story}
+    - {text: "<yellow>[Daily quests]", action: quests}
+    - {text: "<gray>[Goodbye]", action: close}
+questmaster:
+  lines:
+    - "Work's never done round here! Fresh jobs every day, bigger ones every week."
+    - "Finish all your dailies and keep a streak going: the rewards grow."
+  choices:
+    - {text: "<yellow>[Show my quests]", action: quests}
+    - {text: "<gray>[Later]", action: close}
+cratekeeper:
+  lines:
+    - "Keys, keys, keys! You earn them from quests, bosses and time spent in our world."
+    - "Bring them to me and see what fortune holds."
+  choices:
+    - {text: "<light_purple>[Open crates]", action: crates}
+    - {text: "<gray>[Just looking]", action: close}
+enchanter:
+  lines:
+    - "Over sixty enchantments the old world never knew... all waiting for you at the enchanting table."
+    - "Fish them up, trade for them, find them in ruins. Each is stranger than the last."
+  choices:
+    - {text: "<aqua>[Browse enchantments]", action: "command:eenchants list"}
+    - {text: "<gray>[Goodbye]", action: close}
+herald:
+  lines:
+    - "The depths are restless. Bosses walk the land, stronger with every one you defeat."
+  choices:
+    - {text: "<red>[About the bosses]", action: "command:boss"}
+    - {text: "<green>[My story]", action: story}
+    - {text: "<gray>[Goodbye]", action: close}
+envoy:
+  lines:
+    - "I speak for the colonies. They farm, they mine, they trade... and sometimes they march to war."
+    - "Treat them well and they'll remember you."
+  choices:
+    - {text: "<gold>[About the colonies]", action: "command:colony"}
+    - {text: "<gray>[Goodbye]", action: close}
+captain:
+  lines:
+    - "Ready to set out? I'll send you somewhere safe, a long way from spawn."
+  choices:
+    - {text: "<green>[Warp me to the wilds]", action: "command:warp"}
+    - {text: "<gray>[Not yet]", action: close}
+townsfolk_1:
+  lines:
+    - "Lovely day for it, isn't it? The cherry trees are in bloom again."
+townsfolk_2:
+  lines:
+    - "I heard someone saw Herobrine near the old mines. Nonsense, surely..."
+townsfolk_3:
+  lines:
+    - "The fountain? Built the day the first colony was founded, or so they say."
