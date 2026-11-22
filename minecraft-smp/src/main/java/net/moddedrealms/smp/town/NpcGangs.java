@@ -109,7 +109,8 @@ public final class NpcGangs implements Listener {
         long until = wipedUntil.getOrDefault(id, 0L);
         String s = until > System.currentTimeMillis() ? "<dark_gray>wiped out, back in " + (until - System.currentTimeMillis()) / 3_600_000 + "h"
                 : "<gray>strength " + strength.get(id) + "/" + fullStrength();
-        return d.text() + "[" + d.name().split(" ")[1].substring(0, 1) + d.name().charAt(0) + "] " + d.name() + " <dark_gray>(NPC) " + s;
+        String[] w = d.name().split(" ");
+        return d.text() + "[" + w[0].charAt(0) + w[1].charAt(0) + "] " + d.name() + " <dark_gray>(NPC) " + s;
     }
 
     public int rep(Player p, String gang) {

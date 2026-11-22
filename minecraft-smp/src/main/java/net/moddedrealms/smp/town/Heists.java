@@ -357,12 +357,9 @@ public final class Heists implements Listener {
             crewSay("<white><bold>The job is on.</bold> <gray>First, the alarm: stand at the panel behind the bank (red sparks) for "
                     + cfg().getInt("town.heists.alarm-seconds", 20) + "s without an officer seeing you. Or skip it and go straight for the vault, but then the police come at once.");
         } else {
-            Location v = t.bank().vault();
-            Location from = new Location(v.getWorld(), v.getBlockX() + 0.5, v.getBlockY() - 1, v.getBlockZ() - 10.5);
-            job.courier = courier(from);
             job.stage = Stage.WAGON;
             wagonReady = now + cfg().getLong("town.heists.wagon-cooldown-minutes", 180) * 60_000L;
-            crewSay("<white><bold>The job is on.</bold> <gray>The treasury courier is leaving the bank for the police station with 3 officers. Stop it before it gets there!");
+            crewSay("<white><bold>The job is on.</bold> <gray>Get into position near the bank: the treasury courier sets off for the police station, with 3 officers, as soon as one of you is within 60 blocks. Stop it before it gets there!");
         }
         save();
     }
@@ -520,7 +517,19 @@ public final class Heists implements Listener {
 
     private void wagon(List<Player> crew) {
         Walker c = job.courier;
-        if (c == null || !c.valid()) {
+        if (c == null) {
+            // Wait until the crew is close enough that the bank's chunks are loaded.
+            Location v = t.bank().vault();
+            Location from = new Location(v.getWorld(), v.getBlockX() + 0.5, v.getBlockY() - 1, v.getBlockZ() - 10.5);
+            boolean close = false;
+            for (Player p : crew) if (p.getWorld() == from.getWorld() && p.getLocation().distance(from) < 60) close = true;
+            job.bar.name(SmpPlugin.mm("<light_purple>Get within 60 blocks of the bank: the wagon leaves when you're in position"));
+            if (!close || !from.getWorld().isChunkLoaded(from.getBlockX() >> 4, from.getBlockZ() >> 4)) return;
+            job.courier = courier(from);
+            crewSay("<white>The wagon is moving! <gray>The courier is heading for the police station.");
+            return;
+        }
+        if (!c.valid()) {
             end("<red>The wagon vanished. Job's off.", false);
             return;
         }

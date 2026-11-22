@@ -138,6 +138,44 @@ more than 50 blocks from the fountain sends them back to jail with 50% extra tim
 **Stolen goods** (pickpocketed trinkets, bank gold) are evidence: an officer who searches you and finds them takes them
 and makes you wanted for theft. Only the Fence buys them.
 
+**The Golden Rat** (underground casino). `/mrtown casino build <x> <hallFloorY> <z>` digs it out at least 10 blocks under
+the surface: a ruined shack hides a ladder down to the hall, and an emergency tunnel comes up in some bushes 36 blocks
+south. Inside: 9 slot machines ($50 and $250; three of a kind pays 5x to 250x, a pair gives your stake back, about 96%
+return), two blackjack tables with dealers (3:2, dealer stands on 17, double down), roulette with a shared spin every
+30 seconds (red/black/odd/even/low/high 1:1, zero 35:1), dice against the house or `/dice <player> <stake>` (5% house cut),
+a bar, NPC gamblers, and the Planner's back room. On Bedwars201 it's at `-350 50 850`, about 390 blocks south.
+Gambling isn't a crime, being there during a **raid** is: every 8-20 minutes while players are inside, the Town Watch
+storms in. Everyone inside gets a wanted star, half the NPC patrons run for the exits and the rest fight the officers,
+who turn on whoever hits them. That's your chance to get out.
+
+![Casino](docs/casino-preview.png)
+
+**Gangs** (`/gang`, gang chat `/gc`). $5,000 to found; leader, officers and members (10, 14 with the Crew perk).
+10% of members' crime income goes into the gang bank automatically; turf pays $25 per chunk every hour while a member is
+online. Perks bought from the bank: Bribes (+15% bribe success), Safecracker (vaults and drills 30% faster), Fence (+20%),
+Lookouts (15s warning before casino raids, stars fade 25% faster), Crew (+4 slots). Claim chunks at least 200 blocks from
+the fountain ($1,000 each, 2 + 2 per gang level), set a hideout there and `/gang hideout` to it (not while wanted).
+Wars ($2,000): fighting and killing rival members isn't a crime, kills are tallied, and a rival who stands in one of your
+chunks for 60 seconds with none of your members in it takes the chunk. `/gang peace` from both sides ends it.
+
+**NPC gangs.** The Crimson Vipers and the Iron Jackals roam the wilds 220-1500 blocks out in groups of 3-4, fight each
+other on sight, and attack players who aren't their friends. Taking one down pays $100, costs 10 standing with that
+gang and gains 5 with their rivals; at 50 you're an ally: they leave you alone and help when someone attacks you. Each
+gang has 25 strength: bring it to zero and it's wiped out for 48 hours, and whoever took down the most collects $5,000.
+
+**Heists** (planned with the Planner, `/heist`, one at a time, crew of 2-4, $1,000 for equipment):
+- *The Deep Vault*: cut the alarm behind the bank (20s at the red sparks without an officer seeing you; skip it and the
+  police come at once, otherwise a minute after you start), drill the vault (120 crew-seconds), then carry 3 loot bags
+  each ($2,500 apiece) to a getaway spot 560-720 blocks out. 6-hour cooldown.
+- *The Armored Wagon*: once a crew member is near the bank, a treasury courier walks to the police station with 3
+  officers. Bring it down (60 HP) for 2 bags each ($2,000 apiece). 3-hour cooldown.
+Everyone involved goes to 5 stars (Bureau case). Loot bags slow you down; arrested, they're evidence; leftover bags sell
+to the Fence for half.
+
+**Prison breaks.** Bolt cutters ($1,500 from the Planner or the Fence) on a cell's barred window from outside the station:
+20 seconds next to the wall, the alarm goes off at once (3 stars and a Bureau case) and the police come. Then the wall
+under the window opens for 40 seconds; prisoners in that cell who get 8 blocks out have escaped (3 stars too).
+
 **The bank.** `/mrtown bank build <x> <floorY> <z>` generates the Moddedrealms Bank (quartz portico, teller counter
 with Banker Ellis, iron vault door, gold room, path to the plaza's south gate), saved first and reversible with
 `/mrtown bank undo`. Right-clicking the vault starts a robbery (needs 2 players online): a server-wide alarm, every
@@ -156,7 +194,8 @@ what would be replaced. To use your own building instead: stand in each cell and
 Player commands: `/rep`, `/wanted`, `/bounties`, `/bounty`, `/tip`, `/bail`, `/service`, `/surrender`, `/bribe`,
 `/police [join|duty|radar|cuff|quit]`. Admin (`mrsmp.admin`): `/mrtown status | toggle | clear | spawn <role> [stars] |
 wanted <player> <stars> | pardon | release | arrest | rep <player> [set|add n] | case <player> [close|ambush] |
-service <player> | jail ... | bank ...`.
+service <player> | jail ... | bank ... | casino ... | raid | npcgang <vipers|jackals> | heists`.
+More player commands: `/gang`, `/gc`, `/heist`, `/dice`.
 Staff who build or test near spawn can be given `mrsmp.lawless` so the police ignore them.
 
 How the NPCs walk: each one is an invisible, silent skeleton with its AI removed (it only pathfinds where told) carrying
