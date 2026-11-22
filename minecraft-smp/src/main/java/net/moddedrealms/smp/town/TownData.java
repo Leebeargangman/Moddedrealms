@@ -65,6 +65,10 @@ public final class TownData {
     /** Standing with each NPC gang (50+ = ally). Saved. */
     public final Map<String, Integer> npcGangRep = new HashMap<>();
     public long breakoutUntil;
+    // railway tickets (saved)
+    public int rides;
+    public long dayPassUntil;
+    public boolean firstTicketBought;
     public long lastGangHome;
     public int pickpocketsThisHour;
     public long pickpocketHour;
@@ -95,13 +99,16 @@ public final class TownData {
         d.caseReason = s.getString("case.reason", "");
         d.serviceLeft = s.getInt("service.left");
         d.serviceFallback = s.getInt("service.fallback");
+        d.rides = s.getInt("rail.rides");
+        d.dayPassUntil = s.getLong("rail.day-pass-until");
+        d.firstTicketBought = s.getBoolean("rail.first-ticket");
         var ng = s.getConfigurationSection("npc-gangs");
         if (ng != null) for (String k : ng.getKeys(false)) d.npcGangRep.put(k, ng.getInt(k));
         return d;
     }
 
     boolean worthSaving() {
-        return !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
+        return rides > 0 || firstTicketBought || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
     }
 
     void save(ConfigurationSection s) {
@@ -125,6 +132,9 @@ public final class TownData {
             s.set("case.reason", caseReason);
         }
         for (var e : npcGangRep.entrySet()) s.set("npc-gangs." + e.getKey(), e.getValue());
+        if (rides > 0) s.set("rail.rides", rides);
+        if (dayPassUntil > System.currentTimeMillis()) s.set("rail.day-pass-until", dayPassUntil);
+        if (firstTicketBought) s.set("rail.first-ticket", true);
         if (serviceLeft > 0) {
             s.set("service.left", serviceLeft);
             s.set("service.fallback", serviceFallback);

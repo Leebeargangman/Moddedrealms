@@ -104,6 +104,7 @@ public final class TownManager implements Listener {
     private PrisonBreak prisonBreak;
     private Plots plots;
     private Meadowbrook meadowbrook;
+    private Railway railway;
     private boolean warnedPeaceful;
     private boolean dirty;
     private int tick;
@@ -153,6 +154,7 @@ public final class TownManager implements Listener {
         prisonBreak = new PrisonBreak(this);
         plots = new Plots(this);
         meadowbrook = new Meadowbrook(this);
+        railway = new Railway(this);
     }
 
     public void loadSettings() {
@@ -188,6 +190,7 @@ public final class TownManager implements Listener {
         pm.registerEvents(heists, plugin);
         pm.registerEvents(prisonBreak, plugin);
         pm.registerEvents(plots, plugin);
+        pm.registerEvents(railway, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         Bukkit.getScheduler().runTaskTimer(plugin, this::onTick, 20L, 1L);
@@ -209,6 +212,7 @@ public final class TownManager implements Listener {
         prisonBreak.shutdown();
         gangs.save();
         plots.save();
+        railway.shutdown();
         save();
     }
 
@@ -237,6 +241,7 @@ public final class TownManager implements Listener {
     public PrisonBreak prisonBreak() { return prisonBreak; }
     public Plots plots() { return plots; }
     public Meadowbrook meadowbrook() { return meadowbrook; }
+    public Railway railway() { return railway; }
     public Collection<Walker> walkers() { return walkers; }
 
     public TownData data(Player p) {
@@ -433,6 +438,7 @@ public final class TownManager implements Listener {
             }
             w.sync();
         }
+        railway.tick();
         if (!enabled) return;
         if (tick % 10 == 0) officers.think();
         if (tick % 10 == 5) townsfolk.think();

@@ -110,6 +110,10 @@ public final class TownCommand implements TabExecutor {
                 if (sender instanceof Player p) t.heists().command(p, args);
                 return true;
             }
+            case "ticket" -> {
+                if (sender instanceof Player p) t.railway().ticketOffice(p);
+                return true;
+            }
             case "herald" -> {
                 say(sender, "<white>The Meadowbrook Herald <gray>is setting up its presses. The first edition is coming soon.");
                 return true;
@@ -249,6 +253,17 @@ public final class TownCommand implements TabExecutor {
                 case "jail" -> jail(s, a);
                 case "bank" -> bank(s, a);
                 case "casino" -> casino(s, a);
+                case "railway" -> {
+                    String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "status";
+                    if (what.equals("undo")) return say(s, "<green>" + t.railway().undo());
+                    if ((what.equals("check") || what.equals("build")) && a.length >= 5) {
+                        World w = a.length >= 6 ? Bukkit.getWorld(a[5]) : s instanceof Player p ? p.getWorld() : t.world();
+                        if (w == null) throw new IOException("World not found.");
+                        int x = Integer.parseInt(a[2]), sz = Integer.parseInt(a[3]), nz = Integer.parseInt(a[4]);
+                        return say(s, what.equals("check") ? "<gold>" + t.railway().check(w, x, sz, nz) : "<green>" + t.railway().build(w, x, sz, nz));
+                    }
+                    say(s, "<gold>" + t.railway().status() + " <gray>/mrtown railway check|build <x> <southZ> <northZ> · undo");
+                }
                 case "meadowbrook" -> {
                     String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
                     if (what.equals("undo")) return say(s, "<green>" + t.meadowbrook().undo());
@@ -420,7 +435,7 @@ public final class TownCommand implements TabExecutor {
             return out;
         }
         if (args.length == 1) {
-            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "casino", "meadowbrook", "raid",
+            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "casino", "meadowbrook", "railway", "raid",
                     "npcgang", "heists", "case", "service", "reload")) {
                 if (x.startsWith(args[0].toLowerCase())) out.add(x);
             }

@@ -353,6 +353,17 @@ town:
     industry-bare-price: 20000
     industry-bare-rent: 500
 
+  # ---- The Meadowbrook Line (/mrtown railway build <x> <southZ> <northZ>).
+  railway:
+    single: 200
+    return: 350
+    day-pass: 600
+    first-discount: 0.6          # first ticket ever bought
+    board-seconds: 45
+    speed: 1.0                   # blocks per tick at full speed
+    max-cars: 10
+    npc-passengers: 3
+
   names:
     townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
     officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]

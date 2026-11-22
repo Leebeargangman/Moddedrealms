@@ -73,6 +73,10 @@ commands:
     aliases: [plots]
     usage: /plot <info|buy|rent|leave|trust|untrust|list|mine>
     permission: mrsmp.quests
+  ticket:
+    description: Train tickets for the Meadowbrook Line.
+    aliases: [tickets, train]
+    permission: mrsmp.quests
   herald:
     description: The Meadowbrook Herald.
     aliases: [news, newspaper]
