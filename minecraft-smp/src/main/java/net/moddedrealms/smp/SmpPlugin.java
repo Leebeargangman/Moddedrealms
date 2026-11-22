@@ -60,7 +60,7 @@ public final class SmpPlugin extends JavaPlugin {
         getCommand("mrnpc").setTabCompleter(n);
 
         var tc = new TownCommand(town);
-        for (String c : new String[]{"mrtown", "rep", "bail", "surrender", "deputy", "wanted"}) {
+        for (String c : new String[]{"mrtown", "rep", "bail", "surrender", "police", "wanted", "tip", "bounty", "bounties", "bribe", "service"}) {
             getCommand(c).setExecutor(tc);
             getCommand(c).setTabCompleter(tc);
         }

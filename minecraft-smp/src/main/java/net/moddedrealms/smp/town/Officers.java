@@ -26,7 +26,7 @@ import org.bukkit.util.Vector;
  * anyone visibly carrying explosives is searched; fleeing pickpockets are chased.
  */
 public final class Officers {
-    static final int PATROL = 0, PURSUE = 1, SEARCH = 2, CHASE_THIEF = 3;
+    static final int PATROL = 0, PURSUE = 1, SEARCH = 2, CHASE_THIEF = 3, FIGHT = 4;
 
     private final TownManager t;
     private final Random r = new Random();
@@ -82,6 +82,7 @@ public final class Officers {
         Walker o = Walker.spawn(t.key, at, Walker.Role.OFFICER, "<blue>Officer " + sur, "<gray>Town Watch",
                 cfg().getDouble("town.officer-speed", 0.25), cfg().getDouble("town.officer-health", 30), gear);
         o.nextWander = System.currentTimeMillis() + 1000;
+        o.corrupt = r.nextDouble() < cfg().getDouble("town.bribe.chance", 0.3);
         return t.register(o);
     }
 
@@ -102,6 +103,7 @@ public final class Officers {
                 case PURSUE -> pursue(o, now);
                 case SEARCH -> search(o, now);
                 case CHASE_THIEF -> chaseThief(o, now);
+                case FIGHT -> fight(o, now);
                 default -> patrol(o, now);
             }
         }
@@ -202,7 +204,8 @@ public final class Officers {
                 return;
             }
             PlayerInventory inv = p.getInventory();
-            boolean visible = bad.contains(inv.getItemInMainHand().getType()) || bad.contains(inv.getItemInOffHand().getType());
+            boolean visible = bad.contains(inv.getItemInMainHand().getType()) || bad.contains(inv.getItemInOffHand().getType())
+                    || stolen(inv.getItemInMainHand()) || stolen(inv.getItemInOffHand());
             if (visible && dist < 16 && now - d.lastSearch > 60_000 && o.sees(p)) {
                 d.lastSearch = now;
                 o.say(p, "Hold it right there! What's that you're carrying?");
@@ -228,6 +231,15 @@ public final class Officers {
             if (th.mode == Townsfolk.ESCAPE && th.valid() && o.dist(th.loc()) < 22) {
                 o.mode = CHASE_THIEF;
                 o.target = th.legs.getUniqueId();
+                o.modeSince = now;
+                return;
+            }
+        }
+        if (now - o.lastAttack > 1500) {
+            org.bukkit.entity.Entity foe = foeNear(o);
+            if (foe != null) {
+                o.mode = FIGHT;
+                o.foe = foe.getUniqueId();
                 o.modeSince = now;
                 return;
             }
@@ -279,16 +291,26 @@ public final class Officers {
         o.lookAt(p.getEyeLocation());
         Set<Material> bad = contraband();
         PlayerInventory inv = p.getInventory();
-        int found = 0;
+        int found = 0, hot = 0;
         for (int i = 0; i < inv.getSize(); i++) {
             ItemStack it = inv.getItem(i);
-            if (it != null && bad.contains(it.getType())) {
+            if (it == null) continue;
+            if (bad.contains(it.getType())) {
                 found += it.getAmount();
+                inv.setItem(i, null);
+            } else if (stolen(it)) {
+                hot += it.getAmount();
                 inv.setItem(i, null);
             }
         }
         backToPatrol(o);
         o.nextWander = now + 3000;
+        if (hot > 0) {
+            o.say(p, "And what's this? " + hot + " stolen item" + (hot == 1 ? "" : "s") + "! These are evidence now, and you're under arrest.");
+            t.commit(p, Crime.THEFT, p.getLocation(), "stolen" + now, null, true);
+            t.markDirty();
+            if (found == 0) return;
+        }
         if (found == 0) {
             o.say(p, "You're clean. Move along, and have a good day.");
             return;
@@ -324,6 +346,128 @@ public final class Officers {
         o.moveTo(th.legs, 1.6);
     }
 
+    private boolean stolen(ItemStack it) {
+        return it != null && it.hasItemMeta() && it.getItemMeta().getPersistentDataContainer().has(t.stolenKey, org.bukkit.persistence.PersistentDataType.INTEGER);
+    }
+
+    /** A hostile mob or bandit this officer can see nearby (MythicDepths bosses are left to the players). */
+    private org.bukkit.entity.Entity foeNear(Walker o) {
+        org.bukkit.entity.Entity best = null;
+        double bd = cfg().getDouble("town.officer-mob-range", 14);
+        for (Walker b : t.walkers(Walker.Role.BANDIT)) {
+            double d = o.dist(b.loc());
+            if (d < bd + 6 && b.valid() && o.legs.hasLineOfSight(b.body)) {
+                bd = d;
+                best = b.legs;
+            }
+        }
+        if (best != null) return best;
+        if (!cfg().getBoolean("town.officers-fight-mobs", true)) return null;
+        for (org.bukkit.entity.Entity e : o.legs.getNearbyEntities(bd, 6, bd)) {
+            if (!(e instanceof org.bukkit.entity.Enemy) || !(e instanceof org.bukkit.entity.LivingEntity le) || le.isDead() || t.isOurs(e)) continue;
+            if (e.getPersistentDataContainer().getKeys().stream().anyMatch(k -> k.getNamespace().equals("mythicdepths"))) continue;
+            double d = o.dist(e.getLocation());
+            if (d < bd && o.legs.hasLineOfSight(e)) {
+                bd = d;
+                best = e;
+            }
+        }
+        return best;
+    }
+
+    private void fight(Walker o, long now) {
+        org.bukkit.entity.Entity e = o.foe == null ? null : Bukkit.getEntity(o.foe);
+        Walker bandit = t.walker(e);
+        if (e == null || !e.isValid() || e.getWorld() != o.world() || now - o.modeSince > 30_000 || o.dist(e.getLocation()) > 32
+                || bandit == null && e instanceof org.bukkit.entity.LivingEntity le && le.isDead()) {
+            backToPatrol(o);
+            return;
+        }
+        arm(o, true);
+        double dist = o.dist(e.getLocation());
+        if (dist > 2.2) o.moveTo(e.getLocation(), 1.35);
+        if (dist < 3.0 && now - o.lastAttack > 800) {
+            o.lastAttack = now;
+            o.lookAt(e.getLocation().add(0, 1.2, 0));
+            o.swing();
+            if (bandit != null) t.bandits().hitByWalker(bandit, o, cfg().getDouble("town.officer-mob-damage", 7));
+            else if (e instanceof org.bukkit.entity.LivingEntity le) le.damage(cfg().getDouble("town.officer-mob-damage", 7), o.body);
+        }
+    }
+
+    /** Send officers to a reported/robbing player: spawn some nearby and radio the rest. */
+    public void dispatch(Player p, int n) {
+        World w = p.getWorld();
+        if (!t.canSpawnWalkers(w)) return;
+        int max = cfg().getInt("town.max-officers", 24);
+        for (int i = 0; i < n && t.walkers(Walker.Role.OFFICER).size() < max; i++) {
+            Location at = t.spawnSpot(p, 10, 20);
+            if (at == null) continue;
+            Walker o = spawn(at);
+            if (t.data(p).stars > 0) pursue(o, p);
+        }
+        if (t.data(p).stars > 0) radio(p, null);
+    }
+
+    public void dispatch(Player p) {
+        dispatch(p, 2);
+    }
+
+    /** Officers go after a reported bandit. */
+    public void hunt(Walker bandit) {
+        World w = bandit.world();
+        if (!t.canSpawnWalkers(w)) return;
+        for (int i = 0; i < 2; i++) {
+            Location b = bandit.loc();
+            double a = r.nextDouble() * Math.PI * 2;
+            Location at = t.surface(w, (int) Math.floor(b.getX() + Math.cos(a) * 14), (int) Math.floor(b.getZ() + Math.sin(a) * 14), b.getY(), 6);
+            if (at == null) continue;
+            Walker o = spawn(at);
+            o.mode = FIGHT;
+            o.foe = bandit.legs.getUniqueId();
+            o.modeSince = System.currentTimeMillis();
+        }
+    }
+
+    /** /bribe: 30% of officers take the money and forget everything; the rest add a charge. */
+    public void bribe(Player p) {
+        TownData d = t.data(p);
+        if (d.stars <= 0) {
+            p.sendMessage(SmpPlugin.mm("<gray>Nobody is after you. Keep your money."));
+            return;
+        }
+        Walker o = nearest(p.getLocation(), 6);
+        if (o == null) {
+            p.sendMessage(SmpPlugin.mm("<gray>You'd have to be standing next to an officer."));
+            return;
+        }
+        if (o.bribeTried.contains(p.getUniqueId())) {
+            o.say(p, "You already tried that with me.");
+            return;
+        }
+        double cost = d.stars * cfg().getDouble("town.bribe.per-star", 300);
+        if (t.money.balance(p) < cost) {
+            p.sendMessage(SmpPlugin.mm("<gray>A bribe for " + TownManager.stars(d.stars) + " <gray>would take " + Money.fmt(cost) + ". You don't have it."));
+            return;
+        }
+        o.bribeTried.add(p.getUniqueId());
+        o.stop();
+        o.lookAt(p.getEyeLocation());
+        if (o.corrupt) {
+            t.money.take(p, cost);
+            t.clearWanted(d);
+            forget(p);
+            o.say(p, "<gray>*pockets the " + Money.fmt(cost) + "*</gray> I didn't see a thing. Now get lost.");
+            if (d.caseOpen) p.sendMessage(SmpPlugin.mm("<dark_gray>(The Bureau doesn't take bribes. Your case is still open.)"));
+        } else {
+            o.say(p, "Are you trying to bribe an officer of the law?! That's another charge.");
+            t.commit(p, Crime.BRIBERY, p.getLocation(), "bribe" + o.legs.getUniqueId(), null, true);
+            d.hostile = true;
+            d.orderedAt = 0;
+            pursue(o, p);
+        }
+    }
+
     // ------------------------------------------------------------------ called by the town
 
     /** The officer who saw `p` do something at `where`, if any. */
@@ -348,7 +492,7 @@ public final class Officers {
     void radio(Player p, Walker caller) {
         for (Walker o : t.walkers(Walker.Role.OFFICER)) {
             if (o.mode == PURSUE && p.getUniqueId().equals(o.target)) continue;
-            if (o.mode == CHASE_THIEF) continue;
+            if (o.mode == CHASE_THIEF || o.mode == FIGHT && o.dist(p.getLocation()) > 24) continue;
             if (o == caller || o.dist(p.getLocation()) <= 64) pursue(o, p);
         }
     }
@@ -411,8 +555,8 @@ public final class Officers {
             };
             o.say(p, lines[r.nextInt(lines.length)]);
         }
-        if ((tier == TownManager.Tier.RESPECTED || tier == TownManager.Tier.HERO) && !d.deputy) {
-            o.say(p, "We could use a deputy like you. <yellow>/deputy");
+        if ((tier == TownManager.Tier.RESPECTED || tier == TownManager.Tier.HERO) && !d.cop) {
+            o.say(p, "We could use someone like you in the Watch. Sign up at the station. <yellow>/police");
         }
     }
 }

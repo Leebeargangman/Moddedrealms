@@ -49,26 +49,29 @@ public final class Crimes implements Listener {
         return t.plugin().getConfig().getLong("town.self-defence-seconds", 10) * 1000L;
     }
 
-    /** Officers (and deputies) never kill: the hit that would is an arrest instead. */
+    /**
+     * Officers and agents never kill: the hit that would is an arrest instead. The same goes for anyone who brings
+     * down a wanted player (a citizen's arrest): they claim the bounty.
+     */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onLethal(EntityDamageByEntityEvent e) {
         if (!(e.getEntity() instanceof Player victim)) return;
         if (e.getFinalDamage() < victim.getHealth()) return;
         Walker w = t.walker(e.getDamager());
-        if (w != null && w.role == Walker.Role.OFFICER) {
+        if (w != null && (w.role == Walker.Role.OFFICER || w.role == Walker.Role.AGENT)) {
             e.setCancelled(true);
-            t.arrest(victim, w, true);
+            t.arrest(victim, w, true, null);
             return;
         }
         Player a = attacker(e.getDamager());
-        if (a == null || a == victim) return;
-        TownData vd = t.data(victim);
-        if (vd.stars > 0 && t.data(a).deputy && t.inPoliceZone(victim.getLocation())) {
-            e.setCancelled(true);
-            vd.damagedBy.put(a.getUniqueId(), System.currentTimeMillis());
-            a.sendMessage(SmpPlugin.mm("<blue>[Deputy] <green>You brought down " + victim.getName() + "!"));
-            t.arrest(victim, null, true);
-        }
+        if (a == null || a == victim || !t.plugin().getConfig().getBoolean("town.bounty.citizens-arrest", true)) return;
+        TownData vd = t.data(victim), ad = t.data(a);
+        if (vd.stars <= 0 || ad.stars > 0 || t.exempt(a) || !t.bureau().inReach(victim)) return;
+        e.setCancelled(true);
+        vd.damagedBy.put(a.getUniqueId(), System.currentTimeMillis());
+        a.sendMessage(SmpPlugin.mm("<gold>⚑ Citizen's arrest! <gray>You brought down " + victim.getName() + "."));
+        victim.sendMessage(SmpPlugin.mm("<red>" + a.getName() + " made a citizen's arrest!"));
+        t.arrest(victim, null, true, a);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -178,6 +181,11 @@ public final class Crimes implements Listener {
         if (e.getHand() != EquipmentSlot.HAND || !(e.getRightClicked() instanceof Player v)) return;
         Player p = e.getPlayer();
         if (!p.isSneaking() || !p.getInventory().getItemInMainHand().getType().isAir()) return;
+        if (t.police().onDuty(p) && t.data(v).stars > 0) {
+            e.setCancelled(true);
+            t.police().cuff(p, v);
+            return;
+        }
         var c = t.plugin().getConfig();
         if (!c.getBoolean("town.rob-players", true) || !t.money.ready()) return;
         if (t.exempt(p) || t.exempt(v) || !t.inPoliceZone(p.getLocation())) return;

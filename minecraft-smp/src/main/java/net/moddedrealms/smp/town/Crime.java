@@ -3,6 +3,8 @@ package net.moddedrealms.smp.town;
 /** What the police care about: wanted stars when seen, reputation lost either way. Overridable in config.yml. */
 public enum Crime {
     CONTRABAND("carrying explosives", 0, 2),
+    THEFT("carrying stolen goods", 1, 5),
+    BRIBERY("attempted bribery", 1, 10),
     ASSAULT_NPC("assaulting a townsperson", 1, 10),
     PICKPOCKET("pickpocketing", 1, 8),
     RESISTING("resisting arrest", 1, 10),
@@ -14,6 +16,7 @@ public enum Crime {
     ASSAULT_OFFICER("assaulting an officer", 2, 25),
     MANSLAUGHTER("killing a townsperson", 3, 40),
     MURDER("murder", 4, 50),
+    BANK_ROBBERY("robbing the bank", 4, 60),
     COP_KILLING("killing an officer", 5, 80);
 
     public final String label;

@@ -32,7 +32,7 @@ import org.bukkit.util.Vector;
  * Skeletons rather than zombies because villagers don't panic around them.
  */
 public final class Walker {
-    public enum Role { OFFICER, MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE }
+    public enum Role { OFFICER, MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE, BANDIT, AGENT }
 
     public final Role role;
     public final Skeleton legs;
@@ -62,6 +62,18 @@ public final class Walker {
     // thieves
     public UUID robbed;
     public double loot;
+    // officers, agents and bandits
+    /** A mob or walker this one is fighting. */
+    public UUID foe;
+    public boolean corrupt;
+    public final java.util.Set<UUID> bribeTried = new java.util.HashSet<>();
+    public int stars;
+    public double bounty;
+    public UUID tipper;
+    public long tippedAt;
+    /** Who hurt this bandit, and how much (the one who brings it down claims the bounty). */
+    public final Map<UUID, Double> damagers = new HashMap<>();
+    public final Map<UUID, Double> stolenFrom = new HashMap<>();
     // merchants
     public List<String> offers = List.of();
 

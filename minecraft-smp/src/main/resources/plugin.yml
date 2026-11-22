@@ -36,8 +36,26 @@ commands:
   surrender:
     description: Give yourself up to a nearby officer.
     permission: mrsmp.quests
-  deputy:
-    description: Join or leave the Town Watch as a deputy.
+  police:
+    description: Join the Town Watch, go on duty, radar, cuff.
+    aliases: [deputy, cop]
+    usage: /police <join|duty|radar|cuff|quit>
+    permission: mrsmp.quests
+  tip:
+    description: Tip off the police about a wanted player (or a bandit) you can see.
+    permission: mrsmp.quests
+  bounty:
+    description: Add your money to a wanted player's bounty.
+    permission: mrsmp.quests
+  bounties:
+    description: Every bounty in town.
+    aliases: [bountyboard]
+    permission: mrsmp.quests
+  bribe:
+    description: Try to bribe the officer arresting you.
+    permission: mrsmp.quests
+  service:
+    description: Swap your jail time for community service.
     permission: mrsmp.quests
   wanted:
     description: Who the police are after.

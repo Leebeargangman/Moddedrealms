@@ -192,10 +192,86 @@ town:
     - "Heroes get the best prices from merchants. Do some quests, earn some respect!"
     - "The watch pays deputies for every outlaw they bring in. You have to be well respected first."
     - "The jail's just south-east of the fountain. I hope you never see the inside."
+    - "Bandits out past the edge of town, I hear. There's good money on their heads, though."
+    - "Seen someone with a bounty? /tip the watch, or bring them in yourself and keep the lot."
+    - "Cross the watch badly enough and the Bureau takes over. They say you're only safe 2000 blocks out."
+    - "They say a third of the watch can be bought. The other two thirds take it very personally."
+    - "Nobody's robbed the bank in a while... not that I'm suggesting anything."
+
+  # ---- Bounties: the town pays per wanted star; players can add more with /bounty.
+  bounty:
+    per-star: 250
+    tip-share: 0.5            # /tip that leads to an arrest within 10 minutes pays this share
+    announce-from-stars: 2
+    min-player-bounty: 100
+    citizens-arrest: true     # the blow that would kill a wanted player arrests them instead (within the Bureau's reach)
+
+  # ---- Players in the Town Watch (/police join at the station, Respected or better)
+  police:
+    pay-per-star: 75          # per arrest, x1.25 per rank: Cadet, Officer (5 arrests), Sergeant (15), Captain (30), Chief (50)
+    reputation-per-arrest: 10
+    salary: 50                # every salary-minutes on duty inside the police zone, also x rank
+    salary-minutes: 10
+
+  officers-fight-mobs: true
+  officer-mob-range: 14
+  officer-mob-damage: 7
+
+  # ---- Bribes: this share of officers take the money (per star) and forget you. The rest add a charge.
+  bribe:
+    chance: 0.3
+    per-star: 300
+
+  # ---- Bandits roam the wilds between min- and max-distance from the fountain.
+  bandits:
+    enabled: true
+    min-distance: 170
+    max-distance: 1500
+    max: 8
+    chance-day: 0.25          # per player every 30 seconds, when no bandit is near them
+    chance-night: 0.5
+    health: 24                # +6 per star
+    damage: 3                 # +0.5 per star
+    steal-per-hit: 40         # coins (1% of balance, up to this); given back when the bandit is caught
+    bounty-per-star: 200
+
+  # ---- The Bureau opens a case at from-stars and tracks you within reach of the fountain for case-days Minecraft days.
+  bureau:
+    enabled: true
+    from-stars: 3
+    reach: 2000
+    case-days: 3
+    agents: 3                 # per ambush, +1 at 4+ stars
+    ambush-minutes-min: 4
+    ambush-minutes-extra: 4
+    agent-minutes: 4          # agents give up after this long
+    health: 40
+    damage: 5
+    speed: 0.27
+
+  # ---- Community service instead of jail (offered for a minute after an arrest, up to max-stars).
+  service:
+    enabled: true
+    max-stars: 3
+    seconds-per-piece: 12     # one piece of litter per 12 s of sentence (at least 5)
+    radius: 30
+    reputation: 5
+
+  # ---- The bank (/mrtown bank build). One robbery per cooldown.
+  bank:
+    cooldown-minutes: 180
+    min-players-online: 2
+    crack-seconds: 60         # robber-seconds at the vault (up to 3 robbers work 3x faster)
+    loot-min: 4000
+    loot-max: 9000
+    gold-bars: 2
+    gold-bar-value: 400
 
   names:
     townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
     officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]
+    bandits: [Grim, Scar, Rook, Vex, Jack, Crow, Mags, Snake, Red, Ash, Dutch, Viper, Slim, Patch]
+    agents: [Cole, Hart, Mercer, Lang, Shaw, Black, Price, Reed, Kade, Voss]
 
   # What prisoners may still type.
-  jail-allowed-commands: [bail, rep, wanted, msg, tell, w, r, reply, m, helpop, report, rules, list, mail, surrender]
+  jail-allowed-commands: [bail, service, rep, wanted, bounties, msg, tell, w, r, reply, m, helpop, report, rules, list, mail, surrender]

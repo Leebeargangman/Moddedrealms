@@ -64,11 +64,11 @@ warden:
   lines:
     - "Welcome to the Town Watch station. We keep the peace within 500 blocks of the fountain."
     - "Fighting, theft, fires, explosives... if the watch sees it, you do time. If we're after you, crouch next to an officer."
-    - "Respected folk can serve as deputies, and get paid for every outlaw they help bring in."
+    - "Respected folk can join the Watch: a uniform, a radio, and pay for every outlaw they bring in."
   choices:
     - {text: "<gold>[My record]", action: "command:rep"}
-    - {text: "<blue>[Become a deputy]", action: "command:deputy"}
-    - {text: "<red>[Wanted list]", action: "command:wanted"}
+    - {text: "<blue>[Join the Watch]", action: "command:police join"}
+    - {text: "<red>[Bounties]", action: "command:bounties"}
     - {text: "<gray>[Goodbye]", action: close}
 jailguard:
   lines:
@@ -76,4 +76,11 @@ jailguard:
     - "The cells are through the bars. Don't get any ideas."
   choices:
     - {text: "<red>[Who's wanted?]", action: "command:wanted"}
+    - {text: "<gray>[Goodbye]", action: close}
+banker:
+  lines:
+    - "Welcome to the Moddedrealms Bank. Your coin has never been safer."
+    - "That vault door? Finest iron in the land. And the Town Watch is just down the road. Not that anyone would try..."
+  choices:
+    - {text: "<gold>[Bounty board]", action: "command:bounties"}
     - {text: "<gray>[Goodbye]", action: close}

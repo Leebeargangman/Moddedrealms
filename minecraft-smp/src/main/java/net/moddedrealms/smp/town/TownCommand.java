@@ -14,7 +14,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 
-/** /mrtown (admin), and the player commands /rep, /bail, /surrender, /deputy, /wanted. */
+/** /mrtown (admin), and the player commands /rep /bail /surrender /police /wanted /tip /bounty /bounties /bribe /service. */
 public final class TownCommand implements TabExecutor {
     private final TownManager t;
 
@@ -54,22 +54,41 @@ public final class TownCommand implements TabExecutor {
                 if (!t.surrender(p)) say(p, "<gray>There's no officer close enough to give yourself up to.");
                 return true;
             }
-            case "deputy" -> {
+            case "police" -> {
                 if (!(sender instanceof Player p)) return true;
-                TownData d = t.data(p);
-                if (d.deputy) {
-                    d.deputy = false;
-                    t.markDirty();
-                    return say(p, "<gray>You hand back your deputy badge.");
+                String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+                switch (sub) {
+                    case "join" -> t.police().join(p);
+                    case "quit", "resign" -> t.police().quit(p);
+                    case "duty" -> t.police().duty(p);
+                    case "radar" -> t.police().radar(p);
+                    case "cuff" -> {
+                        Player target = args.length > 1 ? Bukkit.getPlayerExact(args[1]) : null;
+                        if (target == null) return say(p, "<yellow>/police cuff <player>  <gray>(or sneak + right-click them)");
+                        if (!t.police().cuff(p, target)) say(p, "<gray>Only officers on duty can cuff people.");
+                    }
+                    default -> t.police().info(p);
                 }
-                int need = t.plugin().getConfig().getInt("town.reputation.respected", 100);
-                if (d.rep < need) return say(p, "<red>The watch only deputises respected townsfolk (reputation " + need + "+, you have " + d.rep + "). <gray>Quests and good deeds raise it.");
-                if (d.stars > 0 || d.jailed()) return say(p, "<red>Not while you're wanted.");
-                d.deputy = true;
-                t.markDirty();
-                say(p, "<blue>[Deputy] <green>You're sworn in! <gray>You'll hear when someone becomes wanted. Hitting a wanted player is never a crime,"
-                        + " the blow that would kill them arrests them instead, and you get paid for every wanted player you help bring in."
-                        + " Break the law and you lose the badge. <white>/deputy</white> again to resign.");
+                return true;
+            }
+            case "tip" -> {
+                if (sender instanceof Player p) t.bounties().tip(p, args.length > 0 ? args[0] : null);
+                return true;
+            }
+            case "bounty" -> {
+                if (sender instanceof Player p) t.bounties().add(p, args.length > 0 ? args[0] : null, args.length > 1 ? args[1] : null);
+                return true;
+            }
+            case "bounties" -> {
+                t.bounties().list(sender);
+                return true;
+            }
+            case "bribe" -> {
+                if (sender instanceof Player p) t.officers().bribe(p);
+                return true;
+            }
+            case "service" -> {
+                if (sender instanceof Player p) t.service().start(p);
                 return true;
             }
             case "wanted" -> {
@@ -92,9 +111,11 @@ public final class TownCommand implements TabExecutor {
         TownData d = t.data(p);
         TownManager.Tier tier = t.tier(d.rep);
         say(to, "<gold><bold>" + p.getName() + "'s standing</bold>");
-        say(to, " <gray>Reputation: " + tier.label + " <gray>(" + d.rep + ")" + (d.deputy ? "  <blue>[Deputy]" : ""));
+        say(to, " <gray>Reputation: " + tier.label + " <gray>(" + d.rep + ")" + (d.cop ? "  <blue>[Town Watch " + t.police().rank(d) + ", " + d.copArrests + " arrests]" : ""));
         if (!t.tierPerk(tier).isEmpty()) say(to, " <dark_gray>" + t.tierPerk(tier));
-        say(to, " <gray>Wanted: " + (d.stars > 0 ? TownManager.stars(d.stars) + " <gray>" + d.reason : "<green>no"));
+        say(to, " <gray>Wanted: " + (d.stars > 0 ? TownManager.stars(d.stars) + " <gray>" + d.reason + " <gold>bounty " + Money.fmt(t.bounties().of(d)) : "<green>no"));
+        if (d.caseOpen) say(to, " <dark_red>The Bureau has an open case on you <gray>(" + d.caseReason + ")");
+        if (d.inService()) say(to, " <gray>Community service: <white>" + d.serviceLeft + "</white> pieces of litter left");
         if (d.jailed()) say(to, " <gray>Jail: <white>" + TownManager.fmtTime(d.jailLeft) + "</white> left");
         say(to, " <gray>Arrests: <white>" + d.arrests);
         return true;
@@ -128,7 +149,12 @@ public final class TownCommand implements TabExecutor {
                 case "spawn" -> {
                     if (!(s instanceof Player p) || a.length < 2) return say(s, "<yellow>/mrtown spawn <officer|merchant|gossip|traveller|thief|fence>");
                     Walker.Role r = Walker.Role.valueOf(a[1].toUpperCase(Locale.ROOT));
-                    Walker w = r == Walker.Role.OFFICER ? t.officers().spawn(p.getLocation()) : t.townsfolk().spawn(p.getLocation(), r);
+                    Walker w = switch (r) {
+                        case OFFICER -> t.officers().spawn(p.getLocation());
+                        case AGENT -> t.bureau().spawn(p.getLocation());
+                        case BANDIT -> t.bandits().spawn(p.getLocation(), a.length > 2 ? Integer.parseInt(a[2]) : 2);
+                        default -> t.townsfolk().spawn(p.getLocation(), r);
+                    };
                     say(s, "<green>Spawned " + w.name + "<green>.");
                 }
                 case "wanted" -> {
@@ -185,9 +211,26 @@ public final class TownCommand implements TabExecutor {
                         else d.rep = Math.max(-1000, Math.min(1000, d.rep + n));
                         t.markDirty();
                     }
-                    say(s, "<gold>" + a[1] + ": reputation " + d.rep + " (" + t.tier(d.rep).label + "<gold>), arrests " + d.arrests + (d.deputy ? ", deputy" : ""));
+                    say(s, "<gold>" + a[1] + ": reputation " + d.rep + " (" + t.tier(d.rep).label + "<gold>), arrests " + d.arrests + (d.cop ? ", police " + t.police().rank(d) : ""));
                 }
                 case "jail" -> jail(s, a);
+                case "bank" -> bank(s, a);
+                case "case" -> {
+                    Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
+                    if (p == null) return say(s, "<yellow>/mrtown case <player> [close|ambush]");
+                    TownData d = t.data(p);
+                    String what = a.length > 2 ? a[2].toLowerCase(Locale.ROOT) : "info";
+                    if (what.equals("close")) t.bureau().close(d, p, "<gray>The Bureau has dropped your case.");
+                    else if (what.equals("ambush")) t.bureau().ambush(p, Bureau.Kind.AMBUSH);
+                    say(s, "<gold>" + p.getName() + ": Bureau case " + (d.caseOpen ? "<red>open (" + d.caseReason + ")" : "<green>closed"));
+                }
+                case "service" -> {
+                    Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
+                    if (p == null) return say(s, "<yellow>/mrtown service <jailed player>  — move them to community service");
+                    t.data(p).serviceOfferUntil = System.currentTimeMillis() + 5000;
+                    t.service().start(p);
+                    say(s, "<green>Done.");
+                }
                 case "reload" -> {
                     t.plugin().reloadEverything();
                     say(s, "<green>Reloaded.");
@@ -195,6 +238,7 @@ public final class TownCommand implements TabExecutor {
                 default -> {
                     say(s, "<gold>/mrtown status | toggle | clear | spawn <role> | wanted <player> <stars> [crime] | pardon <player> | release <player> | arrest <player> | rep <player> [set|add n] | reload");
                     say(s, "<gold>/mrtown jail check <x y z> | build [x y z] | undo | addcell | clearcells | setrelease | info");
+                    say(s, "<gold>/mrtown bank check <x y z> | build [x y z] | undo | setvault | info   /mrtown case <player> [close|ambush]   /mrtown service <player>");
                 }
             }
         } catch (IOException | IllegalArgumentException e) {
@@ -242,19 +286,59 @@ public final class TownCommand implements TabExecutor {
         }
     }
 
+    private void bank(CommandSender s, String[] a) throws IOException {
+        String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
+        Player p = s instanceof Player pl ? pl : null;
+        switch (what) {
+            case "check", "build" -> {
+                World w;
+                int x, y, z;
+                if (a.length >= 5) {
+                    x = Integer.parseInt(a[2]);
+                    y = Integer.parseInt(a[3]);
+                    z = Integer.parseInt(a[4]);
+                    w = a.length >= 6 ? Bukkit.getWorld(a[5]) : p != null ? p.getWorld() : t.world();
+                } else if (p != null) {
+                    w = p.getWorld();
+                    x = p.getLocation().getBlockX();
+                    y = p.getLocation().getBlockY() - 1;
+                    z = p.getLocation().getBlockZ();
+                } else {
+                    say(s, "<yellow>/mrtown bank " + what + " <x> <floorY> <z> [world]");
+                    return;
+                }
+                if (w == null) throw new IOException("World not found.");
+                say(s, what.equals("check") ? "<gold>" + t.bank().check(w, x, y, z) : "<green>" + t.bank().build(w, x, y, z));
+            }
+            case "undo" -> say(s, "<green>" + t.bank().undo());
+            case "setvault" -> {
+                if (p != null) say(s, "<green>" + t.bank().setVault(p));
+            }
+            default -> say(s, "<gold>" + t.bank().info());
+        }
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();
+        String cmd = command.getName().toLowerCase(Locale.ROOT);
+        if ((cmd.equals("tip") || cmd.equals("bounty")) && args.length == 1) return null;
+        if (cmd.equals("police") && args.length == 1) {
+            for (String x : List.of("join", "duty", "radar", "cuff", "quit")) if (x.startsWith(args[0].toLowerCase())) out.add(x);
+            return out;
+        }
         if (!command.getName().equalsIgnoreCase("mrtown") || !sender.hasPermission("mrsmp.admin")) {
             if (args.length == 1 && command.getName().equalsIgnoreCase("rep") && sender.hasPermission("mrsmp.admin")) return null;
             return out;
         }
         if (args.length == 1) {
-            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "reload")) {
+            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "case", "service", "reload")) {
                 if (x.startsWith(args[0].toLowerCase())) out.add(x);
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("jail")) {
             for (String x : List.of("info", "check", "build", "undo", "addcell", "clearcells", "setrelease")) if (x.startsWith(args[1].toLowerCase())) out.add(x);
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("bank")) {
+            for (String x : List.of("info", "check", "build", "undo", "setvault")) if (x.startsWith(args[1].toLowerCase())) out.add(x);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
             for (Walker.Role r : Walker.Role.values()) out.add(r.name().toLowerCase());
         } else if (args.length == 2) {

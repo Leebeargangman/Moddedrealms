@@ -219,10 +219,15 @@ public final class Jail implements Listener {
         for (int i = 0; i < Math.min(6, wanted.size()); i++) {
             Player p = wanted.get(i);
             TownData d = t.data(p);
-            b.append(TownManager.stars(d.stars)).append(" <white>").append(p.getName()).append(" <gray>").append(d.reason).append('\n');
+            b.append(TownManager.stars(d.stars)).append(" <white>").append(p.getName()).append(" <gold>").append(Money.fmt(t.bounties().of(d)))
+                    .append(" <gray>").append(d.reason).append('\n');
         }
         int inside = 0;
         for (Player p : Bukkit.getOnlinePlayers()) if (t.data(p).jailed()) inside++;
+        List<Walker> bandits = t.walkers(Walker.Role.BANDIT);
+        if (!bandits.isEmpty()) {
+            b.append("\n<red>Bandits at large: <white>").append(bandits.size());
+        }
         b.append("\n<blue>In the cells: <white>").append(inside);
         td.text(SmpPlugin.mm(b.toString().trim()));
     }
@@ -710,7 +715,8 @@ public final class Jail implements Listener {
     // ------------------------------------------------------------------ prisoner rules and protection
 
     private boolean prisoner(Player p) {
-        return t.data(p).jailed();
+        TownData d = t.data(p);
+        return d.jailed() || d.inService();
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -719,9 +725,11 @@ public final class Jail implements Listener {
         if (!prisoner(p) || p.hasPermission("mrsmp.admin")) return;
         String cmd = e.getMessage().substring(1).split(" ")[0].toLowerCase();
         if (cmd.contains(":")) cmd = cmd.substring(cmd.indexOf(':') + 1);
+        if (cmd.equals("bail") || cmd.equals("service") || cmd.equals("rep") || cmd.equals("surrender")) return;
         if (t.plugin().getConfig().getStringList("town.jail-allowed-commands").contains(cmd)) return;
         e.setCancelled(true);
-        p.sendMessage(SmpPlugin.mm("<red>You can't do that from a jail cell. <gray>/bail to pay your way out."));
+        p.sendMessage(SmpPlugin.mm(t.data(p).inService() ? "<red>Not during community service. <gray>Finish picking up the litter first."
+                : "<red>You can't do that from a jail cell. <gray>/bail to pay your way out."));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -734,6 +742,10 @@ public final class Jail implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent e) {
         TownData d = t.data(e.getPlayer());
+        if (d.inService() && t.jail().releasePoint() != null) {
+            e.setRespawnLocation(t.jail().releasePoint());
+            return;
+        }
         if (d.jailed() && ready()) {
             if (d.cell < 0 || d.cell >= cells.size()) d.cell = freeCell();
             e.setRespawnLocation(cells.get(d.cell).clone());

@@ -81,6 +81,12 @@ public final class TownManager implements Listener {
     private Townsfolk townsfolk;
     private Jail jail;
     private Crimes crimes;
+    private Bounties bounties;
+    private PoliceForce police;
+    private Bandits bandits;
+    private Bureau bureau;
+    private Service service;
+    private Bank bank;
     private boolean warnedPeaceful;
     private boolean dirty;
     private int tick;
@@ -112,6 +118,12 @@ public final class TownManager implements Listener {
         townsfolk = new Townsfolk(this);
         jail = new Jail(this);
         crimes = new Crimes(this);
+        bounties = new Bounties(this);
+        police = new PoliceForce(this);
+        bandits = new Bandits(this);
+        bureau = new Bureau(this);
+        service = new Service(this);
+        bank = new Bank(this);
     }
 
     public void loadSettings() {
@@ -138,6 +150,8 @@ public final class TownManager implements Listener {
         pm.registerEvents(crimes, plugin);
         pm.registerEvents(jail, plugin);
         pm.registerEvents(townsfolk, plugin);
+        pm.registerEvents(service, plugin);
+        pm.registerEvents(bank, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         Bukkit.getScheduler().runTaskTimer(plugin, this::onTick, 20L, 1L);
@@ -153,6 +167,8 @@ public final class TownManager implements Listener {
         walkers.clear();
         byEntity.clear();
         jail.shutdown();
+        service.shutdown();
+        bank.shutdown();
         save();
     }
 
@@ -162,6 +178,12 @@ public final class TownManager implements Listener {
     public Officers officers() { return officers; }
     public Townsfolk townsfolk() { return townsfolk; }
     public Jail jail() { return jail; }
+    public Bounties bounties() { return bounties; }
+    public PoliceForce police() { return police; }
+    public Bandits bandits() { return bandits; }
+    public Bureau bureau() { return bureau; }
+    public Service service() { return service; }
+    public Bank bank() { return bank; }
     public Collection<Walker> walkers() { return walkers; }
 
     public TownData data(Player p) {
@@ -202,7 +224,8 @@ public final class TownManager implements Listener {
     /** Creative/spectator players, staff with mrsmp.lawless and jailed players are left alone. */
     public boolean exempt(Player p) {
         GameMode g = p.getGameMode();
-        return g == GameMode.CREATIVE || g == GameMode.SPECTATOR || p.hasPermission("mrsmp.lawless") || data(p).jailed() || p.isDead();
+        TownData d = data(p);
+        return g == GameMode.CREATIVE || g == GameMode.SPECTATOR || p.hasPermission("mrsmp.lawless") || d.jailed() || d.inService() || p.isDead();
     }
 
     public boolean canSpawnWalkers(World w) {
@@ -269,6 +292,10 @@ public final class TownManager implements Listener {
         if (tick % 10 == 5) townsfolk.think();
         if (tick % 40 == 0) officers.spawnTick();
         if (tick % 60 == 30) townsfolk.spawnTick();
+        if (tick % 10 == 3) bandits.think();
+        if (tick % 10 == 7) bureau.think();
+        if (tick % 600 == 300) bandits.spawnTick();
+        if (tick % 200 == 100) bureau.tick();
     }
 
     // ------------------------------------------------------------------ every second
@@ -282,6 +309,11 @@ public final class TownManager implements Listener {
                 jail.secondInJail(p, d);
                 continue;
             }
+            if (d.inService()) {
+                service.second(p, d);
+                continue;
+            }
+            police.second(p, d);
             if (d.stars <= 0) continue;
             // An arrest order runs out: still close by = compliant enough, otherwise they ran.
             if (d.orderedAt > 0 && !d.hostile && now - d.orderedAt > 10_000) {
@@ -306,9 +338,11 @@ public final class TownManager implements Listener {
                 }
             }
             String order = d.orderedAt > 0 && !d.hostile ? "  <yellow>Crouch to surrender: " + Math.max(0, 10 - (now - d.orderedAt) / 1000) + "s" : "";
-            p.sendActionBar(SmpPlugin.mm("<red><bold>WANTED</bold> " + stars(d.stars) + " <gray>(" + d.reason + ")" + order));
+            p.sendActionBar(SmpPlugin.mm("<red><bold>WANTED</bold> " + stars(d.stars) + " <gray>(" + d.reason + ") <gold>" + Money.fmt(bounties.of(d))
+                    + (d.caseOpen ? " <dark_red>[Bureau]" : "") + order));
         }
         jail.second();
+        bank.second();
     }
 
     public static String stars(int n) {
@@ -340,10 +374,7 @@ public final class TownManager implements Listener {
         d.recentCrimes.put(k, now);
         d.recentCrimes.values().removeIf(t -> now - t > 120_000);
         addRep(p, -c.rep);
-        if (d.deputy) {
-            d.deputy = false;
-            p.sendMessage(SmpPlugin.mm("<red>Deputies don't break the law. Your badge has been taken."));
-        }
+        police.fire(p, d);
         if (c.stars <= 0) return;
         if (certainWitness) {
             wanted(p, c, null);
@@ -387,14 +418,10 @@ public final class TownManager implements Listener {
                     ? "<gray>The officers will use force. Crouch next to one to give yourself up."
                     : "<gray>Crouch next to an officer to give yourself up, or get away and lie low.")));
             if (before == 0) news(p.getName() + " is wanted for " + c.label + "!");
-            for (Player dep : Bukkit.getOnlinePlayers()) {
-                if (dep != p && data(dep).deputy) {
-                    Location l = p.getLocation();
-                    dep.sendMessage(SmpPlugin.mm("<blue>[Deputy] <white>" + p.getName() + " <gray>is wanted " + stars(d.stars)
-                            + " <gray>for " + c.label + " near " + l.getBlockX() + ", " + l.getBlockZ() + "."));
-                }
-            }
+            police.alert(p, d, c);
+            bounties.posted(p, d, before);
         }
+        bureau.maybeOpen(p, d, c);
         officers.radio(p, sawIt);
     }
 
@@ -420,45 +447,52 @@ public final class TownManager implements Listener {
         p.showTitle(Title.title(SmpPlugin.mm("<blue><bold>POLICE!"), SmpPlugin.mm("<yellow>Crouch to surrender"),
                 Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2000), Duration.ofMillis(300))));
         p.sendMessage(Component.text().append(SmpPlugin.mm("<gray>   Crouch, or click: "))
-                .append(SmpPlugin.mm("<green><bold>[Surrender]").clickEvent(ClickEvent.runCommand("/surrender"))).build());
+                .append(SmpPlugin.mm("<green><bold>[Surrender]").clickEvent(ClickEvent.runCommand("/surrender")))
+                .append(SmpPlugin.mm("  <gold>[Bribe " + Money.fmt(d.stars * plugin.getConfig().getDouble("town.bribe.per-star", 300)) + "]")
+                        .clickEvent(ClickEvent.runCommand("/bribe"))).build());
     }
 
     public boolean surrender(Player p) {
         TownData d = data(p);
         if (d.stars <= 0 || d.jailed()) return false;
         Walker o = officers.nearest(p.getLocation(), 8);
+        if (o == null) o = bureau.nearest(p.getLocation(), 8);
         if (o == null) return false;
         o.say(p, "Smart choice. Hands where I can see them.");
-        arrest(p, o, false);
+        arrest(p, o, false, null);
         return true;
     }
 
     /** Wanted player is caught: fine, jail time, wanted cleared. busted = beaten down instead of giving up. */
     public void arrest(Player p, Walker by, boolean busted) {
+        arrest(p, by, busted, null);
+    }
+
+    /**
+     * @param arrester a player who made the arrest (citizen's arrest or player police): they get the bounty
+     */
+    public void arrest(Player p, Walker by, boolean busted, Player arrester) {
         TownData d = data(p);
-        if (d.jailed()) return;
+        if (d.jailed() || d.inService()) return;
         var c = plugin.getConfig();
+        boolean bureauArrest = by != null && by.role == Walker.Role.AGENT || d.caseOpen && d.stars <= 0;
         int stars = Math.max(1, d.stars);
         int max = c.getInt("town.arrest.max-seconds", 300);
-        int secs = Math.min(max, stars * c.getInt("town.arrest.seconds-per-star", 60) + (busted ? c.getInt("town.arrest.busted-extra-seconds", 60) : 0));
+        int secs = bureauArrest ? max
+                : Math.min(max, stars * c.getInt("town.arrest.seconds-per-star", 60) + (busted ? c.getInt("town.arrest.busted-extra-seconds", 60) : 0));
         double fine = money.take(p, stars * c.getDouble("town.arrest.fine-per-star", 100));
-        String reason = d.reason.isEmpty() ? "breaking the law" : d.reason;
+        String reason = d.reason.isEmpty() ? (d.caseOpen ? d.caseReason : "breaking the law") : d.reason;
+        if (reason.isEmpty()) reason = "breaking the law";
         d.offences++;
         d.arrests++;
-        long now = System.currentTimeMillis();
-        for (var e : d.damagedBy.entrySet()) {
-            if (now - e.getValue() > 30_000) continue;
-            Player dep = Bukkit.getPlayer(e.getKey());
-            if (dep == null || dep == p || !data(dep).deputy) continue;
-            double reward = stars * c.getDouble("town.deputy.reward-per-star", 75);
-            money.give(dep, reward);
-            addRep(dep, c.getInt("town.deputy.reputation", 10));
-            dep.sendMessage(SmpPlugin.mm("<blue>[Deputy] <green>You helped bring in " + p.getName() + ". <yellow>+" + Money.fmt(reward)));
-        }
+        bounties.payout(p, d, d.stars, arrester);
+        police.credit(p, d, stars, arrester);
         d.damagedBy.clear();
         clearWanted(d);
         officers.forget(p);
-        news("The watch hauled " + p.getName() + " off to jail for " + reason + ".");
+        bureau.close(d, p, d.caseOpen ? "<gray>The Bureau has closed your case." : null);
+        String by2 = arrester != null ? arrester.getName() : bureauArrest ? "Bureau agents" : "The watch";
+        news(by2 + " hauled " + p.getName() + " off to jail for " + reason + ".");
         if (Bukkit.getPluginManager().isPluginEnabled("ModdedrealmsGuard") && c.getBoolean("town.bodycam", true)) {
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "replay save " + p.getName() + " 60 Town Watch bodycam: arrest for " + reason);
         }
@@ -482,10 +516,12 @@ public final class TownManager implements Listener {
         dirty = true;
         p.sendMessage(SmpPlugin.mm("<gray>Sentence: <white>" + fmtTime(secs) + "</white> in jail (served while online)"
                 + (fine > 0 ? ", fine <white>" + Money.fmt(fine) + "</white>" : "") + "."));
+        final int arrestedStars = stars;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (p.isOnline() && data(p).jailed()) {
                 jail.toCell(p, data(p));
                 jail.bailHint(p, data(p));
+                service.offer(p, data(p), arrestedStars);
             }
         }, 40L);
     }
@@ -549,7 +585,7 @@ public final class TownManager implements Listener {
     public String tierPerk(Tier t) {
         return switch (t) {
             case HERO -> "Merchants give you their best prices and the watch salutes you.";
-            case RESPECTED -> "Merchants give you a discount, and you can become a deputy with /deputy.";
+            case RESPECTED -> "Merchants give you a discount, and you can join the Town Watch at the police station (/police).";
             case CITIZEN -> "";
             case ROGUE -> "Merchants charge you more... but a shady figure might want to meet you at night.";
             case OUTLAW -> "Townsfolk avoid you and merchants won't trade. The Fence is your friend now.";
@@ -611,8 +647,12 @@ public final class TownManager implements Listener {
         Player p = attacker(by.getDamager());
         if (p == null || p.getGameMode() == GameMode.SPECTATOR) return;
         if (data(p).jailed()) return;
-        if (w.role == Walker.Role.OFFICER) officers.hit(w, p, by.getDamage());
-        else townsfolk.hit(w, p, by.getDamage());
+        switch (w.role) {
+            case OFFICER -> officers.hit(w, p, by.getDamage());
+            case AGENT -> bureau.hit(w, p, by.getDamage());
+            case BANDIT -> bandits.hit(w, p, by.getDamage());
+            default -> townsfolk.hit(w, p, by.getDamage());
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -626,8 +666,12 @@ public final class TownManager implements Listener {
         Long last = w.talked.get(p.getUniqueId());
         if (last != null && now - last < 700) return;
         w.talked.put(p.getUniqueId(), now);
-        if (w.role == Walker.Role.OFFICER) officers.clicked(w, p);
-        else townsfolk.clicked(w, p);
+        switch (w.role) {
+            case OFFICER -> officers.clicked(w, p);
+            case AGENT -> bureau.clicked(w, p);
+            case BANDIT -> w.say(p, "Back off, unless you want trouble.");
+            default -> townsfolk.clicked(w, p);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -692,11 +736,12 @@ public final class TownManager implements Listener {
         if (!e.isSneaking()) return;
         Player p = e.getPlayer();
         TownData d = data(p);
-        if (d.stars <= 0 || d.jailed()) return;
-        Walker o = officers.nearest(p.getLocation(), 5);
+        if (d.stars <= 0 && !d.caseOpen || d.jailed()) return;
+        Walker o = d.stars > 0 ? officers.nearest(p.getLocation(), 5) : null;
+        if (o == null && d.caseOpen) o = bureau.nearest(p.getLocation(), 5);
         if (o == null) return;
         o.say(p, "That's it, nice and easy.");
-        arrest(p, o, false);
+        arrest(p, o, false, null);
     }
 
     // ------------------------------------------------------------------ hooks from the rest of the plugin
