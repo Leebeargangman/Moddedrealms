@@ -24,6 +24,12 @@ export function inWindow(date = new Date()) {
   return s.days.includes(day) && minutes >= toMin(s.start) && minutes < toMin(s.end);
 }
 
+/** Today's window as a key, e.g. "2026-11-21 16:00" (UK date): used to skip the rest of today's window. */
+export function windowKey(date = new Date()) {
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: schedule().timezone }).format(date);
+  return `${day} ${schedule().start}`;
+}
+
 export const windowText = () => { const s = schedule(); return `${s.start}-${s.end}`; };
 
 /** When the next window starts (a Date), looking ahead minute by minute up to 8 days (cheap enough). */

@@ -151,7 +151,16 @@
                       <div class="civ-checks">
                         <label data-civ-only="civilisations"><input type="checkbox" name="war"> The civilisations are at war</label>
                         <label data-civ-only="village"><input type="checkbox" name="imposters"> Two secret imposters</label>
+                        <label><input type="checkbox" name="permadeath"> Permadeath (a villager who dies never returns; off = respawn and lose only items)</label>
                       </div>
+                      <label class="civ-mode">Smarter leader
+                        <select class="input" name="smartLeader">
+                          <option value="off">Off (every villager uses the normal model)</option>
+                          <option value="elders">Elder planner: a bigger model plans for each civilisation every 15 min</option>
+                          <option value="leader">Smarter leader: each civilisation's elected leader thinks with a bigger model</option>
+                          <option value="both">Both</option>
+                        </select>
+                      </label>
                       <p class="muted small" data-civ-mode-help></p>
                       <label class="civ-instructions">Custom instructions for every villager
                         <textarea class="input" name="instructions" rows="3" maxlength="1500" placeholder="e.g. Build a castle on the hill. Red and Blue compete to have the biggest town; whoever loses a war must pay tribute."></textarea>

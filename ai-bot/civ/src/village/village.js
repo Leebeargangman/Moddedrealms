@@ -33,7 +33,12 @@ if (c) village.pos = new Vec3(c.x, c.y, c.z);
 
 /** Tell every living villager something (each bot decides itself whether to react). */
 export function announce(text, wake = "news") {
-  for (const b of village.bots.values()) if (b.ready && roster.isAlive(b.def.name)) b.brain.notify(text, wake);
+  // Plain news (deaths, arrivals, remains found) is remembered by everyone but doesn't wake them: it used to
+  // cost 20 AI calls per death. Elections and other "society" events still wake them, since they need a reply.
+  for (const b of village.bots.values()) {
+    if (!b.ready || !roster.isAlive(b.def.name)) continue;
+    if (wake === "news") b.brain.note(text, wake); else b.brain.notify(text, wake);
+  }
 }
 function tell(name, text, wake) {
   const b = village.bots.get(name);
@@ -92,7 +97,10 @@ export function areEnemies(a, b) {
 }
 /** Tell only the living villagers of one civilisation. */
 export function announceTo(f, text, wake = "news") {
-  for (const b of village.bots.values()) if (b.ready && roster.isAlive(b.def.name) && roster.factionOf(b.def.name) === f) b.brain.notify(text, wake);
+  for (const b of village.bots.values()) {
+    if (!b.ready || !roster.isAlive(b.def.name) || roster.factionOf(b.def.name) !== f) continue;
+    if (wake === "news") b.brain.note(text, wake); else b.brain.notify(text, wake);
+  }
 }
 
 const aliveOnline = () => [...village.bots.values()].filter((b) => b.ready && roster.isAlive(b.def.name));
@@ -176,6 +184,13 @@ export function onDeath(civbot, pos, causeHint) {
     tell(warKiller, `You killed ${name} of ${roster.factionOf(name)}.`, "task");
   }
   const civ = roster.factionOf(name);
+  if (!settings.get().permadeath) {
+    // Normal Minecraft deaths (website setting): they respawn as themselves and lose only their items.
+    worldlog.write("death", `${name} died (${causeHint || "unknown cause"}) and respawned.`, { day: village.day, isPublic: false });
+    board.release(name);
+    tell(name, `I died${causeHint ? ` (${causeHint})` : ""} and respawned. My things are where I died, at ${Math.round(pos.x)},${Math.round(pos.z)}: go and pick them up soon.`, "death");
+    return;
+  }
   roster.markGone(name, "dead", causeHint || "died", village.day);
   if (factions.isFree() && civ && !roster.alive().some((v) => v.faction === civ)) {
     factions.close(civ);
