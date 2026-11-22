@@ -65,6 +65,11 @@ public final class TownData {
     /** Standing with each NPC gang (50+ = ally). Saved. */
     public final Map<String, Integer> npcGangRep = new HashMap<>();
     public long breakoutUntil;
+    // bank loan (saved)
+    public double loanOwed, loanInstalment;
+    public long loanNextDue;
+    public int loanMissed, loanDefaults;
+    public boolean loanDefaulted;
     // railway tickets (saved)
     public int rides;
     public long dayPassUntil;
@@ -99,6 +104,12 @@ public final class TownData {
         d.caseReason = s.getString("case.reason", "");
         d.serviceLeft = s.getInt("service.left");
         d.serviceFallback = s.getInt("service.fallback");
+        d.loanOwed = s.getDouble("loan.owed");
+        d.loanInstalment = s.getDouble("loan.instalment");
+        d.loanNextDue = s.getLong("loan.next-due");
+        d.loanMissed = s.getInt("loan.missed");
+        d.loanDefaults = s.getInt("loan.defaults");
+        d.loanDefaulted = s.getBoolean("loan.defaulted");
         d.rides = s.getInt("rail.rides");
         d.dayPassUntil = s.getLong("rail.day-pass-until");
         d.firstTicketBought = s.getBoolean("rail.first-ticket");
@@ -108,7 +119,7 @@ public final class TownData {
     }
 
     boolean worthSaving() {
-        return rides > 0 || firstTicketBought || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
+        return loanOwed > 0 || loanDefaults > 0 || rides > 0 || firstTicketBought || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
     }
 
     void save(ConfigurationSection s) {
@@ -133,6 +144,14 @@ public final class TownData {
         }
         for (var e : npcGangRep.entrySet()) s.set("npc-gangs." + e.getKey(), e.getValue());
         if (rides > 0) s.set("rail.rides", rides);
+        if (loanOwed > 0 || loanDefaults > 0) {
+            s.set("loan.owed", loanOwed);
+            s.set("loan.instalment", loanInstalment);
+            s.set("loan.next-due", loanNextDue);
+            s.set("loan.missed", loanMissed);
+            s.set("loan.defaults", loanDefaults);
+            s.set("loan.defaulted", loanDefaulted);
+        }
         if (dayPassUntil > System.currentTimeMillis()) s.set("rail.day-pass-until", dayPassUntil);
         if (firstTicketBought) s.set("rail.first-ticket", true);
         if (serviceLeft > 0) {

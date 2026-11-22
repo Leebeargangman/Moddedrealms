@@ -105,6 +105,8 @@ public final class TownManager implements Listener {
     private Plots plots;
     private Meadowbrook meadowbrook;
     private Railway railway;
+    private Businesses businesses;
+    private Loans loans;
     private boolean warnedPeaceful;
     private boolean dirty;
     private int tick;
@@ -155,6 +157,8 @@ public final class TownManager implements Listener {
         plots = new Plots(this);
         meadowbrook = new Meadowbrook(this);
         railway = new Railway(this);
+        businesses = new Businesses(this);
+        loans = new Loans(this);
     }
 
     public void loadSettings() {
@@ -191,6 +195,8 @@ public final class TownManager implements Listener {
         pm.registerEvents(prisonBreak, plugin);
         pm.registerEvents(plots, plugin);
         pm.registerEvents(railway, plugin);
+        pm.registerEvents(businesses, plugin);
+        pm.registerEvents(businesses.work, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         Bukkit.getScheduler().runTaskTimer(plugin, this::onTick, 20L, 1L);
@@ -213,6 +219,7 @@ public final class TownManager implements Listener {
         gangs.save();
         plots.save();
         railway.shutdown();
+        businesses.save();
         save();
     }
 
@@ -242,6 +249,17 @@ public final class TownManager implements Listener {
     public Plots plots() { return plots; }
     public Meadowbrook meadowbrook() { return meadowbrook; }
     public Railway railway() { return railway; }
+    public Businesses businesses() { return businesses; }
+    public Loans loans() { return loans; }
+
+    /** Extra demand from the town's residents (filled in when NPC families arrive). */
+    public double residentsDemand() {
+        return 0;
+    }
+
+    public java.util.Set<UUID> knownPlayers() {
+        return new java.util.HashSet<>(data.keySet());
+    }
     public Collection<Walker> walkers() { return walkers; }
 
     public TownData data(Player p) {
@@ -505,6 +523,8 @@ public final class TownManager implements Listener {
         heists.second();
         prisonBreak.second();
         plots.second();
+        businesses.second();
+        loans.second();
         if (tick % 100 == 0) meadowbrook.tickClock();
     }
 
@@ -638,7 +658,8 @@ public final class TownManager implements Listener {
         TownData d = data(p);
         if (d.jailed() || d.inService()) return;
         var c = plugin.getConfig();
-        boolean bureauArrest = by != null && by.role == Walker.Role.AGENT || d.caseOpen && d.stars <= 0;
+        boolean defaulted = loans.seize(p, d);
+        boolean bureauArrest = defaulted || by != null && by.role == Walker.Role.AGENT || d.caseOpen && d.stars <= 0;
         int stars = Math.max(1, d.stars);
         int max = c.getInt("town.arrest.max-seconds", 300);
         int secs = bureauArrest ? max
@@ -832,6 +853,7 @@ public final class TownManager implements Listener {
             case PATRON -> casino.patronAttacked(w, p, by.getDamage());
             case GANGSTER -> npcGangs.hit(w, p, by.getDamage());
             case COURIER -> heists.courierHit(w, p, by.getDamage());
+            case WORKER, CUSTOMER -> townsfolk.hit(w, p, by.getDamage());
             default -> townsfolk.hit(w, p, by.getDamage());
         }
     }
@@ -854,6 +876,14 @@ public final class TownManager implements Listener {
             case PATRON -> casino.patronClicked(w, p);
             case GANGSTER -> w.say(p, npcGangs.ally(p, w.gang) ? "Good to see you, friend." : "Keep walking.");
             case COURIER -> w.say(p, "Official business. Stand aside.");
+            case WORKER -> {
+                Businesses.Biz b = businesses.get(w.gang);
+                w.say(p, b == null ? "Busy, busy!" : "Can't stop, I'm on shift at " + b.name + ". They're hiring, you know: /jobs");
+            }
+            case CUSTOMER -> {
+                Businesses.Biz b = businesses.get(w.gang);
+                w.say(p, b == null ? "Just browsing." : "Off to " + b.name + " for some " + b.kind.output.label.toLowerCase() + ". Best in town, they say.");
+            }
             default -> townsfolk.clicked(w, p);
         }
     }
@@ -893,6 +923,9 @@ public final class TownManager implements Listener {
 
     private void joined(Player p) {
         TownData d = data(p);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline()) loans.joined(p);
+        }, 40L);
         if (d.jailed()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!p.isOnline()) return;

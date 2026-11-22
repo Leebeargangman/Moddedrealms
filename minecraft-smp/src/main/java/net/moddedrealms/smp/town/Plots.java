@@ -308,6 +308,7 @@ public final class Plots implements Listener, TabExecutor {
         p.paidUntil = 0;
         p.trusted.clear();
         p.business = null;
+        t.businesses().plotReleased(p);
         refreshSign(p);
         save();
     }

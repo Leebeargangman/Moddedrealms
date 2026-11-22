@@ -66,6 +66,10 @@ public final class SmpPlugin extends JavaPlugin {
             getCommand(c).setTabCompleter(tc);
         }
 
+        for (String c : new String[]{"business", "jobs", "job"}) {
+            getCommand(c).setExecutor(town.businesses());
+            getCommand(c).setTabCompleter(town.businesses());
+        }
         getCommand("plot").setExecutor(town.plots());
         getCommand("plot").setTabCompleter(town.plots());
         for (String c : new String[]{"gang", "gc"}) {

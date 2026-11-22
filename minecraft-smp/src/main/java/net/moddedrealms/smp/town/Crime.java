@@ -20,6 +20,7 @@ public enum Crime {
     BANK_ROBBERY("robbing the bank", 4, 60),
     HEIST("armed heist", 5, 100),
     PRISON_BREAK("breaking someone out of jail", 3, 40),
+    LOAN_DEFAULT("defaulting on a bank loan", 2, 30),
     ESCAPE("escaping from jail", 3, 30),
     COP_KILLING("killing an officer", 5, 80);
 

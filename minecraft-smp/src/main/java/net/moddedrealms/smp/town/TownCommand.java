@@ -119,7 +119,7 @@ public final class TownCommand implements TabExecutor {
                 return true;
             }
             case "loan" -> {
-                say(sender, "<gold>Meadowbrook Savings & Loans <gray>opens for loans soon. Banker Oakes is still counting the vault.");
+                if (sender instanceof Player p) t.loans().command(p, args);
                 return true;
             }
             case "wanted" -> {
@@ -253,6 +253,22 @@ public final class TownCommand implements TabExecutor {
                 case "jail" -> jail(s, a);
                 case "bank" -> bank(s, a);
                 case "casino" -> casino(s, a);
+                case "econ" -> {
+                    t.businesses().cycle();
+                    say(s, "<green>Ran an economy cycle.");
+                }
+                case "sabotage" -> {
+                    Businesses.Biz b = a.length > 1 ? t.businesses().get(a[1]) : null;
+                    if (b == null) return say(s, "<yellow>/mrtown sabotage <business id>  <gray>(ids are in businesses.yml)");
+                    t.businesses().sabotage(b, null);
+                    say(s, "<green>Sabotaged " + b.name + ".");
+                }
+                case "loandue" -> {
+                    Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
+                    if (p == null) return say(s, "<yellow>/mrtown loandue <player>  <gray>(makes their next loan payment due now)");
+                    t.data(p).loanNextDue = System.currentTimeMillis() - 1;
+                    say(s, "<green>Next payment is due now (checked within a minute).");
+                }
                 case "railway" -> {
                     String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "status";
                     if (what.equals("undo")) return say(s, "<green>" + t.railway().undo());

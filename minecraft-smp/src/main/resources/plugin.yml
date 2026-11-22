@@ -73,6 +73,18 @@ commands:
     aliases: [plots]
     usage: /plot <info|buy|rent|leave|trust|untrust|list|mine>
     permission: mrsmp.quests
+  business:
+    description: Start and run a business.
+    aliases: [biz]
+    usage: /business <start|market|list|deposit|withdraw|hire|fire|accept>
+    permission: mrsmp.quests
+  jobs:
+    description: Who is hiring.
+    permission: mrsmp.quests
+  job:
+    description: Your job - apply, accept, clockin, clockout, quit.
+    usage: /job <apply|accept|clockin|clockout|quit>
+    permission: mrsmp.quests
   ticket:
     description: Train tickets for the Meadowbrook Line.
     aliases: [tickets, train]

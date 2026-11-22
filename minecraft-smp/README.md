@@ -216,6 +216,46 @@ gate). Like the plaza, the area is saved first and `/mrtown jail undo` puts it b
 what would be replaced. To use your own building instead: stand in each cell and `/mrtown jail addcell`, then
 `/mrtown jail setrelease` outside. Without cells, arrests only fine.
 
+**Businesses** (`/business`, alias `/biz`). Stand on a business or industry plot you own and
+`/business start <type> <name>`: farm, wool mill, lumber mill, bakery, tavern, tailor, furniture workshop, restaurant,
+general store, hotel, or a speakeasy (illegal). Every 5 minutes the economy runs a cycle:
+
+1. The police check every player business. A fugitive owner (3★ or a Bureau case) gets it closed; a speakeasy can be
+   raided (stock seized, 20% of its cash fined, closed for an hour); a bakery, restaurant or hotel with a rating under 1
+   can fail a health inspection.
+2. Each business makes its product from inputs it buys from the cheapest open supplier, or imports at double price
+   when nobody has stock. The chain: farms → bakeries, taverns, restaurants; wool mill → tailors and furniture; lumber →
+   furniture and stores; bread, cloth and beds → restaurants, stores and the hotel. A hotel needs beds, so it depends
+   on the furniture workshop, which depends on the wool mill.
+3. Townspeople buy bread, ale, meals, household goods, hotel stays and moonshine. Each seller's share depends on rating,
+   price against the fair price, and stock. More players online means more demand.
+4. Staff wages, upkeep, insurance and a 5% tax to the town treasury are paid, and the owner gets a report.
+
+The town runs its own businesses on the same rules (Copper Kettle, General Store, Bramble Bakery, Wool Mill, Brookside
+Lumber, Meadowbrook Farms, Grand Meadow Hotel, Rusty Tankard, Thistle & Thread, Oakheart Furniture). A player who
+sells more than 40% of a good for 6 cycles in a row draws a **rival company**, which undercuts them. Big businesses and
+markets with rivals get **sabotaged** more often: broken equipment, rumours, stolen stock or a fire. Security cuts the
+odds, and insurance pays 80% of the loss. `/business` opens the panel (prices, upgrades, NPC staff, jobs and wage,
+security, insurance); `/business market` shows every seller's price, stock and rating; `/business deposit|withdraw`
+moves cash.
+
+**Jobs** (`/jobs`, `/job`). Town and player businesses hire. `/jobs` lists who's hiring, `/job apply <business id>`: town
+businesses take you on the spot; a player owner gets your application and `/business accept`s it (or offers you a job
+first with `/business hire <player>`, which you take with `/job accept`). At work,
+`/job clockin`: every 6-14 seconds a task pops up. Either right-click the glowing job block (a loom, smoker, barrel,
+composter... the owner has to put some inside), or run a delivery to a supplier or customer business within 5 minutes
+for triple pay. Each task pays the wage from the business's cash and raises its output for the next cycle.
+`/job clockout`, `/job quit`. NPC workers walk around inside busy businesses, and NPC customers walk to the shops.
+
+**Loans** (`/loan`). Banker Oakes in Meadowbrook, or the Old Town banker. The limit starts at $10,000 and grows with your
+reputation and the businesses you own, up to $500,000, at 15% interest repaid over 7 days. Instalments come out of your
+balance once a day. A missed one adds a 5% penalty; two in a row is a default: you're wanted (★★), and when you're
+caught you serve the maximum sentence while the bank seizes your balance and your businesses' cash. Defaults also cut
+your future limit.
+
+Admin: `/mrtown econ` runs a cycle now, `/mrtown sabotage <business id>` hits one, `/mrtown loandue <player>` makes a
+payment due. Settings are under `town.business` and `town.loans` in the config.
+
 Player commands: `/rep`, `/wanted`, `/bounties`, `/bounty`, `/tip`, `/bail`, `/service`, `/surrender`, `/bribe`,
 `/police [join|duty|radar|cuff|quit]`. Admin (`mrsmp.admin`): `/mrtown status | toggle | clear | spawn <role> [stars] |
 wanted <player> <stars> | pardon | release | arrest | rep <player> [set|add n] | case <player> [close|ambush] |

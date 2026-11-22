@@ -364,6 +364,29 @@ town:
     max-cars: 10
     npc-passengers: 3
 
+  # ---- Businesses (/business) and jobs (/jobs). The economy runs a cycle every cycle-seconds.
+  business:
+    cycle-seconds: 300
+    demand: 1.0                  # multiplies how much townspeople buy (more players online = more demand too)
+    tax: 0.05                    # of revenue, to the town treasury
+    npc-wage: 15                 # per NPC staff per cycle (each adds 25% output)
+    town-wage: 25                # per task for jobs at town businesses
+    upkeep-per-level: 25
+    raid-chance: 0.06            # per cycle, illegal businesses
+    dominance-share: 0.4         # a player business above this share of a market...
+    rival-after-cycles: 6        # ...for this many cycles attracts a rival company
+    delivery-seconds: 300
+    max-staff-walkers: 16
+    max-customers: 8
+
+  # ---- Bank loans (/loan, from Banker Oakes or the Old Town banker).
+  loans:
+    base-limit: 10000
+    per-reputation: 100          # extra limit per reputation point
+    max: 500000
+    interest: 0.15
+    days: 7                      # repaid in daily instalments
+
   names:
     townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
     officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]

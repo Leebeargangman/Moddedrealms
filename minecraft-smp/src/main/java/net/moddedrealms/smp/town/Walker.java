@@ -32,7 +32,7 @@ import org.bukkit.util.Vector;
  * Skeletons rather than zombies because villagers don't panic around them.
  */
 public final class Walker {
-    public enum Role { OFFICER, MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE, BANDIT, AGENT, PATRON, GANGSTER, COURIER }
+    public enum Role { OFFICER, MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE, BANDIT, AGENT, PATRON, GANGSTER, COURIER, WORKER, CUSTOMER }
 
     public final Role role;
     public final Skeleton legs;
