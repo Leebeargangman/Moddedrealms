@@ -138,6 +138,31 @@ more than 50 blocks from the fountain sends them back to jail with 50% extra tim
 **Stolen goods** (pickpocketed trinkets, bank gold) are evidence: an officer who searches you and finds them takes them
 and makes you wanted for theft. Only the Fence buys them.
 
+**Meadowbrook** (`/mrtown meadowbrook build <x> <floorY> <z>`), the market city on the northern island
+(centre `-428 72 -662` on Bedwars201, about 1,110 blocks from spawn). The site is levelled and saved first (undo
+restores it). A 129-block square town inside a stone wall with four gates: a clock-tower square with market stalls
+and a land agent; a business district (15 plots: 3 town-run shops, built shops and bare plots); a residential quarter
+(16 houses: family homes plus homes for sale); industry (wheat fields, the Wool Mill with its sheep, Brookside Lumber,
+workshops); and the civic quarter (courthouse with judge's bench, jury box and gallery, the Herald, Savings & Loans,
+the sheriff's office with 3 cells, the Grand Meadow Hotel, the town hall and a park). Meadowbrook is a town of its own:
+its own police zone (200 blocks), townsfolk, and jail (arrests there go to its cells).
+
+![Meadowbrook](docs/meadowbrook-preview.png)
+
+**Plots** (`/plot`): stand on one and `/plot buy` or `/plot rent` (rent is taken daily; miss a day and there's one
+day of grace, then the plot goes back on the market). Owners can build on their plot and `/plot trust` friends;
+everything else in a generated town is protected, containers included. `/plot list`, `/plot mine`, `/plot leave`
+(bought plots sell back for half). Prices and rents are in `town.plots`; rent and sales go to the town treasury.
+
+**The Meadowbrook Line** (`/mrtown railway build <x> <southZ> <northZ>`): a straight railway (x `-428`, z `430` to
+`-594`) on a viaduct over land, through a tunnel and over a 490-block sea bridge, from Old Town Station (north-west of
+the plaza, with stairs and a path to the plaza's north gate) to Meadowbrook Station at the south gate. One train
+shuttles on a timetable (45 s boarding, about a minute's ride at 20 blocks/s); cars only exist while players are
+around. Tickets from the station clerks (`/ticket`): single $200, return $350, day pass $600, and 60% off the first
+ticket anyone buys. No getting off mid-sea; NPC passengers fill spare seats. Wanted players (3+ stars) can't buy one.
+
+![Station](docs/station-preview.png)
+
 **The Golden Rat** (underground casino). `/mrtown casino build <x> <hallFloorY> <z>` digs it out at least 10 blocks under
 the surface: a ruined shack hides a ladder down to the hall, and an emergency tunnel comes up in some bushes 36 blocks
 south. Inside: 9 slot machines ($50 and $250; three of a kind pays 5x to 250x, a pair gives your stake back, about 96%
@@ -195,7 +220,8 @@ Player commands: `/rep`, `/wanted`, `/bounties`, `/bounty`, `/tip`, `/bail`, `/s
 `/police [join|duty|radar|cuff|quit]`. Admin (`mrsmp.admin`): `/mrtown status | toggle | clear | spawn <role> [stars] |
 wanted <player> <stars> | pardon | release | arrest | rep <player> [set|add n] | case <player> [close|ambush] |
 service <player> | jail ... | bank ... | casino ... | raid | npcgang <vipers|jackals> | heists`.
-More player commands: `/gang`, `/gc`, `/heist`, `/dice`.
+More player commands: `/gang`, `/gc`, `/heist`, `/dice`, `/plot`, `/ticket`.
+Admin: `/mrtown meadowbrook check|build|undo`, `/mrtown railway check|build|undo` (undo the railway before Meadowbrook).
 Staff who build or test near spawn can be given `mrsmp.lawless` so the police ignore them.
 
 How the NPCs walk: each one is an invisible, silent skeleton with its AI removed (it only pathfinds where told) carrying
