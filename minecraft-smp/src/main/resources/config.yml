@@ -333,6 +333,26 @@ town:
     seconds: 20
     open-seconds: 40
 
+  # ---- Meadowbrook (/mrtown meadowbrook build) and its plots.
+  meadowbrook:
+    police-radius: 200
+    town-radius: 85
+  plots:
+    max-per-player: 3
+    sell-back: 0.5
+    business-built-price: 60000
+    business-built-rent: 1500
+    business-bare-price: 25000
+    business-bare-rent: 600
+    home-built-price: 35000
+    home-built-rent: 800
+    home-bare-price: 15000
+    home-bare-rent: 300
+    industry-built-price: 50000
+    industry-built-rent: 1200
+    industry-bare-price: 20000
+    industry-bare-rent: 500
+
   names:
     townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
     officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]

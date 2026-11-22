@@ -53,7 +53,7 @@ public final class Bandits {
             if (total >= max) return;
             if (t.exempt(p)) continue;
             double d = fromCentre(p.getLocation());
-            if (d < min || d > far || r.nextDouble() > chance) continue;
+            if (d < min || d > far || r.nextDouble() > chance || t.nearOtherTown(p.getLocation(), 80)) continue;
             boolean near = false;
             for (Walker b : t.walkers(Walker.Role.BANDIT)) if (b.dist(p.getLocation()) < 80) near = true;
             if (near) continue;

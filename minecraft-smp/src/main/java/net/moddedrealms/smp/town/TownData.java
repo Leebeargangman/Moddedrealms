@@ -16,6 +16,8 @@ public final class TownData {
     /** Seconds still to serve (only counts down while online). */
     public int jailLeft;
     public int cell = -1;
+    /** Which town's jail they're in ("spawn" or another town's id). */
+    public String jailTown = "spawn";
     public int offences;
     public int arrests;
     public boolean warnedContraband;
@@ -80,6 +82,7 @@ public final class TownData {
         d.reason = s.getString("reason", "");
         d.jailLeft = s.getInt("jail-left");
         d.cell = s.getInt("cell", -1);
+        d.jailTown = s.getString("jail-town", "spawn");
         d.offences = s.getInt("offences");
         d.arrests = s.getInt("arrests");
         d.cop = s.getBoolean("police", s.getBoolean("deputy"));
@@ -108,6 +111,7 @@ public final class TownData {
         s.set("reason", reason.isEmpty() ? null : reason);
         s.set("jail-left", jailLeft > 0 ? jailLeft : null);
         s.set("cell", jailLeft > 0 ? cell : null);
+        s.set("jail-town", jailLeft > 0 && !"spawn".equals(jailTown) ? jailTown : null);
         s.set("offences", offences);
         s.set("arrests", arrests);
         s.set("police", cop ? true : null);

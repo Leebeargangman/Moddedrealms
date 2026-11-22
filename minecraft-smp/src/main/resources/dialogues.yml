@@ -95,3 +95,40 @@ banker:
   choices:
     - {text: "<gold>[Bounty board]", action: "command:bounties"}
     - {text: "<gray>[Goodbye]", action: close}
+mb_crier:
+  lines:
+    - "Hear ye! Welcome to Meadowbrook, the market city of the north!"
+    - "Plots for sale and rent at the Land Agent, just south of the clock tower. Build a shop, a home, a factory!"
+    - "The train from the old town arrives at the south gate. The Herald, the courthouse and the bank are west of the square."
+mb_shop1:
+  lines:
+    - "Welcome to the Copper Kettle! Best stew north of the sea."
+    - "Business is good... but I hear new restaurants are opening on every street. Competition, eh?"
+mb_shop2:
+  lines:
+    - "General Store! A bit of everything. Well, it will be once the wagons start running."
+mb_shop3:
+  lines:
+    - "Fresh bread every morning! The wheat comes from the fields north of the square."
+mb_millowner:
+  lines:
+    - "The Wool Mill keeps the whole town in blankets, carpets and beds. The hotel buys more than anyone."
+    - "If someone opens a mill of their own, I'll have to cut my prices. That's business."
+mb_lumber:
+  lines:
+    - "Every house, shop and table in Meadowbrook starts here. Planks, beams, you name it."
+mb_judge:
+  lines:
+    - "Order. This is the Meadowbrook Courthouse. Soon anyone arrested may appeal, and be heard by this court."
+    - "The evidence will speak for itself. So will you, if you're wise."
+mb_sheriff:
+  lines:
+    - "Meadowbrook's my town. Same laws as the old town, my own cells."
+    - "Keep the peace, and we'll get along."
+mb_hotel:
+  lines:
+    - "Welcome to the Grand Meadow Hotel! Our beds are the finest wool in the north."
+mb_mayor:
+  lines:
+    - "Welcome, welcome! Meadowbrook grows by the day. Rent a plot, start a business, raise a family!"
+    - "There'll be elections one day, mark my words."

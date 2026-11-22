@@ -192,10 +192,12 @@ public final class Service implements Listener {
             d.serviceFallback = 0;
             clear(p.getUniqueId());
             p.sendMessage(SmpPlugin.mm("<red>You walked off your community service! Back to jail, with extra time."));
-            if (t.jail().ready()) {
+            Jail j = t.jailOf(d).ready() ? t.jailOf(d) : t.jail();
+            if (j.ready()) {
                 d.jailLeft = secs;
-                d.cell = t.jail().freeCell();
-                t.jail().toCell(p, d);
+                d.jailTown = j.id;
+                d.cell = j.freeCell();
+                j.toCell(p, d);
             }
             t.markDirty();
             return;

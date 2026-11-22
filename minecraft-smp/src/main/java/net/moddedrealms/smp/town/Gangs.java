@@ -443,6 +443,7 @@ public final class Gangs implements Listener, TabExecutor {
                 if (l.getWorld().getName().equals(t.worldName) && Math.sqrt(dx * dx + dz * dz) < cfg().getDouble("town.gangs.no-claim-radius", 200)) {
                     return say(p, "<red>Too close to spawn: turf must be at least " + (int) cfg().getDouble("town.gangs.no-claim-radius", 200) + " blocks from the fountain.");
                 }
+                if (t.nearOtherTown(l, 40)) return say(p, "<red>Too close to a town. Turf has to be out in the wilds.");
                 if (owner(l) != null) return say(p, "<red>This chunk belongs to " + owner(l).label() + "<red>. Take it in a war.");
                 if (g.chunks.size() >= maxChunks(g)) return say(p, "<red>Level " + level(g) + " gangs can hold " + maxChunks(g) + " chunks.");
                 double cost = cfg().getDouble("town.gangs.claim-cost", 1000);

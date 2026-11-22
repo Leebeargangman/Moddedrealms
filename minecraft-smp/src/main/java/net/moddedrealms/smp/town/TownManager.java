@@ -80,6 +80,15 @@ public final class TownManager implements Listener {
     private Officers officers;
     private Townsfolk townsfolk;
     private Jail jail;
+    private final Map<String, Jail> jails = new java.util.LinkedHashMap<>();
+    /** Every town with its own police zone: "spawn" (from config.yml) plus generated towns (towns.yml). */
+    public record Zone(String id, String name, String world, double x, double z, double police, double town) {
+        public double dist(Location l) {
+            double dx = l.getX() - x, dz = l.getZ() - z;
+            return Math.sqrt(dx * dx + dz * dz);
+        }
+    }
+    private final List<Zone> zones = new ArrayList<>();
     private Crimes crimes;
     private Bounties bounties;
     private PoliceForce police;
@@ -93,6 +102,8 @@ public final class TownManager implements Listener {
     private NpcGangs npcGangs;
     private Heists heists;
     private PrisonBreak prisonBreak;
+    private Plots plots;
+    private Meadowbrook meadowbrook;
     private boolean warnedPeaceful;
     private boolean dirty;
     private int tick;
@@ -110,6 +121,8 @@ public final class TownManager implements Listener {
         this.dataFile = new File(plugin.getDataFolder(), "town-data.yml");
         loadSettings();
         YamlConfiguration y = YamlConfiguration.loadConfiguration(dataFile);
+        ConfigurationSection tr = y.getConfigurationSection("treasury");
+        if (tr != null) for (String k : tr.getKeys(false)) treasury.put(k, tr.getDouble(k));
         ConfigurationSection ps = y.getConfigurationSection("players");
         if (ps != null) {
             for (String k : ps.getKeys(false)) {
@@ -123,6 +136,8 @@ public final class TownManager implements Listener {
         officers = new Officers(this);
         townsfolk = new Townsfolk(this);
         jail = new Jail(this);
+        jails.put("spawn", jail);
+        loadZones();
         crimes = new Crimes(this);
         bounties = new Bounties(this);
         police = new PoliceForce(this);
@@ -136,6 +151,8 @@ public final class TownManager implements Listener {
         npcGangs = new NpcGangs(this);
         heists = new Heists(this);
         prisonBreak = new PrisonBreak(this);
+        plots = new Plots(this);
+        meadowbrook = new Meadowbrook(this);
     }
 
     public void loadSettings() {
@@ -160,7 +177,7 @@ public final class TownManager implements Listener {
         var pm = Bukkit.getPluginManager();
         pm.registerEvents(this, plugin);
         pm.registerEvents(crimes, plugin);
-        pm.registerEvents(jail, plugin);
+        for (Jail j : jails.values()) pm.registerEvents(j, plugin);
         pm.registerEvents(townsfolk, plugin);
         pm.registerEvents(service, plugin);
         pm.registerEvents(bank, plugin);
@@ -170,6 +187,7 @@ public final class TownManager implements Listener {
         pm.registerEvents(npcGangs, plugin);
         pm.registerEvents(heists, plugin);
         pm.registerEvents(prisonBreak, plugin);
+        pm.registerEvents(plots, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         Bukkit.getScheduler().runTaskTimer(plugin, this::onTick, 20L, 1L);
@@ -184,12 +202,13 @@ public final class TownManager implements Listener {
         for (Walker w : new ArrayList<>(walkers)) w.remove(false);
         walkers.clear();
         byEntity.clear();
-        jail.shutdown();
+        for (Jail j : jails.values()) j.shutdown();
         service.shutdown();
         bank.shutdown();
         heists.shutdown();
         prisonBreak.shutdown();
         gangs.save();
+        plots.save();
         save();
     }
 
@@ -199,6 +218,11 @@ public final class TownManager implements Listener {
     public Officers officers() { return officers; }
     public Townsfolk townsfolk() { return townsfolk; }
     public Jail jail() { return jail; }
+    /** The jail this player is (or was last) held in. */
+    public Jail jailOf(TownData d) { return jails.getOrDefault(d.jailTown, jail); }
+    public Jail jail(String id) { return jails.get(id); }
+    public java.util.Collection<Jail> jails() { return jails.values(); }
+    public List<Zone> zones() { return zones; }
     public Bounties bounties() { return bounties; }
     public PoliceForce police() { return police; }
     public Bandits bandits() { return bandits; }
@@ -211,6 +235,8 @@ public final class TownManager implements Listener {
     public NpcGangs npcGangs() { return npcGangs; }
     public Heists heists() { return heists; }
     public PrisonBreak prisonBreak() { return prisonBreak; }
+    public Plots plots() { return plots; }
+    public Meadowbrook meadowbrook() { return meadowbrook; }
     public Collection<Walker> walkers() { return walkers; }
 
     public TownData data(Player p) {
@@ -236,11 +262,101 @@ public final class TownManager implements Listener {
     }
 
     public boolean inPoliceZone(Location l) {
-        return enabled && l.getWorld() != null && l.getWorld().getName().equals(worldName) && flat(l) <= policeRadius * policeRadius;
+        return zoneAt(l) != null;
     }
 
     public boolean inTown(Location l) {
-        return enabled && l.getWorld() != null && l.getWorld().getName().equals(worldName) && flat(l) <= townRadius * townRadius;
+        if (!enabled || l.getWorld() == null) return false;
+        for (Zone z : zones) if (l.getWorld().getName().equals(z.world()) && z.dist(l) <= z.town()) return true;
+        return false;
+    }
+
+    /** The town whose police zone this is in (the closest one if they overlap), or null. */
+    public Zone zoneAt(Location l) {
+        if (!enabled || l.getWorld() == null) return null;
+        Zone best = null;
+        double bd = Double.MAX_VALUE;
+        for (Zone z : zones) {
+            if (!l.getWorld().getName().equals(z.world())) continue;
+            double d = z.dist(l);
+            if (d <= z.police() && d < bd) {
+                bd = d;
+                best = z;
+            }
+        }
+        return best;
+    }
+
+    /** Within a generated town (not spawn) plus some margin: no bandits or gang turf there. */
+    public boolean nearOtherTown(Location l, double extra) {
+        if (l.getWorld() == null) return false;
+        for (Zone z : zones) if (!z.id().equals("spawn") && l.getWorld().getName().equals(z.world()) && z.dist(l) <= z.town() + extra) return true;
+        return false;
+    }
+
+    private void loadZones() {
+        zones.clear();
+        zones.add(new Zone("spawn", "Spawn", worldName, cx, cz, policeRadius, townRadius));
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "towns.yml"));
+        ConfigurationSection ts = y.getConfigurationSection("towns");
+        if (ts == null) return;
+        for (String id : ts.getKeys(false)) {
+            ConfigurationSection s = ts.getConfigurationSection(id);
+            zones.add(new Zone(id, s.getString("name", id), s.getString("world", worldName), s.getDouble("x"), s.getDouble("z"),
+                    s.getDouble("police-radius", 250), s.getDouble("town-radius", 90)));
+            if (!jails.containsKey(id)) jails.put(id, new Jail(this, id, "jail-" + id + ".yml", false));
+        }
+    }
+
+    private final Map<String, Double> treasury = new HashMap<>();
+
+    /** Rent, plot sales and (later) taxes go to the town's treasury. */
+    public void townTreasury(String town, double amount) {
+        treasury.merge(town, amount, Double::sum);
+        dirty = true;
+    }
+
+    public double treasury(String town) {
+        return treasury.getOrDefault(town, 0.0);
+    }
+
+    /** A generated town registers itself (and gets a jail of its own). */
+    public Jail addZone(Zone z) {
+        File f = new File(plugin.getDataFolder(), "towns.yml");
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
+        y.set("towns." + z.id() + ".name", z.name());
+        y.set("towns." + z.id() + ".world", z.world());
+        y.set("towns." + z.id() + ".x", z.x());
+        y.set("towns." + z.id() + ".z", z.z());
+        y.set("towns." + z.id() + ".police-radius", z.police());
+        y.set("towns." + z.id() + ".town-radius", z.town());
+        try {
+            y.save(f);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Could not save towns.yml: " + e.getMessage());
+        }
+        zones.removeIf(x -> x.id().equals(z.id()));
+        zones.add(z);
+        Jail j = jails.get(z.id());
+        if (j == null) {
+            j = new Jail(this, z.id(), "jail-" + z.id() + ".yml", false);
+            jails.put(z.id(), j);
+            Bukkit.getPluginManager().registerEvents(j, plugin);
+        }
+        return j;
+    }
+
+    public void removeZone(String id) {
+        File f = new File(plugin.getDataFolder(), "towns.yml");
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
+        y.set("towns." + id, null);
+        try {
+            y.save(f);
+        } catch (IOException ignored) {
+        }
+        zones.removeIf(x -> x.id().equals(id));
+        Jail j = jails.get(id);
+        if (j != null) j.reset();
     }
 
     private double flat(Location l) {
@@ -339,7 +455,7 @@ public final class TownManager implements Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             TownData d = data(p);
             if (d.jailed()) {
-                jail.secondInJail(p, d);
+                jailOf(d).secondInJail(p, d);
                 continue;
             }
             if (d.inService()) {
@@ -375,13 +491,15 @@ public final class TownManager implements Listener {
             p.sendActionBar(SmpPlugin.mm("<red><bold>WANTED</bold> " + stars(d.stars) + " <gray>(" + d.reason + ") <gold>" + Money.fmt(bounties.of(d))
                     + (d.caseOpen ? " <dark_red>[Bureau]" : "") + order));
         }
-        jail.second();
+        for (Jail j : jails.values()) j.second();
         bank.second();
         casino.second();
         games.second();
         gangs.second();
         heists.second();
         prisonBreak.second();
+        plots.second();
+        if (tick % 100 == 0) meadowbrook.tickClock();
     }
 
     public static String stars(int n) {
@@ -555,21 +673,24 @@ public final class TownManager implements Listener {
                 Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2500), Duration.ofMillis(500))));
         p.playSound(p.getLocation(), Sound.BLOCK_IRON_DOOR_CLOSE, 1f, 0.7f);
         if (by != null) by.swing();
-        if (!jail.ready()) {
+        Zone here = zoneAt(p.getLocation());
+        Jail jl = here != null && jails.containsKey(here.id()) && jails.get(here.id()).ready() ? jails.get(here.id()) : jail;
+        if (!jl.ready()) {
             p.sendMessage(SmpPlugin.mm("<gray>There's no jail yet, so you're let off with a fine of <white>" + Money.fmt(fine) + "</white>. Behave."));
             dirty = true;
             return;
         }
         d.jailLeft = secs;
-        d.cell = jail.freeCell();
+        d.jailTown = jl.id;
+        d.cell = jl.freeCell();
         dirty = true;
         p.sendMessage(SmpPlugin.mm("<gray>Sentence: <white>" + fmtTime(secs) + "</white> in jail (served while online)"
                 + (fine > 0 ? ", fine <white>" + Money.fmt(fine) + "</white>" : "") + "."));
         final int arrestedStars = stars;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (p.isOnline() && data(p).jailed()) {
-                jail.toCell(p, data(p));
-                jail.bailHint(p, data(p));
+                jailOf(data(p)).toCell(p, data(p));
+                jailOf(data(p)).bailHint(p, data(p));
                 service.offer(p, data(p), arrestedStars);
             }
         }, 40L);
@@ -580,7 +701,8 @@ public final class TownManager implements Listener {
         d.jailLeft = 0;
         d.cell = -1;
         dirty = true;
-        Location out = jail.releasePoint();
+        Location out = jailOf(d).releasePoint();
+        if (out == null) out = jail.releasePoint();
         if (out != null) teleport(p, out);
         p.sendMessage(SmpPlugin.mm("<green>" + why + " <gray>You're free to go. Stay out of trouble."));
         p.playSound(p.getLocation(), Sound.BLOCK_IRON_DOOR_OPEN, 1f, 1f);
@@ -670,6 +792,7 @@ public final class TownManager implements Listener {
 
     public void save() {
         YamlConfiguration y = new YamlConfiguration();
+        for (var e : treasury.entrySet()) y.set("treasury." + e.getKey(), e.getValue());
         for (TownData d : data.values()) if (d.worthSaving()) d.save(y.createSection("players." + d.id));
         try {
             y.save(dataFile);
@@ -767,13 +890,14 @@ public final class TownManager implements Listener {
         if (d.jailed()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!p.isOnline()) return;
-                if (!jail.ready()) {
+                Jail jl = jailOf(d);
+                if (!jl.ready()) {
                     release(p, "The jail was closed.");
                     return;
                 }
-                jail.toCell(p, d);
+                jl.toCell(p, d);
                 p.sendMessage(SmpPlugin.mm("<gray>You still have <white>" + fmtTime(d.jailLeft) + "</white> to serve."));
-                jail.bailHint(p, d);
+                jl.bailHint(p, d);
             }, 5L);
         }
     }
@@ -844,7 +968,7 @@ public final class TownManager implements Listener {
         if (!feet.isPassable() || feet.isLiquid() || !head.isPassable() || head.isLiquid()) return null;
         if (feet.getType().name().contains("FIRE") || ground.getType() == org.bukkit.Material.MAGMA_BLOCK) return null;
         Location l = new Location(w, x + 0.5, y + 1, z + 0.5);
-        if (jail.contains(l)) return null;
+        for (Jail j : jails.values()) if (j.contains(l)) return null;
         return l;
     }
 

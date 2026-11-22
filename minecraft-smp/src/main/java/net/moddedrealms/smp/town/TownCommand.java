@@ -43,7 +43,7 @@ public final class TownCommand implements TabExecutor {
                 if (!(sender instanceof Player p)) return true;
                 TownData d = t.data(p);
                 if (!d.jailed()) return say(p, "<gray>You're not in jail.");
-                double cost = t.jail().bail(d);
+                double cost = t.jailOf(d).bail(d);
                 if (!t.money.pay(p, cost)) return say(p, "<red>Bail is " + Money.fmt(cost) + " and you can't afford it. <gray>Sit tight: " + TownManager.fmtTime(d.jailLeft) + " to go.");
                 t.release(p, "Bail paid (" + Money.fmt(cost) + ").");
                 return true;
@@ -108,6 +108,14 @@ public final class TownCommand implements TabExecutor {
             }
             case "heist" -> {
                 if (sender instanceof Player p) t.heists().command(p, args);
+                return true;
+            }
+            case "herald" -> {
+                say(sender, "<white>The Meadowbrook Herald <gray>is setting up its presses. The first edition is coming soon.");
+                return true;
+            }
+            case "loan" -> {
+                say(sender, "<gold>Meadowbrook Savings & Loans <gray>opens for loans soon. Banker Oakes is still counting the vault.");
                 return true;
             }
             case "wanted" -> {
@@ -241,6 +249,17 @@ public final class TownCommand implements TabExecutor {
                 case "jail" -> jail(s, a);
                 case "bank" -> bank(s, a);
                 case "casino" -> casino(s, a);
+                case "meadowbrook" -> {
+                    String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
+                    if (what.equals("undo")) return say(s, "<green>" + t.meadowbrook().undo());
+                    if ((what.equals("check") || what.equals("build")) && a.length >= 5) {
+                        World w = a.length >= 6 ? Bukkit.getWorld(a[5]) : s instanceof Player p ? p.getWorld() : t.world();
+                        if (w == null) throw new IOException("World not found.");
+                        int x = Integer.parseInt(a[2]), y = Integer.parseInt(a[3]), z = Integer.parseInt(a[4]);
+                        return say(s, what.equals("check") ? "<gold>" + t.meadowbrook().check(w, x, y, z) : "<green>" + t.meadowbrook().build(w, x, y, z));
+                    }
+                    say(s, "<yellow>/mrtown meadowbrook check|build <x> <floorY> <z> [world] · undo  <gray>(built: " + t.meadowbrook().built() + ")");
+                }
                 case "raid" -> {
                     if (!t.casino().ready()) return say(s, "<red>There's no casino.");
                     var in = t.casino().playersInside();
@@ -401,7 +420,7 @@ public final class TownCommand implements TabExecutor {
             return out;
         }
         if (args.length == 1) {
-            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "casino", "raid",
+            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "casino", "meadowbrook", "raid",
                     "npcgang", "heists", "case", "service", "reload")) {
                 if (x.startsWith(args[0].toLowerCase())) out.add(x);
             }

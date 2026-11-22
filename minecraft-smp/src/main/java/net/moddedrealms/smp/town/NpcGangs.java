@@ -152,7 +152,7 @@ public final class NpcGangs implements Listener {
         for (Player p : w.getPlayers()) {
             if (total >= max || t.exempt(p)) continue;
             double dx = p.getLocation().getX() - t.cx, dz = p.getLocation().getZ() - t.cz, d = Math.sqrt(dx * dx + dz * dz);
-            if (d < min || d > far || r.nextDouble() > cfg().getDouble("town.npc-gangs.chance", 0.2)) continue;
+            if (d < min || d > far || r.nextDouble() > cfg().getDouble("town.npc-gangs.chance", 0.2) || t.nearOtherTown(p.getLocation(), 80)) continue;
             boolean near = false;
             for (Walker g : t.walkers(Walker.Role.GANGSTER)) if (g.dist(p.getLocation()) < 90) near = true;
             if (near) continue;

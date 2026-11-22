@@ -78,10 +78,20 @@ public final class Jail implements Listener {
     private int cx, cy, cz;
     private final List<Block> panes = new ArrayList<>();
 
+    final String id;
+    /** Only one jail enforces the prisoner rules (commands, teleports, damage), so they don't run twice. */
+    private final boolean rules;
+
     Jail(TownManager t) {
+        this(t, "spawn", "jail.yml", true);
+    }
+
+    Jail(TownManager t, String id, String fileName, boolean rules) {
+        this.id = id;
+        this.rules = rules;
         this.t = t;
         this.key = new NamespacedKey(t.plugin(), "jail");
-        this.file = new File(t.plugin().getDataFolder(), "jail.yml");
+        this.file = new File(t.plugin().getDataFolder(), fileName);
         load();
     }
 
@@ -165,7 +175,7 @@ public final class Jail implements Listener {
         int[] n = new int[cells.size()];
         for (Player p : Bukkit.getOnlinePlayers()) {
             TownData d = t.data(p);
-            if (d.jailed() && d.cell >= 0 && d.cell < n.length) n[d.cell]++;
+            if (d.jailed() && id.equals(d.jailTown) && d.cell >= 0 && d.cell < n.length) n[d.cell]++;
         }
         int best = 0;
         for (int i = 1; i < n.length; i++) if (n[i] < n[best]) best = i;
@@ -244,6 +254,27 @@ public final class Jail implements Listener {
         cells.add(c);
         save();
         return "Cell " + cells.size() + " added at " + c.getBlockX() + " " + c.getBlockY() + " " + c.getBlockZ() + ".";
+    }
+
+    /** Cells set up by a town builder (another town's sheriff office). */
+    public void setup(List<Location> newCells, Location rel, BoundingBox protect, UUID boardId) {
+        cells.clear();
+        cells.addAll(newCells);
+        release = rel;
+        box = protect;
+        boxWorld = protect == null ? null : rel.getWorld().getName();
+        board = boardId;
+        save();
+    }
+
+    /** Forget everything (the town that owned this jail was removed). */
+    public void reset() {
+        cells.clear();
+        release = null;
+        box = null;
+        boxWorld = null;
+        board = null;
+        save();
     }
 
     public String clearCells() {
@@ -725,6 +756,7 @@ public final class Jail implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent e) {
+        if (!rules) return;
         Player p = e.getPlayer();
         if (!prisoner(p) || p.hasPermission("mrsmp.admin")) return;
         String cmd = e.getMessage().substring(1).split(" ")[0].toLowerCase();
@@ -738,6 +770,7 @@ public final class Jail implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent e) {
+        if (!rules) return;
         Player p = e.getPlayer();
         if (!prisoner(p) || t.ourTeleport(p) || p.hasPermission("mrsmp.admin")) return;
         e.setCancelled(true);
@@ -746,11 +779,11 @@ public final class Jail implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent e) {
         TownData d = t.data(e.getPlayer());
-        if (d.inService() && t.jail().releasePoint() != null) {
+        if (rules && d.inService() && t.jail().releasePoint() != null) {
             e.setRespawnLocation(t.jail().releasePoint());
             return;
         }
-        if (d.jailed() && ready()) {
+        if (d.jailed() && id.equals(d.jailTown) && ready()) {
             if (d.cell < 0 || d.cell >= cells.size()) d.cell = freeCell();
             e.setRespawnLocation(cells.get(d.cell).clone());
         }
@@ -758,6 +791,7 @@ public final class Jail implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDamage(EntityDamageEvent e) {
+        if (!rules) return;
         if (e.getEntity() instanceof Player p && prisoner(p) && e.getCause() != EntityDamageEvent.DamageCause.VOID) {
             e.setCancelled(true);
             return;
@@ -770,7 +804,7 @@ public final class Jail implements Listener {
     }
 
     private boolean protectedHere(Player p, Location l) {
-        return (prisoner(p) || contains(l)) && !p.hasPermission("mrsmp.admin");
+        return ((rules && prisoner(p)) || contains(l)) && !p.hasPermission("mrsmp.admin");
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

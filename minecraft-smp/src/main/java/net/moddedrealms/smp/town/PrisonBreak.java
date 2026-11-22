@@ -85,7 +85,7 @@ public final class PrisonBreak implements Listener {
         List<Player> out = new ArrayList<>();
         for (Player p : Bukkit.getOnlinePlayers()) {
             TownData d = t.data(p);
-            if (d.jailed() && d.cell == idx) out.add(p);
+            if (d.jailed() && "spawn".equals(d.jailTown) && d.cell == idx) out.add(p);
         }
         return out;
     }

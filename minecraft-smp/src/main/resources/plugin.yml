@@ -68,6 +68,19 @@ commands:
     description: Plan and run crew heists (with the Planner in the casino).
     usage: /heist <invite|join|start|status|leave|cancel>
     permission: mrsmp.quests
+  plot:
+    description: Plots in Meadowbrook - buy, rent, trust, list.
+    aliases: [plots]
+    usage: /plot <info|buy|rent|leave|trust|untrust|list|mine>
+    permission: mrsmp.quests
+  herald:
+    description: The Meadowbrook Herald.
+    aliases: [news, newspaper]
+    permission: mrsmp.quests
+  loan:
+    description: Loans from Meadowbrook Savings & Loans.
+    aliases: [loans]
+    permission: mrsmp.quests
   gang:
     description: Gangs - create, invite, bank, perks, turf, wars.
     aliases: [gangs]
