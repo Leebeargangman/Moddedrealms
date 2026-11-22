@@ -171,6 +171,7 @@ export class CivBot {
   // --- events -----------------------------------------------------------------------------------
   onChat(username, message) {
     if (!this.ready || username === this.def.name) return;
+    if (!isVillager(username)) return this.onPlayerChat(username, message);
     // Only listen when we are named or the speaker is close by: everyone else's chat is not for us.
     const speaker = this.bot.players[username]?.entity;
     const close = speaker && speaker.position.distanceTo(this.bot.entity.position) <= config.chat.hearRadius;
@@ -192,14 +193,41 @@ export class CivBot {
     }
   }
 
+  /**
+   * A real player (not a villager) spoke in open chat. They expect an answer, so: heard from further away
+   * than villager chat, anyone they name answers, and otherwise the nearest villagers answer (only a
+   * couple, or 20 replies would flood the chat). It jumps the AI queue so the answer comes quickly.
+   */
+  onPlayerChat(username, message) {
+    const named = message.toLowerCase().includes(this.def.name.toLowerCase());
+    const radius = config.chat.playerHearRadius || 64;
+    const distOf = (b) => {
+      const s = b.bot?.players?.[username]?.entity;
+      return b.ready && s && b.bot.entity ? s.position.distanceTo(b.bot.entity.position) : Infinity;
+    };
+    const mine = distOf(this);
+    if (!named && mine > radius) return;
+    const text = `${username} (player, not a villager) says: "${message.slice(0, 120)}" (they are talking to ${named ? "you" : "whoever is near"}: answer them in "say", starting with their name)`;
+    // Someone else was named: they answer, we just heard it.
+    const someoneNamed = [...village.bots.values()].some((b) => b !== this && message.toLowerCase().includes(b.def.name.toLowerCase()));
+    const nearer = [...village.bots.values()].filter((b) => b !== this && distOf(b) < mine).length;
+    if (named || (!someoneNamed && nearer < (config.chat.playerAnswerers ?? 2))) {
+      this.brain.notify(text, "chat-player", { urgent: true, player: true });
+    } else {
+      this.brain.note(text, "chat-player");
+    }
+  }
+
   /** A private /msg to us. Only we heard it. */
   onWhisper(username, message) {
     if (!this.ready || username === this.def.name) return;
     const villager = isVillager(username);
-    const text = `${username} (${villager ? "villager" : "player, not a villager"}) WHISPERED to you (private, nobody else heard): "${message.slice(0, 120)}"`;
+    const text = `${username} (${villager ? "villager" : "player, not a villager"}) WHISPERED to you (private, nobody else heard): "${message.slice(0, 120)}"${villager ? "" : ` (answer them: action whisper, target ${username}, your reply in "say")`}`;
     // Whispers are meant for us, so they wake us; from villagers at most 3 times in 5 minutes.
     this.whisperWakes = (this.whisperWakes || []).filter((t) => Date.now() - t < 300000);
-    if (!villager || this.whisperWakes.length < 3) {
+    if (!villager) {
+      this.brain.notify(text, "whisper", { urgent: true, player: true });
+    } else if (this.whisperWakes.length < 3) {
       this.whisperWakes.push(Date.now());
       this.brain.notify(text, "whisper");
     } else {

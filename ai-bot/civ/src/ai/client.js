@@ -59,13 +59,13 @@ let useStructured = config.ai.structuredOutput;
  * system: array of system blocks (the big one carries cache_control) · user: the small message text.
  * Returns { text, reason } where text is null if no answer could be had.
  */
-export async function ask({ bot, kind, system, user, maxTokens, schema = null, trigger = null, model: modelOverride = null }) {
+export async function ask({ bot, kind, system, user, maxTokens, schema = null, trigger = null, model: modelOverride = null, priority = false }) {
   const model = modelOverride || defaultModel;
   if (budgetState() === "exhausted") return { text: null, reason: "budget" };
   if (pausedByStaff) return { text: null, reason: "paused by staff" };
   if (Date.now() < pausedUntil) return { text: null, reason: "paused" };
 
-  await takeSlot(); // global limit: at most rateLimit.requestsPerMinute calls a minute, queued in order
+  await takeSlot(priority); // global limit: at most rateLimit.requestsPerMinute calls a minute, queued in order
   if (options.mock) return mockCall({ bot, kind, system, user, trigger });
 
   const started = Date.now();

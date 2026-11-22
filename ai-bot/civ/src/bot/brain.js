@@ -105,8 +105,9 @@ export class Brain {
    * `wake` says what kind of event it is (task, attacked, chat, night...): it is logged with the call,
    * so the report shows what the money is spent on.
    */
-  notify(text, wake = "other", { urgent = false } = {}) {
+  notify(text, wake = "other", { urgent = false, player = false } = {}) {
     this.note(text, wake, true);
+    if (player) this.events.at(-1).player = true;
     this.schedule(urgent);
   }
 
@@ -219,7 +220,7 @@ export class Brain {
       const smart = settings.get().smartLeader;
       const leads = (smart === "leader" || smart === "both") && society.leader(roster.factionOf(this.name))?.name === this.name;
       const leaderModel = leads && !options.mock ? (provider === "openai" ? config.leader.openaiModel : config.leader.model) : null;
-      const res = await ask({ bot: this.name, kind: "decide", system: systemBlocks(imp), user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : free ? FREE_SCHEMA : ACTION_SCHEMA, trigger: wake, model: leaderModel });
+      const res = await ask({ bot: this.name, kind: "decide", system: systemBlocks(imp), user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : free ? FREE_SCHEMA : ACTION_SCHEMA, trigger: wake, model: leaderModel, priority: batch.some((e) => e.player) });
       let action;
       if (res.text) {
         const parsed = parseAction(res.text, { imposter: imp, free });
@@ -258,7 +259,7 @@ export class Brain {
     } finally {
       this.thinking = false;
       // Events that arrived while we were waiting for the AI go into the next call.
-      if (this.events.some((e) => !e.seen)) this.schedule();
+      if (this.events.some((e) => !e.seen)) this.schedule(this.events.some((e) => !e.seen && e.player)); // a player waiting: no cooldown
     }
   }
 

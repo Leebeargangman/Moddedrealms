@@ -110,6 +110,9 @@
 
   "chat": {
     "hearRadius": 24,
+    "_playerComment": "A player's chat is heard within playerHearRadius blocks (or anywhere if it says a villager's name). Only the playerAnswerers nearest villagers wake to answer it; the rest just remember it.",
+    "playerHearRadius": 64,
+    "playerAnswerers": 2,
     "maxSayLength": 90,
     "minSayGapMs": 8000,
     "_villagerWakesComment": "Another villager's chat only wakes a bot (= one AI call) when it says the bot's name, at most villagerWakesPer5Min times in 5 minutes. Other villager chat is just remembered for the bot's next call. Players' chat always wakes it.",

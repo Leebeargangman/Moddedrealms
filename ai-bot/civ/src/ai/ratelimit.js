@@ -17,21 +17,24 @@ let queued = 0;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Wait until this call is allowed. Resolves with how long it waited (ms). */
-export function takeSlot() {
+export function takeSlot(priority = false) {
   const limit = config.rateLimit.requestsPerMinute;
   const asked = Date.now();
   queued++;
   stats.maxQueue = Math.max(stats.maxQueue, queued);
-  const mine = chain.then(async () => {
+  const wait = async () => {
     for (;;) {
       const now = Date.now();
       while (recent.length && now - recent[0] >= WINDOW_MS) recent.shift();
       if (recent.length < limit) break;
-      await sleep(recent[0] + WINDOW_MS - now + 5);
+      await sleep(Math.min(recent[0] + WINDOW_MS - now + 5, priority ? 250 : 60000));
     }
     recent.push(Date.now());
-  });
-  chain = mine.catch(() => {});
+  };
+  // A player waiting for an answer doesn't queue behind 20 villagers: it takes the next free slot.
+  let mine;
+  if (priority) mine = wait();
+  else { mine = chain.then(wait); chain = mine.catch(() => {}); }
   return mine.then(() => {
     queued--;
     const waited = Date.now() - asked;
