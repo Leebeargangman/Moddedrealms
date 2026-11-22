@@ -37,7 +37,7 @@ public final class ReplayCommand implements TabExecutor {
                 replays.play(p, id);
             }
             case "save" -> {
-                if (args.length < 2) return msg(sender, "/replay save <player> [seconds-before]");
+                if (args.length < 2) return msg(sender, "/replay save <player> [seconds-before] [reason...]");
                 Player t = Bukkit.getPlayerExact(args[1]);
                 if (t == null) return msg(sender, args[1] + " is not online.");
                 int before = plugin.settings().secondsBefore;
@@ -47,7 +47,9 @@ public final class ReplayCommand implements TabExecutor {
                     } catch (NumberFormatException ignored) {
                     }
                 }
-                String id = replays.saveClip(t.getUniqueId(), t.getName(), "Saved by " + sender.getName(), before, plugin.settings().secondsAfter);
+                // Other plugins (the town police "bodycam") pass their own reason after the seconds.
+                String reason = args.length > 3 ? String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)) : "Saved by " + sender.getName();
+                String id = replays.saveClip(t.getUniqueId(), t.getName(), reason, before, plugin.settings().secondsAfter);
                 sender.sendMessage(Component.text("Saving the last " + before + "s of " + t.getName() + " as replay ", NamedTextColor.GREEN)
                         .append(Component.text(id, NamedTextColor.AQUA).clickEvent(ClickEvent.runCommand("/replay play " + id)))
                         .append(Component.text(" (ready in " + plugin.settings().secondsAfter + "s).", NamedTextColor.GREEN)));

@@ -1,7 +1,8 @@
 # ModdedrealmsSMP
 
 NPC-driven survival for Bedwars201 ("Bedwars2"): quest givers with dialogue, a 10-chapter story, daily and weekly
-quests with streaks, crates with virtual keys, playtime rewards, a first-join welcome and a generated spawn plaza.
+quests with streaks, crates with virtual keys, playtime rewards, a first-join welcome, a generated spawn plaza, and a
+living town around spawn with police, townsfolk, reputation and a jail.
 Built to tie together what the server already has: ColonySMP colonies, MythicDepths bosses and `/warp`.
 
 ![Spawn plaza, top-down](docs/plaza-preview.png)
@@ -59,6 +60,66 @@ The used snapshot is kept as `plaza-undone-<time>.nbt`. One plaza at a time.
 
 On Bedwars201 the plaza is centred on `world -394 70 463`, so the existing spawn point (-393.5 71 475.5) sits on
 the south avenue facing the fountain and Elder Rowan.
+
+## The town: police, townsfolk, reputation and the jail
+
+![Police station](docs/jail-preview.png)
+
+Everything is in `config.yml` under `town:`. The centre is the plaza fountain (`-394, 463` on Bedwars201).
+
+**Townsfolk** wander within 160 blocks of the fountain, a few around each player (fewer at night):
+- *Travelling merchants* bring 5 random deals from `merchant-offers` (prices depend on your reputation; outlaws are refused).
+- *Gossips* talk about what really happened: arrests, who is wanted, boss kills, caught thieves, plus hints.
+- *Weary travellers* ask for food. Feeding one raises your reputation and sometimes gives coins or a key.
+- *Pickpockets* look like everyone else until they bump into you and run (only coins: 3%, max $150, never items,
+  never players with under 30 min playtime, once per 30 min per player). Hit them to get the money back plus a reward.
+- *The Fence* appears at night for rogues and outlaws: buys stolen goods, sells a disguise (clears wanted stars when no
+  officer is watching) and Black Market crate keys.
+
+Players can pickpocket townsfolk (sneak + right-click with an empty hand, best from behind; coins and sometimes stolen
+trinkets for the Fence) and rob other players (same move: 5% of their money, max $500, 20 min protection afterwards).
+
+**Police** (the Town Watch) appear near players within 500 blocks of the fountain, behind them and out of sight,
+2 per player plus backup for wanted players. They only react to what someone saw:
+
+| Crime | Wanted | Notes |
+|---|---|---|
+| Carrying TNT, TNT minecarts, end crystals (visible in hand) | search | confiscated; first time is a warning, then a $50 fine |
+| Pickpocketing / attacking a townsperson or villager | ★ | |
+| Resisting arrest | +★ | running from an arrest order, or 10s without surrendering |
+| Assault, robbing a player, arson, explosives, killing a pet | ★★ | fire/lava only counts next to things that burn |
+| Assaulting an officer | ★★ | officers use force straight away |
+| Killing a townsperson | ★★★ | |
+| Murder | ★★★★ | |
+| Killing an officer | ★★★★★ | |
+
+- An officer who sees it makes you wanted at once; a townsperson or plaza NPC shouts for the police a moment later.
+  Crimes nobody sees go unnoticed (but still cost reputation).
+- Up to ★★ officers walk up and order you to surrender (crouch, or click [Surrender]); from ★★★, or if you resist,
+  they draw swords. The hit that would kill you arrests you instead ("busted", +1 min).
+- Not crimes: hitting back within 10s (self-defence), fighting someone who is wanted, anything WorldGuard blocked.
+- Stars fade one per minute when no officer can see you. Leaving the 500-block zone stops the chase.
+- Arrest: fine ($100 per star, never below $0), 1 min per star in a cell (max 5, only counts down while online),
+  `/bail` to pay $4 per second left. Prisoners can't use other commands, teleport, fight or be hurt. Every arrest saves a
+  ModdedrealmsGuard replay ("bodycam") so staff can check complaints.
+
+**Reputation** (`/rep`): Outlaw ≤ -300 < Rogue ≤ -50 < Citizen < 100 ≤ Respected < 300 ≤ Hero. Quests, boss kills,
+catching thieves and feeding travellers raise it; crimes lower it. Heroes get 20% off and are saluted; respected players
+can become deputies (`/deputy`): told about wanted players, paid $75 per star for every wanted player they helped bring
+in, and their killing blow on a wanted player arrests instead. Breaking the law takes the badge away.
+
+**The jail.** `/mrtown jail build <x> <floorY> <z>` generates a police station (front door facing north, office with
+Chief Warden Holt and a live WANTED board, 4 cells, a watchtower with a blue light, and a path to the plaza's south
+gate). Like the plaza, the area is saved first and `/mrtown jail undo` puts it back exactly; `/mrtown jail check` lists
+what would be replaced. To use your own building instead: stand in each cell and `/mrtown jail addcell`, then
+`/mrtown jail setrelease` outside. Without cells, arrests only fine.
+
+Player commands: `/rep`, `/wanted`, `/bail`, `/surrender`, `/deputy`. Admin (`mrsmp.admin`): `/mrtown status | toggle |
+clear | spawn <role> | wanted <player> <stars> | pardon | release | arrest | rep <player> [set|add n] | jail ...`.
+Staff who build or test near spawn can be given `mrsmp.lawless` so the police ignore them.
+
+How the NPCs walk: each one is an invisible, silent skeleton with its AI removed (it only pathfinds where told) carrying
+a Mannequin with the clothes. Neither is saved with the world. Needs a difficulty above peaceful.
 
 ## Console bridge
 

@@ -66,3 +66,19 @@ colony:
     - {chance: 8, name: "Iron Golem Kit", icon: CARVED_PUMPKIN, give: ["item:IRON_BLOCK:4", "item:CARVED_PUMPKIN:1"]}
     - {chance: 6, name: "Rare Key", icon: TRIPWIRE_HOOK, give: ["key:rare:1"]}
     - {chance: 2, name: "Emerald Block x8", icon: EMERALD_BLOCK, give: ["item:EMERALD_BLOCK:8"], announce: true}
+
+# Only sold by the Fence (a shady figure who walks the town at night and only deals with rogues and outlaws).
+blackmarket:
+  name: "<dark_gray><bold>Black Market Crate"
+  icon: POLISHED_BLACKSTONE
+  rewards:
+    - {chance: 20, name: "$2,500", icon: GOLD_INGOT, give: ["money:2500"]}
+    - {chance: 15, name: "16 Ender Pearls", icon: ENDER_PEARL, give: ["item:ENDER_PEARL:16"]}
+    - {chance: 12, name: "3 Potions of Invisibility", icon: POTION, give: ["cmd:minecraft:give {player} potion[potion_contents={potion:\"minecraft:long_invisibility\"}] 3"]}
+    - {chance: 12, name: "Netherite Scrap x3", icon: NETHERITE_SCRAP, give: ["item:NETHERITE_SCRAP:3"]}
+    - {chance: 10, name: "Totem of Undying", icon: TOTEM_OF_UNDYING, give: ["item:TOTEM_OF_UNDYING:1"]}
+    - {chance: 10, name: "Swift Sneak III Book", icon: ENCHANTED_BOOK, give: ["cmd:minecraft:give {player} enchanted_book[stored_enchantments={\"minecraft:swift_sneak\":3}]"]}
+    - {chance: 8, name: "Enchanted Golden Apple", icon: ENCHANTED_GOLDEN_APPLE, give: ["item:ENCHANTED_GOLDEN_APPLE:1"], announce: true}
+    - {chance: 7, name: "2 Rare Keys", icon: TRIPWIRE_HOOK, give: ["key:rare:2"]}
+    - {chance: 4, name: "Mythic Key", icon: TRIAL_KEY, give: ["key:mythic:1"], announce: true}
+    - {chance: 2, name: "$15,000 Score", icon: NETHER_STAR, give: ["money:15000"], announce: true}

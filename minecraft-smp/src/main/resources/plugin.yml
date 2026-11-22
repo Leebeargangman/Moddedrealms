@@ -3,7 +3,7 @@ version: '${project.version}'
 main: net.moddedrealms.smp.SmpPlugin
 api-version: '1.21'
 author: Moddedrealms
-description: NPC-driven survival - quest givers, story, daily and weekly quests, playtime keys and the spawn plaza.
+description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, and a town with police, townsfolk and a jail.
 softdepend: [Essentials, MythicDepths, ColonySMP]
 commands:
   quests:
@@ -22,6 +22,26 @@ commands:
     description: Manage the server's NPCs.
     usage: /mrnpc <list|create|move|skin|name|title|action|remove|tp>
     permission: mrsmp.admin
+  mrtown:
+    description: Town admin - police, townsfolk, reputation and the jail.
+    usage: /mrtown <status|spawn|wanted|pardon|release|arrest|rep|jail|toggle|clear>
+    permission: mrsmp.admin
+  rep:
+    description: Your standing in town, wanted level and record.
+    aliases: [reputation, record]
+    permission: mrsmp.quests
+  bail:
+    description: Pay to get out of jail early.
+    permission: mrsmp.quests
+  surrender:
+    description: Give yourself up to a nearby officer.
+    permission: mrsmp.quests
+  deputy:
+    description: Join or leave the Town Watch as a deputy.
+    permission: mrsmp.quests
+  wanted:
+    description: Who the police are after.
+    permission: mrsmp.quests
 permissions:
   mrsmp.quests:
     default: true
@@ -30,3 +50,6 @@ permissions:
     default: true
   mrsmp.admin:
     default: op
+  mrsmp.lawless:
+    description: The police ignore this player (for staff who are building or testing). Not given to ops.
+    default: false

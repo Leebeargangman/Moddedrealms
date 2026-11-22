@@ -22,6 +22,8 @@ public final class Dialogues {
 
     private final SmpPlugin plugin;
     private final YamlConfiguration data;
+    /** The jar's dialogues.yml, so NPCs added in an update can talk before the server's copy has their lines. */
+    private final YamlConfiguration defaults;
     private final Map<UUID, BukkitTask> running = new HashMap<>();
     private final Map<UUID, List<Choice>> offered = new HashMap<>();
     private final Map<UUID, Long> offeredAt = new HashMap<>();
@@ -29,6 +31,9 @@ public final class Dialogues {
     public Dialogues(SmpPlugin plugin) {
         this.plugin = plugin;
         this.data = plugin.yaml("dialogues.yml");
+        var in = plugin.getResource("dialogues.yml");
+        this.defaults = in == null ? new YamlConfiguration()
+                : YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
     }
 
     public void interact(Player p, NpcDef npc) {
@@ -45,6 +50,7 @@ public final class Dialogues {
             return;
         }
         ConfigurationSection s = data.getConfigurationSection(dlg);
+        if (s == null) s = defaults.getConfigurationSection(dlg);
         List<String> lines = s == null ? List.of("...") : s.getStringList("lines");
         List<Choice> choices = new ArrayList<>();
         if (s != null) {

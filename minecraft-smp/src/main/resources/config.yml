@@ -45,3 +45,157 @@ welcome:
 
 # NPCs turn to look at players within this many blocks.
 npc-look-radius: 8
+
+# ============================================================================
+#  Town: police, townsfolk, reputation and the jail
+# ============================================================================
+town:
+  enabled: true
+  world: world
+  # The fountain. Police patrol within police-radius of it, townsfolk wander within townsfolk-radius.
+  center-x: -394
+  center-z: 463
+  police-radius: 500
+  townsfolk-radius: 160
+
+  officers-per-player: 2        # around each player in the police zone (+1 per wanted star, up to +3)
+  max-officers: 24
+  townsfolk-per-player: 3       # one fewer at night
+  max-townsfolk: 16
+  officer-health: 30
+  officer-damage: 4             # per hit, +0.5 per wanted star. The hit that would kill arrests instead ("busted").
+  officer-speed: 0.25
+  officer-uniform-color: "#1F2A44"
+  officer-sight: 24             # officers see crimes this far away (with line of sight)
+  townsfolk-health: 12
+  witness-range: 16             # townsfolk and plaza NPCs report crimes they see this close
+  hostile-at-stars: 3           # from this many stars officers use force straight away
+  wanted-decay-seconds: 60      # lose a star every N seconds no officer can see you
+  self-defence-seconds: 10      # hitting back within this long is not assault
+  bodycam: true                 # save a ModdedrealmsGuard replay of every arrest
+
+  arrest:
+    seconds-per-star: 60
+    max-seconds: 300
+    busted-extra-seconds: 60
+    fine-per-star: 100
+    bail-per-second: 4
+
+  # Visible in hand = officers search you. Confiscated; the first time is only a warning.
+  contraband: [TNT, TNT_MINECART, END_CRYSTAL]
+  contraband-fine: 50
+  random-search-chance: 0.006   # per half-second near an officer, at most once per random-search-minutes
+  random-search-minutes: 15
+
+  # Wanted stars when seen, reputation lost either way.
+  crimes:
+    assault: {stars: 2, reputation: 15}
+    murder: {stars: 4, reputation: 50}
+    robbery: {stars: 2, reputation: 20}
+    pickpocket: {stars: 1, reputation: 8}
+    arson: {stars: 2, reputation: 15}
+    explosives: {stars: 2, reputation: 20}
+    pet-killing: {stars: 2, reputation: 25}
+    assault-npc: {stars: 1, reputation: 10}
+    manslaughter: {stars: 3, reputation: 40}
+    resisting: {stars: 1, reputation: 10}
+    assault-officer: {stars: 2, reputation: 25}
+    cop-killing: {stars: 5, reputation: 80}
+
+  reputation:
+    hero: 300
+    respected: 100
+    rogue: -50
+    outlaw: -300
+    daily-quest: 3
+    weekly-quest: 8
+    story-chapter: 10
+    boss-kill: 5
+    catch-thief: 15
+    help-traveller: 3
+
+  deputy:
+    reward-per-star: 75
+    reputation: 10
+
+  # Robbing players: sneak + right-click someone with an empty hand, inside the police zone.
+  rob-players: true
+  rob:
+    chance-behind: 0.5
+    chance-front: 0.1
+    fraction: 0.05
+    max: 500
+    min-balance: 50
+    cooldown-minutes: 5
+    victim-protection-minutes: 20
+
+  # Pickpocketing townsfolk: sneak + right-click with an empty hand.
+  pickpocket:
+    chance-behind: 0.75
+    chance-front: 0.3
+    max-per-hour: 8
+    trinket-chance: 30
+
+  # NPC pickpockets who rob players (only coins, never items).
+  pickpockets: true
+  thief:
+    steal-fraction: 0.03
+    max-steal: 150
+    min-balance: 100
+    min-playtime-minutes: 30
+    victim-cooldown-minutes: 30
+    escape-seconds: 40
+    catch-reward: 25
+
+  fence:
+    disguise-price: 750
+    key-price: 1500
+    key-crate: blackmarket
+
+  # material:amount:price, or key:<crate>:<amount>:<price>. Each merchant brings merchant-offer-count of these.
+  merchant-offer-count: 5
+  merchant-offers:
+    - "GOLDEN_CARROT:16:150"
+    - "COOKED_BEEF:32:120"
+    - "EXPERIENCE_BOTTLE:16:400"
+    - "NAME_TAG:1:300"
+    - "SADDLE:1:350"
+    - "FIREWORK_ROCKET:32:250"
+    - "ENDER_PEARL:8:400"
+    - "BOOKSHELF:8:250"
+    - "LEAD:2:150"
+    - "SPYGLASS:1:200"
+    - "HONEY_BOTTLE:8:160"
+    - "GLOW_BERRIES:32:150"
+    - "AMETHYST_SHARD:16:200"
+    - "SHULKER_SHELL:2:2500"
+    - "key:common:1:750"
+
+  # material:name:value (what the Fence pays)
+  stolen-goods:
+    - "CLOCK:Silver Pocket Watch:120"
+    - "GOLD_NUGGET:Jewelled Ring:150"
+    - "PAPER:Love Letter:40"
+    - "EMERALD:Emerald Brooch:200"
+    - "RABBIT_FOOT:Lucky Rabbit's Foot:90"
+    - "AMETHYST_SHARD:Amethyst Earring:110"
+    - "BOOK:Someone's Diary:60"
+
+  gossip:
+    - "They say the deeper you dig, the angrier the bosses get. <white>/boss help</white> if you dare."
+    - "Colonies pay well for a helping hand. Envoy Mira by the fountain knows more."
+    - "Keep your purse close in the crowds. There are pickpockets about."
+    - "The Town Watch don't take kindly to explosives anywhere near the fountain."
+    - "If the watch is after you, crouch next to an officer. Running only makes it worse."
+    - "A shady figure walks the streets after dark... only talks to the wrong sort, I hear."
+    - "Help a hungry traveller and the whole town will think better of you."
+    - "Heroes get the best prices from merchants. Do some quests, earn some respect!"
+    - "The watch pays deputies for every outlaw they bring in. You have to be well respected first."
+    - "The jail's just south-east of the fountain. I hope you never see the inside."
+
+  names:
+    townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
+    officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]
+
+  # What prisoners may still type.
+  jail-allowed-commands: [bail, rep, wanted, msg, tell, w, r, reply, m, helpop, report, rules, list, mail, surrender]

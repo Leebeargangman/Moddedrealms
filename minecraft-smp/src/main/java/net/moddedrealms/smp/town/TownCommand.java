@@ -1,0 +1,267 @@
+package net.moddedrealms.smp.town;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
+import net.moddedrealms.smp.SmpPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabExecutor;
+import org.bukkit.entity.Player;
+
+/** /mrtown (admin), and the player commands /rep, /bail, /surrender, /deputy, /wanted. */
+public final class TownCommand implements TabExecutor {
+    private final TownManager t;
+
+    public TownCommand(TownManager t) {
+        this.t = t;
+    }
+
+    private static boolean say(CommandSender s, String mm) {
+        s.sendMessage(SmpPlugin.mm(mm));
+        return true;
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        switch (command.getName().toLowerCase(Locale.ROOT)) {
+            case "rep" -> {
+                if (args.length > 0 && sender.hasPermission("mrsmp.admin")) {
+                    Player p = Bukkit.getPlayerExact(args[0]);
+                    if (p == null) return say(sender, "<red>Not online.");
+                    return record(sender, p);
+                }
+                if (sender instanceof Player p) return record(sender, p);
+                return true;
+            }
+            case "bail" -> {
+                if (!(sender instanceof Player p)) return true;
+                TownData d = t.data(p);
+                if (!d.jailed()) return say(p, "<gray>You're not in jail.");
+                double cost = t.jail().bail(d);
+                if (!t.money.pay(p, cost)) return say(p, "<red>Bail is " + Money.fmt(cost) + " and you can't afford it. <gray>Sit tight: " + TownManager.fmtTime(d.jailLeft) + " to go.");
+                t.release(p, "Bail paid (" + Money.fmt(cost) + ").");
+                return true;
+            }
+            case "surrender" -> {
+                if (!(sender instanceof Player p)) return true;
+                if (t.data(p).stars <= 0) return say(p, "<gray>You're not wanted.");
+                if (!t.surrender(p)) say(p, "<gray>There's no officer close enough to give yourself up to.");
+                return true;
+            }
+            case "deputy" -> {
+                if (!(sender instanceof Player p)) return true;
+                TownData d = t.data(p);
+                if (d.deputy) {
+                    d.deputy = false;
+                    t.markDirty();
+                    return say(p, "<gray>You hand back your deputy badge.");
+                }
+                int need = t.plugin().getConfig().getInt("town.reputation.respected", 100);
+                if (d.rep < need) return say(p, "<red>The watch only deputises respected townsfolk (reputation " + need + "+, you have " + d.rep + "). <gray>Quests and good deeds raise it.");
+                if (d.stars > 0 || d.jailed()) return say(p, "<red>Not while you're wanted.");
+                d.deputy = true;
+                t.markDirty();
+                say(p, "<blue>[Deputy] <green>You're sworn in! <gray>You'll hear when someone becomes wanted. Hitting a wanted player is never a crime,"
+                        + " the blow that would kill them arrests them instead, and you get paid for every wanted player you help bring in."
+                        + " Break the law and you lose the badge. <white>/deputy</white> again to resign.");
+                return true;
+            }
+            case "wanted" -> {
+                List<Player> w = t.wantedOnline();
+                if (w.isEmpty()) return say(sender, "<green>Nobody is wanted right now.");
+                say(sender, "<red><bold>Wanted:");
+                for (Player p : w) {
+                    TownData d = t.data(p);
+                    say(sender, " " + TownManager.stars(d.stars) + " <white>" + p.getName() + " <gray>" + d.reason);
+                }
+                return true;
+            }
+            default -> {
+                return admin(sender, args);
+            }
+        }
+    }
+
+    private boolean record(CommandSender to, Player p) {
+        TownData d = t.data(p);
+        TownManager.Tier tier = t.tier(d.rep);
+        say(to, "<gold><bold>" + p.getName() + "'s standing</bold>");
+        say(to, " <gray>Reputation: " + tier.label + " <gray>(" + d.rep + ")" + (d.deputy ? "  <blue>[Deputy]" : ""));
+        if (!t.tierPerk(tier).isEmpty()) say(to, " <dark_gray>" + t.tierPerk(tier));
+        say(to, " <gray>Wanted: " + (d.stars > 0 ? TownManager.stars(d.stars) + " <gray>" + d.reason : "<green>no"));
+        if (d.jailed()) say(to, " <gray>Jail: <white>" + TownManager.fmtTime(d.jailLeft) + "</white> left");
+        say(to, " <gray>Arrests: <white>" + d.arrests);
+        return true;
+    }
+
+    private boolean admin(CommandSender s, String[] a) {
+        if (!s.hasPermission("mrsmp.admin")) return say(s, "<red>You need mrsmp.admin for that.");
+        String sub = a.length == 0 ? "help" : a[0].toLowerCase(Locale.ROOT);
+        try {
+            switch (sub) {
+                case "status" -> {
+                    Map<String, Integer> roles = new TreeMap<>();
+                    for (Walker w : t.walkers()) roles.merge(w.role.name().toLowerCase(), 1, Integer::sum);
+                    int jailed = 0;
+                    for (Player p : Bukkit.getOnlinePlayers()) if (t.data(p).jailed()) jailed++;
+                    say(s, "<gold>Town " + (t.enabled ? "<green>on" : "<red>off") + "<gold>: centre " + (int) t.cx + " " + (int) t.cz + " in " + t.worldName
+                            + ", police within " + (int) t.policeRadius + ", townsfolk within " + (int) t.townRadius + ".");
+                    say(s, "<gray>NPCs walking: <white>" + (roles.isEmpty() ? "none" : roles) + "<gray>. Wanted online: <white>" + t.wantedOnline().size()
+                            + "<gray>. In jail: <white>" + jailed + "<gray>. Jail " + (t.jail().ready() ? "<green>ready (" + t.jail().cells().size() + " cells)" : "<red>not set up")
+                            + "<gray>. Economy: " + (t.money.ready() ? "<green>ok" : "<red>missing (Vault)"));
+                }
+                case "toggle" -> {
+                    t.enabled = !t.enabled;
+                    if (!t.enabled) t.despawnAllWalkers();
+                    say(s, "<gold>Town " + (t.enabled ? "<green>enabled" : "<red>disabled until restart/reload") + "<gold>.");
+                }
+                case "clear" -> {
+                    t.despawnAllWalkers();
+                    say(s, "<green>All walking NPCs removed (they come back as players move around).");
+                }
+                case "spawn" -> {
+                    if (!(s instanceof Player p) || a.length < 2) return say(s, "<yellow>/mrtown spawn <officer|merchant|gossip|traveller|thief|fence>");
+                    Walker.Role r = Walker.Role.valueOf(a[1].toUpperCase(Locale.ROOT));
+                    Walker w = r == Walker.Role.OFFICER ? t.officers().spawn(p.getLocation()) : t.townsfolk().spawn(p.getLocation(), r);
+                    say(s, "<green>Spawned " + w.name + "<green>.");
+                }
+                case "wanted" -> {
+                    if (a.length < 3) return say(s, "<yellow>/mrtown wanted <player> <stars 0-5> [crime]");
+                    Player p = Bukkit.getPlayerExact(a[1]);
+                    if (p == null) return say(s, "<red>Not online.");
+                    int n = Math.max(0, Math.min(5, Integer.parseInt(a[2])));
+                    TownData d = t.data(p);
+                    if (n == 0) {
+                        t.clearWanted(d);
+                        t.officers().forget(p);
+                    } else {
+                        Crime c = a.length > 3 ? Crime.valueOf(a[3].toUpperCase(Locale.ROOT).replace('-', '_')) : Crime.ASSAULT;
+                        d.stars = n;
+                        d.reason = c.label;
+                        d.hostile = n >= t.hostileStars;
+                        d.lastSeenByPolice = System.currentTimeMillis();
+                        d.lastDecay = d.lastSeenByPolice;
+                        t.officers().radio(p, null);
+                    }
+                    t.markDirty();
+                    say(s, "<green>" + p.getName() + " is now wanted " + TownManager.stars(n) + "<green>.");
+                }
+                case "pardon" -> {
+                    Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
+                    if (p == null) return say(s, "<yellow>/mrtown pardon <online player>");
+                    t.clearWanted(t.data(p));
+                    t.officers().forget(p);
+                    if (t.data(p).jailed()) t.release(p, "You've been pardoned.");
+                    say(s, "<green>Pardoned " + p.getName() + ".");
+                }
+                case "release" -> {
+                    Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
+                    if (p == null || !t.data(p).jailed()) return say(s, "<yellow>/mrtown release <jailed online player>");
+                    t.release(p, "You've been released early.");
+                    say(s, "<green>Released " + p.getName() + ".");
+                }
+                case "arrest" -> {
+                    Player p = a.length > 1 ? Bukkit.getPlayerExact(a[1]) : null;
+                    if (p == null) return say(s, "<yellow>/mrtown arrest <online player>");
+                    if (t.data(p).stars <= 0) t.data(p).stars = 1;
+                    t.arrest(p, null, false);
+                    say(s, "<green>Arrested " + p.getName() + ".");
+                }
+                case "rep" -> {
+                    if (a.length < 2) return say(s, "<yellow>/mrtown rep <player> [set|add <n>]");
+                    var off = Bukkit.getOfflinePlayer(a[1]);
+                    TownData d = t.data(off.getUniqueId());
+                    if (a.length >= 4) {
+                        int n = Integer.parseInt(a[3]);
+                        Player on = off.getPlayer();
+                        if (a[2].equalsIgnoreCase("set")) n -= d.rep;
+                        if (on != null) t.addRep(on, n);
+                        else d.rep = Math.max(-1000, Math.min(1000, d.rep + n));
+                        t.markDirty();
+                    }
+                    say(s, "<gold>" + a[1] + ": reputation " + d.rep + " (" + t.tier(d.rep).label + "<gold>), arrests " + d.arrests + (d.deputy ? ", deputy" : ""));
+                }
+                case "jail" -> jail(s, a);
+                case "reload" -> {
+                    t.plugin().reloadEverything();
+                    say(s, "<green>Reloaded.");
+                }
+                default -> {
+                    say(s, "<gold>/mrtown status | toggle | clear | spawn <role> | wanted <player> <stars> [crime] | pardon <player> | release <player> | arrest <player> | rep <player> [set|add n] | reload");
+                    say(s, "<gold>/mrtown jail check <x y z> | build [x y z] | undo | addcell | clearcells | setrelease | info");
+                }
+            }
+        } catch (IOException | IllegalArgumentException e) {
+            say(s, "<red>" + e.getMessage());
+        }
+        return true;
+    }
+
+    private void jail(CommandSender s, String[] a) throws IOException {
+        String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
+        Player p = s instanceof Player pl ? pl : null;
+        switch (what) {
+            case "check", "build" -> {
+                World w;
+                int x, y, z;
+                if (a.length >= 5) {
+                    x = Integer.parseInt(a[2]);
+                    y = Integer.parseInt(a[3]);
+                    z = Integer.parseInt(a[4]);
+                    w = a.length >= 6 ? Bukkit.getWorld(a[5]) : p != null ? p.getWorld() : t.world();
+                } else if (p != null) {
+                    w = p.getWorld();
+                    x = p.getLocation().getBlockX();
+                    y = p.getLocation().getBlockY() - 1;
+                    z = p.getLocation().getBlockZ();
+                } else {
+                    say(s, "<yellow>/mrtown jail " + what + " <x> <floorY> <z> [world]");
+                    return;
+                }
+                if (w == null) throw new IOException("World not found.");
+                say(s, what.equals("check") ? "<gold>" + t.jail().check(w, x, y, z) : "<green>" + t.jail().build(w, x, y, z));
+            }
+            case "undo" -> say(s, "<green>" + t.jail().undo());
+            case "addcell" -> {
+                if (p == null) return;
+                say(s, "<green>" + t.jail().addCell(p.getLocation()) + " <gray>Stand where prisoners should appear, facing out.");
+            }
+            case "clearcells" -> say(s, "<green>" + t.jail().clearCells());
+            case "setrelease" -> {
+                if (p == null) return;
+                say(s, "<green>" + t.jail().setRelease(p.getLocation()));
+            }
+            default -> say(s, "<gold>Jail: " + (t.jail().ready() ? "<green>ready" : "<red>not set up") + "<gold>, " + t.jail().cells().size() + " cells, release point "
+                    + (t.jail().releasePoint() == null ? "<red>missing" : "<green>set") + "<gold>, generated building: " + (t.jail().built() ? "yes" : "no") + ".");
+        }
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> out = new ArrayList<>();
+        if (!command.getName().equalsIgnoreCase("mrtown") || !sender.hasPermission("mrsmp.admin")) {
+            if (args.length == 1 && command.getName().equalsIgnoreCase("rep") && sender.hasPermission("mrsmp.admin")) return null;
+            return out;
+        }
+        if (args.length == 1) {
+            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "reload")) {
+                if (x.startsWith(args[0].toLowerCase())) out.add(x);
+            }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("jail")) {
+            for (String x : List.of("info", "check", "build", "undo", "addcell", "clearcells", "setrelease")) if (x.startsWith(args[1].toLowerCase())) out.add(x);
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
+            for (Walker.Role r : Walker.Role.values()) out.add(r.name().toLowerCase());
+        } else if (args.length == 2) {
+            return null;
+        } else if (args.length == 4 && args[0].equalsIgnoreCase("wanted")) {
+            for (Crime c : Crime.values()) out.add(c.key());
+        }
+        return out;
+    }
+}

@@ -10,6 +10,8 @@ import net.moddedrealms.smp.npc.NpcManager;
 import net.moddedrealms.smp.quest.QuestCommand;
 import net.moddedrealms.smp.quest.QuestManager;
 import net.moddedrealms.smp.spawn.PlazaBuilder;
+import net.moddedrealms.smp.town.TownCommand;
+import net.moddedrealms.smp.town.TownManager;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,6 +24,7 @@ public final class SmpPlugin extends JavaPlugin {
     private QuestManager quests;
     private PlazaBuilder plaza;
     private CrateManager crates;
+    private TownManager town;
 
     @Override
     public void onEnable() {
@@ -35,6 +38,7 @@ public final class SmpPlugin extends JavaPlugin {
         quests = new QuestManager(this);
         crates = new CrateManager(this);
         plaza = new PlazaBuilder(this);
+        town = new TownManager(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(npcs, this);
@@ -55,13 +59,21 @@ public final class SmpPlugin extends JavaPlugin {
         getCommand("mrnpc").setExecutor(n);
         getCommand("mrnpc").setTabCompleter(n);
 
+        var tc = new TownCommand(town);
+        for (String c : new String[]{"mrtown", "rep", "bail", "surrender", "deputy", "wanted"}) {
+            getCommand(c).setExecutor(tc);
+            getCommand(c).setTabCompleter(tc);
+        }
+
         npcs.start();
         quests.start();
+        town.start();
         if (getConfig().getBoolean("console-bridge", true)) new ConsoleBridge(this).start();
     }
 
     @Override
     public void onDisable() {
+        if (town != null) town.stop();
         if (crates != null) crates.finishAll();
         if (quests != null) quests.saveAll();
         if (npcs != null) npcs.despawnAll();
@@ -74,6 +86,7 @@ public final class SmpPlugin extends JavaPlugin {
         quests.reload();
         crates.reload();
         npcs.reload();
+        town.loadSettings();
     }
 
     public YamlConfiguration yaml(String name) {
@@ -90,4 +103,5 @@ public final class SmpPlugin extends JavaPlugin {
     public QuestManager quests() { return quests; }
     public PlazaBuilder plaza() { return plaza; }
     public CrateManager crates() { return crates; }
+    public TownManager town() { return town; }
 }

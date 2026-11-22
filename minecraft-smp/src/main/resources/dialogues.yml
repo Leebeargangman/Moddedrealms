@@ -60,3 +60,20 @@ townsfolk_2:
 townsfolk_3:
   lines:
     - "The fountain? Built the day the first colony was founded, or so they say."
+warden:
+  lines:
+    - "Welcome to the Town Watch station. We keep the peace within 500 blocks of the fountain."
+    - "Fighting, theft, fires, explosives... if the watch sees it, you do time. If we're after you, crouch next to an officer."
+    - "Respected folk can serve as deputies, and get paid for every outlaw they help bring in."
+  choices:
+    - {text: "<gold>[My record]", action: "command:rep"}
+    - {text: "<blue>[Become a deputy]", action: "command:deputy"}
+    - {text: "<red>[Wanted list]", action: "command:wanted"}
+    - {text: "<gray>[Goodbye]", action: close}
+jailguard:
+  lines:
+    - "Visiting hours are whenever I say they are."
+    - "The cells are through the bars. Don't get any ideas."
+  choices:
+    - {text: "<red>[Who's wanted?]", action: "command:wanted"}
+    - {text: "<gray>[Goodbye]", action: close}

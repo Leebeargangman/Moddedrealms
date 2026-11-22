@@ -6,7 +6,7 @@
 
   <groupId>net.moddedrealms</groupId>
   <artifactId>moddedrealms-guard</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <packaging>jar</packaging>
   <name>ModdedrealmsGuard</name>
 

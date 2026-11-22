@@ -220,6 +220,7 @@ public final class QuestManager implements Listener {
         QuestDef d = a.def;
         String rewardText = plugin.rewards().describe(d.rewards);
         plugin.rewards().give(p, d.rewards);
+        plugin.town().questDone(p, a.key.equals("s"), d.kind == QuestDef.Kind.WEEKLY);
         if (a.key.equals("s")) {
             q.storyIndex++;
             q.storyProgress = 0;
@@ -389,15 +390,24 @@ public final class QuestManager implements Listener {
             String bossId = pdc.has(BOSS, PersistentDataType.STRING) ? pdc.get(BOSS, PersistentDataType.STRING) : "boss";
             // Every player who was in the fight counts, not just the last hit.
             Location at = dead.getLocation();
+            List<String> fighters = new ArrayList<>();
             for (Player p : dead.getWorld().getPlayers()) {
                 if (p.getLocation().distanceSquared(at) <= 48 * 48 || p.equals(dead.getKiller())) {
                     progress(p, QuestDef.Type.KILL_BOSS, bossId, dead, 1);
+                    plugin.town().bossKilled(p, bossId);
+                    fighters.add(p.getName());
                     List<String> r = plugin.getConfig().getStringList("boss-kill-rewards");
                     if (!r.isEmpty()) {
                         plugin.rewards().give(p, r);
                         p.sendMessage(SmpPlugin.mm("<gold>⚔ Boss defeated! <yellow>" + plugin.rewards().describe(r)));
                     }
                 }
+            }
+            if (!fighters.isEmpty()) {
+                String boss = dead.customName() != null
+                        ? net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(dead.customName())
+                        : bossId.replace('_', ' ');
+                plugin.town().bossNews(String.join(" and ", fighters) + " brought down " + boss + "!");
             }
         }
         Player killer = dead.getKiller();
