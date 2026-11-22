@@ -174,6 +174,7 @@ public final class TownCommand implements TabExecutor {
                         d.lastSeenByPolice = System.currentTimeMillis();
                         d.lastDecay = d.lastSeenByPolice;
                         t.officers().radio(p, null);
+                        t.bureau().maybeOpen(p, d, c);
                     }
                     t.markDirty();
                     say(s, "<green>" + p.getName() + " is now wanted " + TownManager.stars(n) + "<green>.");
@@ -221,7 +222,14 @@ public final class TownCommand implements TabExecutor {
                     TownData d = t.data(p);
                     String what = a.length > 2 ? a[2].toLowerCase(Locale.ROOT) : "info";
                     if (what.equals("close")) t.bureau().close(d, p, "<gray>The Bureau has dropped your case.");
-                    else if (what.equals("ambush")) t.bureau().ambush(p, Bureau.Kind.AMBUSH);
+                    else if (what.equals("ambush")) {
+                        if (!d.caseOpen) {
+                            d.stars = Math.max(d.stars, 3);
+                            if (d.reason.isEmpty()) d.reason = Crime.ASSAULT.label;
+                            t.bureau().maybeOpen(p, d, Crime.ASSAULT);
+                        }
+                        t.bureau().ambush(p, Bureau.Kind.AMBUSH);
+                    }
                     say(s, "<gold>" + p.getName() + ": Bureau case " + (d.caseOpen ? "<red>open (" + d.caseReason + ")" : "<green>closed"));
                 }
                 case "service" -> {

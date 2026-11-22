@@ -274,7 +274,10 @@ public final class TownManager implements Listener {
 
     public int countNear(Location l, double r, boolean police) {
         int n = 0;
-        for (Walker w : walkers) if ((w.role == Walker.Role.OFFICER) == police && w.dist(l) <= r) n++;
+        for (Walker w : walkers) {
+            boolean match = police ? w.role == Walker.Role.OFFICER : Townsfolk.civilian(w);
+            if (match && w.dist(l) <= r) n++;
+        }
         return n;
     }
 
@@ -377,7 +380,7 @@ public final class TownManager implements Listener {
         police.fire(p, d);
         if (c.stars <= 0) return;
         if (certainWitness) {
-            wanted(p, c, null);
+            wanted(p, c, officers.nearest(where, 8));
             return;
         }
         Walker cop = officers.witness(p, where);

@@ -104,9 +104,48 @@ trinkets for the Fence) and rob other players (same move: 5% of their money, max
   ModdedrealmsGuard replay ("bodycam") so staff can check complaints.
 
 **Reputation** (`/rep`): Outlaw ≤ -300 < Rogue ≤ -50 < Citizen < 100 ≤ Respected < 300 ≤ Hero. Quests, boss kills,
-catching thieves and feeding travellers raise it; crimes lower it. Heroes get 20% off and are saluted; respected players
-can become deputies (`/deputy`): told about wanted players, paid $75 per star for every wanted player they helped bring
-in, and their killing blow on a wanted player arrests instead. Breaking the law takes the badge away.
+catching thieves and bandits, feeding travellers and community service raise it; crimes lower it. Heroes get 20% off
+and are saluted. Officers also fight hostile mobs and bandits they see (not MythicDepths bosses).
+
+**Bounties** (`/bounties`). Every wanted player carries $250 per star, and players can add their own money with
+`/bounty <player> <amount>`. Bring a wanted player down yourself and the blow that would kill them is a **citizen's
+arrest**: they go to jail and you get the whole bounty (anywhere within 2000 blocks of spawn). Or `/tip <player>` when
+you can see them: the watch (inside 500 blocks) or the Bureau (further out) goes after them, and you get 50% if they're
+caught within 10 minutes. `/tip` on its own reports the bandit you're looking at.
+
+**Player police** (`/police`). Respected players sign up with Chief Warden Holt at the station and get a uniform. On duty
+they hear the radio when someone becomes wanted, `/police radar` points to wanted players, sneak + right-click cuffs a
+wanted player at ★★ or below (or anyone under 40% health), and beating one down arrests them. Pay: $75 per star per
+arrest plus $50 every 10 minutes on duty in town, x1.25 per rank (Cadet, Officer at 5 arrests, Sergeant 15, Captain 30,
+Chief 50). Breaking the law gets them dismissed. `/deputy` still works as an alias.
+
+**Bribes.** An officer telling you to surrender also offers `[Bribe $300 per star]` (`/bribe`). 30% of officers take
+it and forget everything; the rest add a charge for attempted bribery and use force. The Bureau never takes bribes.
+
+**Bandits** roam the wilds 170-1500 blocks from the fountain (more at night, up to 8): 1-4 stars, $200 per star. They
+attack anyone close and grab coins with each hit, run when they're losing, and surrender when beaten: you get the
+bounty and everyone gets their coins back.
+
+**The Bureau** takes over at 3 stars: a case stays open for 3 Minecraft days (new crimes extend it) and agents follow you
+anywhere within 2000 blocks of spawn: random ambushes every 4-8 minutes, a stakeout at your bed, and a snare where you
+keep coming back to. Arrest by the Bureau means the maximum sentence and closes the case; beyond 2000 blocks you're safe.
+They also hunt 3-star bandits.
+
+**Community service.** For a minute after an arrest (up to ★★★) prisoners can click `[Community service]` (`/service`)
+and pick up glowing litter around the plaza instead (one piece per 12 seconds of sentence, only they see it). Walking
+more than 50 blocks from the fountain sends them back to jail with 50% extra time.
+
+**Stolen goods** (pickpocketed trinkets, bank gold) are evidence: an officer who searches you and finds them takes them
+and makes you wanted for theft. Only the Fence buys them.
+
+**The bank.** `/mrtown bank build <x> <floorY> <z>` generates the Moddedrealms Bank (quartz portico, teller counter
+with Banker Ellis, iron vault door, gold room, path to the plaza's south gate), saved first and reversible with
+`/mrtown bank undo`. Right-clicking the vault starts a robbery (needs 2 players online): a server-wide alarm, every
+robber wanted at ★★★★ (so the Bureau opens a case), police rushing in. Robbers have to stay within 5 blocks of the vault
+for 60 robber-seconds (2 robbers: 30s, 3+: 20s); then $4,000-9,000 is split and each gets 2 gold bars worth $400 to the
+Fence. Once every 3 hours. Bank and jail paths share the plaza's south gate: undo them in reverse order of building.
+
+![Bank](docs/bank-preview.png)
 
 **The jail.** `/mrtown jail build <x> <floorY> <z>` generates a police station (front door facing north, office with
 Chief Warden Holt and a live WANTED board, 4 cells, a watchtower with a blue light, and a path to the plaza's south
@@ -114,8 +153,10 @@ gate). Like the plaza, the area is saved first and `/mrtown jail undo` puts it b
 what would be replaced. To use your own building instead: stand in each cell and `/mrtown jail addcell`, then
 `/mrtown jail setrelease` outside. Without cells, arrests only fine.
 
-Player commands: `/rep`, `/wanted`, `/bail`, `/surrender`, `/deputy`. Admin (`mrsmp.admin`): `/mrtown status | toggle |
-clear | spawn <role> | wanted <player> <stars> | pardon | release | arrest | rep <player> [set|add n] | jail ...`.
+Player commands: `/rep`, `/wanted`, `/bounties`, `/bounty`, `/tip`, `/bail`, `/service`, `/surrender`, `/bribe`,
+`/police [join|duty|radar|cuff|quit]`. Admin (`mrsmp.admin`): `/mrtown status | toggle | clear | spawn <role> [stars] |
+wanted <player> <stars> | pardon | release | arrest | rep <player> [set|add n] | case <player> [close|ambush] |
+service <player> | jail ... | bank ...`.
 Staff who build or test near spawn can be given `mrsmp.lawless` so the police ignore them.
 
 How the NPCs walk: each one is an invisible, silent skeleton with its AI removed (it only pathfinds where told) carrying

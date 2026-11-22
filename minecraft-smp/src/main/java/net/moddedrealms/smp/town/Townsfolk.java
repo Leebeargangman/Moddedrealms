@@ -55,8 +55,9 @@ public final class Townsfolk implements Listener {
         return t.plugin().getConfig();
     }
 
-    private boolean civilian(Walker w) {
-        return w.role != Walker.Role.OFFICER;
+    /** Townsfolk only: not officers, Bureau agents or bandits. */
+    static boolean civilian(Walker w) {
+        return w.role != Walker.Role.OFFICER && w.role != Walker.Role.AGENT && w.role != Walker.Role.BANDIT;
     }
 
     // ------------------------------------------------------------------ spawning
