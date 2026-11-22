@@ -9,7 +9,7 @@
 
 import pf from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
-import { SKILLS, walkTo, sleep, equipWeapon } from "./skills.js";
+import { SKILLS, walkTo, sleep, equipWeapon, prepareWood } from "./skills.js";
 import { isNight, isProtected } from "./state.js";
 import * as chests from "../village/chests.js";
 import * as builder from "../build/builder.js";
@@ -83,47 +83,134 @@ const ORE_GROUPS = {
 };
 const ORE_DEPTH = { iron: 16, coal: 40, copper: 40, gold: -10, diamond: -54, redstone: -50, lapis: 0 };
 
+/** Equip the best pickaxe; if it broke, make a stone one from the cobblestone dug on the way. */
+async function keepPickaxe(bot, need, task, ctx) {
+  const equipBest = async () => {
+    const pick = bot.inventory.items().filter((it) => it.name.endsWith("_pickaxe")).sort((x, y) => tierOf(y.name) - tierOf(x.name))[0];
+    if (pick && bot.heldItem?.type !== pick.type) { try { await bot.equip(pick, "hand"); } catch { /* fine */ } }
+  };
+  bot.civPickWhy = "";
+  if (bestTier(bot, "pickaxe") >= need) { await equipBest(); return true; }
+  if (need > 1 || task.cancelled) { bot.civPickWhy = need > 1 ? "an iron pickaxe can't be made down here" : "stopped"; return false; } // iron pickaxes can't be made down here
+  const stone = () => count(bot, (n) => ["cobblestone", "cobbled_deepslate", "blackstone"].includes(n));
+  const make = async (target) => {
+    if (count(bot, "stick") < 2) await prepareWood(bot, "stick");
+    if (count(bot, "stick") < 2) { bot.civPickWhy = "no sticks (and no planks to make them)"; return false; }
+    bot.civMakingPick = true; // the watcher in mine() must not stop the walk to a crafting table
+    let r;
+    try { r = await SKILLS.craft(bot, { action: "craft", target, amount: 1 }, task, ctx); } finally { bot.civMakingPick = false; }
+    // Take the table back if we placed one (we may need it again further on).
+    const table = bot.findBlock({ matching: bot.registry.blocksByName.crafting_table.id, maxDistance: 4 });
+    if (table && !count(bot, "crafting_table")) { try { await bot.dig(table, true); await sleep(600); } catch { /* leave it */ } }
+    await equipBest();
+    if (!r.ok) bot.civPickWhy = r.detail;
+    return r.ok;
+  };
+  // Too little cobblestone for a stone pickaxe: a wooden one from planks first, to dig some.
+  if (stone() < 3 && bestTier(bot, "pickaxe") < 0) {
+    if (count(bot, (n) => n.endsWith("_planks")) < 5) await prepareWood(bot, "planks");
+    if (!(await make("wooden_pickaxe"))) return false;
+    if (need === 0) return true;
+  }
+  if (stone() < 3 && bestTier(bot, "pickaxe") >= 0) {
+    const ids = new Set(["stone", "deepslate", "cobblestone", "cobbled_deepslate"].map((n) => bot.registry.blocksByName[n]?.id));
+    const near = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 5, count: 6 });
+    for (const p of near) {
+      if (stone() >= 3 || task.cancelled) break;
+      try { await bot.collectBlock.collect(bot.blockAt(p), { ignoreNoPath: true }); } catch { /* next */ }
+    }
+  }
+  if (stone() < 3) { bot.civPickWhy = "not enough cobblestone (3)"; return bestTier(bot, "pickaxe") >= need; }
+  return (await make("stone_pickaxe")) && bestTier(bot, "pickaxe") >= need;
+}
+
+/** Pick up what our digging dropped nearby (the pathfinder digs but doesn't collect). */
+async function pickUpDrops(bot, task) {
+  const drops = Object.values(bot.entities).filter((e) => e.name === "item" && e.position.distanceTo(bot.entity.position) < 6).slice(0, 8);
+  if (!drops.length || task.cancelled) return;
+  try { await bot.collectBlock.collect(drops, { ignoreNoPath: true }); } catch { /* fine */ }
+}
+
+/** The mine skill, with a watcher: the moment the pickaxe breaks, stop the pathfinder (it would carry
+ *  on tunnelling the planned path with bare hands); mineInner then makes a new one or gives up. */
 async function mine(bot, a, task, ctx) {
+  const check = () => {
+    if (bestTier(bot, "pickaxe") < 0 && !bot.civMakingPick && bot.pathfinder.isMoving()) bot.pathfinder.stop();
+  };
+  const onSlot = (_slot, oldItem, newItem) => { if (oldItem?.name?.endsWith("_pickaxe") && !newItem) check(); }; // it just broke
+  const watch = setInterval(check, 500);
+  bot.inventory.on("updateSlot", onSlot);
+  try { return await mineInner(bot, a, task, ctx); } finally { clearInterval(watch); bot.inventory.off("updateSlot", onSlot); }
+}
+
+async function mineInner(bot, a, task, ctx) {
   const ore = String(a.target || "iron").replace(/_ore$|^raw_/, "").replace(/^deepslate_/, "");
   const test = ORE_GROUPS[ore];
   if (!test) return { ok: false, detail: `I can mine for: ${Object.keys(ORE_GROUPS).join(", ")}` };
-  if (bestTier(bot, "pickaxe") < (["iron", "copper", "lapis"].includes(ore) ? 1 : ["gold", "diamond", "redstone"].includes(ore) ? 2 : 0)) {
+  const need = ["iron", "copper", "lapis"].includes(ore) ? 1 : ["gold", "diamond", "redstone"].includes(ore) ? 2 : 0;
+  if (bestTier(bot, "pickaxe") < need) {
     return { ok: false, detail: `I need a better pickaxe for ${ore} (iron/copper/lapis need stone, gold/diamond/redstone need iron): gearup first` };
   }
+  // Pickaxes wear out (a wooden one lasts ~60 blocks, stone ~130). Take what's needed to make a new one
+  // underground: 2 sticks and a crafting table (the cobblestone comes from the digging itself).
+  const box = ctx.faction ? chests.totals(ctx.faction) : {};
+  if (count(bot, "stick") < 2) {
+    if ((box.stick || 0) >= 2 && ctx.withdraw) await ctx.withdraw("stick", 4);
+    if (count(bot, "stick") < 2 && !count(bot, (n) => n.endsWith("_planks") || n.endsWith("_log")) && ctx.withdraw) await ctx.withdraw("wood", 2);
+    if (count(bot, "stick") < 2) await prepareWood(bot, "stick"); // logs -> planks -> sticks
+  }
+  if (!count(bot, "crafting_table")) {
+    if ((box.crafting_table || 0) > 0 && ctx.withdraw) await ctx.withdraw("crafting_table", 1);
+    if (!count(bot, "crafting_table")) await SKILLS.craft(bot, { action: "craft", target: "crafting_table", amount: 1 }, task, ctx);
+  }
+  let broke = false;
+  const pickOk = async () => {
+    if (await keepPickaxe(bot, need, task, ctx)) return true;
+    broke = true;
+    return false;
+  };
   const want = Math.max(1, Math.min(a.amount ?? 6, 32));
   const ids = new Set(bot.registry.blocksArray.filter((b) => test(b.name)).map((b) => b.id));
   const deadline = Date.now() + 8 * 60000;
-  const got0 = count(bot, (n) => n.startsWith("raw_") || n === "coal" || n.endsWith("_ore") || n === "diamond" || n === "redstone" || n === "lapis_lazuli");
-  const collected = () => count(bot, (n) => n.startsWith("raw_") || n === "coal" || n.endsWith("_ore") || n === "diamond" || n === "redstone" || n === "lapis_lazuli") - got0;
-  await SKILLS.equipBest?.(bot);
-  const pick = bot.inventory.items().filter((it) => it.name.endsWith("_pickaxe")).sort((x, y) => tierOf(y.name) - tierOf(x.name))[0];
-  if (pick) await bot.equip(pick, "hand");
+  // Only what we came for counts (coal found on the way to iron is a bonus, not iron).
+  const drop = { iron: "raw_iron", gold: "raw_gold", copper: "raw_copper", coal: "coal", diamond: "diamond", redstone: "redstone", lapis: "lapis_lazuli" }[ore];
+  const mined = (n) => n === drop || test(n);
+  const got0 = count(bot, mined);
+  const collected = () => count(bot, mined) - got0;
+  await pickOk();
 
   const grabVisible = async () => {
     const pos = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 16, count: want });
     for (const p of pos) {
-      if (task.cancelled || Date.now() > deadline || collected() >= want) break;
+      if (task.cancelled || Date.now() > deadline || collected() >= want || !(await pickOk())) break;
       try { await bot.collectBlock.collect(bot.blockAt(p), { ignoreNoPath: true }); } catch { /* next */ }
     }
   };
   await grabVisible();
   // Not enough in sight: dig down to ore depth (the pathfinder digs a way), then tunnel and look again.
   const targetY = Math.max(ORE_DEPTH[ore], -58);
-  if (collected() < want && bot.entity.position.y > targetY + 4 && !task.cancelled) {
-    try { await walkTo(bot, new goals.GoalY(targetY), 150000); } catch { /* we got as deep as we could */ }
+  for (let tries = 0; tries < 3 && collected() < want && bot.entity.position.y > targetY + 4 && !task.cancelled && Date.now() < deadline && await pickOk(); tries++) {
+    try { await walkTo(bot, new goals.GoalY(targetY), 150000); } catch { /* we got as deep as we could (or the pickaxe broke) */ }
+    await pickUpDrops(bot, task);
     await grabVisible();
   }
   const angle = Math.random() * Math.PI * 2;
-  for (let leg = 0; leg < 6 && collected() < want && !task.cancelled && Date.now() < deadline; leg++) {
+  for (let leg = 0; leg < 6 && collected() < want && !task.cancelled && Date.now() < deadline && await pickOk(); leg++) {
     const me = bot.entity.position;
     const dir = angle + leg * (Math.PI / 2);
     try { await walkTo(bot, new goals.GoalNearXZ(Math.round(me.x + Math.cos(dir) * 16), Math.round(me.z + Math.sin(dir) * 16), 2), 60000); } catch { /* blocked: next leg */ }
+    await pickUpDrops(bot, task);
     await grabVisible();
   }
   const n = collected();
   const depth = Math.round(bot.entity.position.y);
+  if (broke) {
+    // No pickaxe left and no way to make one: stop rather than dig on with bare hands.
+    return { ok: n > 0, detail: `${n ? `mined ${n} ${ore}, then ` : ""}my pickaxe broke at y ${depth} and I couldn't make another: ${bot.civPickWhy || "no materials"}. Stopped mining: goto village, then gearup` };
+  }
   if (!n) return { ok: false, detail: `found no ${ore} down at y ${depth} (try another place, or mine coal)` };
-  return { ok: true, detail: `mined ${n} ${ore} (now at y ${depth}; goto village to bring it back, then smelt raw_${ore === "iron" || ore === "gold" || ore === "copper" ? ore : ore})` };
+  const next = ["iron", "gold", "copper"].includes(ore) ? `, then smelt raw_${ore}` : "";
+  return { ok: true, detail: `mined ${n} ${ore} (now at y ${depth}; goto village to bring it back${next})` };
 }
 
 // --- smelt ------------------------------------------------------------------------------------------------

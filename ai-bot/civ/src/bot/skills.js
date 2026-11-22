@@ -28,6 +28,56 @@ async function withTimeout(bot, promise, ms, what) {
   }
 }
 
+// --- tools for digging ------------------------------------------------------------------------------
+/** True if the block drops something when broken with what we carry (stone and ores need a pickaxe). */
+export function canHarvest(bot, block) {
+  if (!block?.harvestTools) return true;
+  return bot.inventory.items().some((it) => block.harvestTools[it.type]);
+}
+
+/** The carried item that breaks this block fastest, or null if nothing beats a bare hand. */
+export function bestToolFor(bot, block) {
+  let best = null, fastest = block.digTime(null, false, false, false, [], bot.entity.effects);
+  for (const it of bot.inventory.items()) {
+    if (!/_(pickaxe|axe|shovel|hoe|sword)$/.test(it.name) && it.name !== "shears") continue;
+    const t = block.digTime(it.type, false, false, false, [], bot.entity.effects);
+    if (t < fastest) { fastest = t; best = it; }
+  }
+  return best;
+}
+
+/**
+ * Make every dig hold the right tool. Some of our code called bot.dig() with whatever was in the
+ * hand (a sword, a block, nothing), so villagers punched through stone with their fists for ages and
+ * got nothing for it. Wrapping bot.dig fixes every caller at once: hide, escape, the builder, etc.
+ */
+export function installToolUse(bot) {
+  const rawDig = bot.dig.bind(bot);
+  bot.dig = async (block, ...rest) => {
+    const tool = block && bestToolFor(bot, block);
+    if (tool && bot.heldItem?.type !== tool.type) { try { await bot.equip(tool, "hand"); } catch { /* dig anyway */ } }
+    return rawDig(block, ...rest);
+  };
+  // Which items in the inventory are tools, refreshed at most once a second: the pathfinder asks
+  // about thousands of blocks while planning, so it must not scan the inventory each time.
+  let ids = new Set(), at = 0;
+  bot.civToolIds = () => {
+    if (Date.now() - at > 1000) { ids = new Set(bot.inventory.items().map((it) => it.type)); at = Date.now(); }
+    return ids;
+  };
+}
+
+/** Pathfinder penalty for breaking a block we can't harvest (stone with no pickaxe): go around instead. */
+export function noToolPenalty(bot) {
+  return (block) => {
+    const need = block.harvestTools;
+    if (!need) return 0;
+    const have = bot.civToolIds ? bot.civToolIds() : new Set();
+    for (const id of Object.keys(need)) if (have.has(Number(id))) return 0;
+    return 60; // about 20 blocks of walking per stone: dig only if there's really no other way
+  };
+}
+
 async function walkTo(bot, goal, ms = 120000) {
   await withTimeout(bot, bot.pathfinder.goto(goal), ms, "walking");
 }

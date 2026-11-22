@@ -11,7 +11,7 @@ import { config } from "../config.js";
 import { log } from "../log.js";
 import { Brain } from "./brain.js";
 import { installEdgeGap } from "./edgegap.js";
-import { SKILLS, eat, flee, escape } from "./skills.js";
+import { SKILLS, eat, flee, escape, installToolUse, noToolPenalty } from "./skills.js";
 import { VILLAGE_SKILLS, murder } from "./skills-village.js";
 import { PROGRESS_SKILLS } from "./skills-progress.js";
 import { snapshot, isHostile, isNight, isProtected, isVillager } from "./state.js";
@@ -102,6 +102,9 @@ export class CivBot {
     }
     // Never dig through the village's buildings to take a shortcut.
     moves.exclusionAreasBreak.push((block) => (builder.insideBuilding(block.position) ? 1e6 : 0));
+    // Dig with the right tool, and don't tunnel through stone with bare hands (slow, and it drops nothing).
+    installToolUse(bot);
+    moves.exclusionAreasBreak.push(noToolPenalty(bot));
     bot.pathfinder.setMovements(moves);
     // More time to plan paths (default 5 s gave "took too long to decide path" in hilly forests).
     bot.pathfinder.thinkTimeout = 10000;

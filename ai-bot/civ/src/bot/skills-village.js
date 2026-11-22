@@ -6,7 +6,7 @@ import pf from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
 import * as chests from "../village/chests.js";
 import { FOOD_ITEMS, isNight, isProtected } from "./state.js";
-import { walkTo, sleep, equipWeapon, SKILLS } from "./skills.js";
+import { walkTo, sleep, equipWeapon, SKILLS, canHarvest } from "./skills.js";
 import { hideForNight } from "./skills-progress.js";
 
 const { goals } = pf;
@@ -161,7 +161,7 @@ async function hide(bot, _a, task) {
   const good = (p) => {
     for (let dy = 1; dy <= 4; dy++) {
       const b = bot.blockAt(p.offset(0, -dy, 0));
-      if (!b || ["air", "cave_air", "water", "lava", "bedrock"].includes(b.name) || b.name.includes("leaves") || (dy <= 3 && !bot.canDigBlock(b))) return false;
+      if (!b || ["air", "cave_air", "water", "lava", "bedrock"].includes(b.name) || b.name.includes("leaves") || (dy <= 3 && (!bot.canDigBlock(b) || !canHarvest(bot, b)))) return false;
     }
     return bot.blockAt(p)?.boundingBox === "empty" && bot.blockAt(p.offset(0, 1, 0))?.boundingBox === "empty";
   };
