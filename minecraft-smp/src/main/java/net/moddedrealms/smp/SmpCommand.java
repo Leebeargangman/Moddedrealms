@@ -47,7 +47,12 @@ final class SmpCommand implements TabExecutor {
                 if (!admin) return no(sender);
                 String what = args.length > 1 ? args[1].toLowerCase() : "";
                 try {
-                    if (what.equals("build")) {
+                    if (what.equals("check")) {
+                        if (args.length < 5) return say(sender, "/mrsmp spawn check <x> <floorY> <z> [world]", NamedTextColor.YELLOW);
+                        World w = args.length >= 6 ? Bukkit.getWorld(args[5]) : sender instanceof Player p ? p.getWorld() : Bukkit.getWorlds().get(0);
+                        if (w == null) return say(sender, "World not found.", NamedTextColor.RED);
+                        say(sender, plugin.plaza().check(w, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4])), NamedTextColor.GOLD);
+                    } else if (what.equals("build")) {
                         World w;
                         int x, y, z;
                         if (args.length >= 5) {
@@ -129,7 +134,7 @@ final class SmpCommand implements TabExecutor {
         if (args.length == 1) {
             for (String s : List.of("reload", "spawn", "key")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
-            out.addAll(List.of("build", "undo"));
+            out.addAll(List.of("check", "build", "undo"));
         }
         return out;
     }

@@ -45,7 +45,20 @@ and every MythicDepths boss kill (`boss-kill-rewards`). Admin: `/mrsmp key <give
 avenues with gateways, hedge ring with lamp posts, benches, flowering azalea trees, and four stations with
 floating signs and NPCs: Quest Pavilion, Crate Shrine, Arcane Corner (enchanting) and Adventurers' Camp
 (bosses, colonies, `/warp`). Elder Rowan stands by the fountain and starts the story.
-Everything it replaces is saved first: `/mrsmp spawn undo` restores the area exactly (one plaza at a time).
+`/mrsmp spawn check x floorY z [world]` first lists what the plaza would replace (block entities, player-made
+blocks, entities, how uneven the ground is) without changing anything.
+
+Before building, the whole area is saved as a structure snapshot (`plaza-undo.nbt`): blocks **with their contents**
+(chests, signs, command blocks, banners) and loose entities (item frames, armour stands, paintings). Then:
+- underground blocks are only filled where there is air, so things buried under spawn (command blocks) are untouched;
+- beacons under the floor keep their beams (the glass above them stays, the air above is cleared);
+- mobs that end up inside a new block are lifted out; living mobs are never removed or duplicated.
+
+`/mrsmp spawn undo` clears the plaza silently (no dropped lanterns or flowers) and puts the snapshot back exactly.
+The used snapshot is kept as `plaza-undone-<time>.nbt`. One plaza at a time.
+
+On Bedwars201 the plaza is centred on `world -394 70 463`, so the existing spawn point (-393.5 71 475.5) sits on
+the south avenue facing the fountain and Elder Rowan.
 
 ## Console bridge
 

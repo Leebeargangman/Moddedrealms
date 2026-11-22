@@ -32,6 +32,7 @@ enchanter:
 herald:
   lines:
     - "The depths are restless. Bosses walk the land, stronger with every one you defeat."
+    - "Bosses are a big part of this world. <white>/boss help</white> tells you what's out there."
   choices:
     - {text: "<red>[About the bosses]", action: "command:boss"}
     - {text: "<green>[My story]", action: story}
@@ -39,13 +40,14 @@ herald:
 envoy:
   lines:
     - "I speak for the colonies. They farm, they mine, they trade... and sometimes they march to war."
-    - "Treat them well and they'll remember you."
+    - "Want your own? Craft a colony wand from a stick and a gold nugget."
+    - "Select the first corner, then the second, like WorldEdit, and do <white>/colony create [name]</white>. <gray>/colony help</gray> for more."
   choices:
     - {text: "<gold>[About the colonies]", action: "command:colony"}
     - {text: "<gray>[Goodbye]", action: close}
 captain:
   lines:
-    - "Ready to set out? I'll send you somewhere safe, a long way from spawn."
+    - "Ready to set out? I'll send you somewhere safe, 1000 to 3000 blocks from spawn. Cooldowns apply."
   choices:
     - {text: "<green>[Warp me to the wilds]", action: "command:warp"}
     - {text: "<gray>[Not yet]", action: close}

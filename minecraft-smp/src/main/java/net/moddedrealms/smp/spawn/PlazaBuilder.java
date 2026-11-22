@@ -36,6 +36,18 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.Axis;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.structure.Mirror;
+import org.bukkit.block.structure.StructureRotation;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.structure.Structure;
+import org.bukkit.util.BlockVector;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.util.EntityTransformer;
+import java.util.Random;
 
 /**
  * Builds the spawn plaza procedurally around a centre block: a paved circular square with a tiered fountain,
@@ -57,12 +69,22 @@ public final class PlazaBuilder {
         this.key = new NamespacedKey(plugin, "plaza");
     }
 
+    /** Old block-only snapshot (kept so a plaza built by 1.0.0 can still be undone). */
     private File undoFile() {
         return new File(plugin.getDataFolder(), "plaza-undo.dat");
     }
 
+    /** Full snapshot: blocks with their contents (chests, signs, banners...) and non-living entities. */
+    private File structureFile() {
+        return new File(plugin.getDataFolder(), "plaza-undo.nbt");
+    }
+
+    private File metaFile() {
+        return new File(plugin.getDataFolder(), "plaza-undo.yml");
+    }
+
     public boolean hasUndo() {
-        return undoFile().exists();
+        return undoFile().exists() || structureFile().exists();
     }
 
     /** Centre = the floor block under the fountain. Returns a short report. */
@@ -74,6 +96,7 @@ public final class PlazaBuilder {
         this.cz = z;
         snapshot();
         long t0 = System.currentTimeMillis();
+        List<int[]> beacons = findBeacons();
 
         clearAndPave();
         fountain();
@@ -93,8 +116,11 @@ public final class PlazaBuilder {
                 EquipmentSlot.HAND, Material.FISHING_ROD), 5, null);
         npc("townsfolk_3", "<white>Lina", null, 0.5, -8.5, 0, "#d9a441", Map.of(EquipmentSlot.CHEST, Material.LEATHER_CHESTPLATE,
                 EquipmentSlot.HAND, Material.POPPY), 5, null);
+        int beams = keepBeams(beacons);
+        int lifted = unstick();
         return "Plaza built at " + world.getName() + " " + x + " " + y + " " + z + " in " + (System.currentTimeMillis() - t0)
-                + "ms. Suggested spawn: " + x + ".5 " + (y + 1) + " " + (z + 12) + ".5 facing north.";
+                + "ms (" + lifted + " mobs lifted out of new blocks, " + beams + " beacon beams kept open). Suggested spawn: " + (x + 0.5) + " " + (y + 1)
+                + " " + (z + 12.5) + " facing north. Undo with /mrsmp spawn undo.";
     }
 
     // ------------------------------------------------------------------ pieces
@@ -424,39 +450,117 @@ public final class PlazaBuilder {
 
     // ------------------------------------------------------------------ undo
 
+    private Location corner() {
+        return loc(-R - 1, -DOWN, -R - 1);
+    }
+
+    private BlockVector size() {
+        return new BlockVector(2 * R + 3, UP + DOWN + 1, 2 * R + 3);
+    }
+
+    /** Entities that the build would leave floating or break: saved in the snapshot, removed, and put back on undo. */
+    private static boolean loose(Entity e) {
+        if (e instanceof Player) return false;
+        return !(e instanceof LivingEntity) || e instanceof ArmorStand;
+    }
+
     private void snapshot() throws IOException {
-        Map<String, Integer> palette = new HashMap<>();
-        List<String> order = new ArrayList<>();
-        int size = (2 * R + 3);
-        int height = UP + DOWN + 1;
-        int[] data = new int[size * size * height];
-        int i = 0;
+        Structure st = Bukkit.getStructureManager().createStructure();
+        st.fill(corner(), size(), true);
+        Bukkit.getStructureManager().saveStructure(structureFile(), st);
+        YamlConfiguration meta = new YamlConfiguration();
+        meta.set("world", w.getName());
+        meta.set("x", cx);
+        meta.set("y", cy);
+        meta.set("z", cz);
+        meta.set("block-entities", countTiles());
+        meta.set("saved-entities", st.getEntities().size());
+        meta.set("created", System.currentTimeMillis());
+        meta.save(metaFile());
+        for (Entity e : regionEntities()) if (loose(e)) e.remove();
+    }
+
+    private List<Entity> regionEntities() {
+        BoundingBox box = BoundingBox.of(corner(), corner().add(size().getX(), size().getY(), size().getZ()));
+        return new ArrayList<>(w.getNearbyEntities(box));
+    }
+
+    private int countTiles() {
+        int n = 0;
+        java.util.Set<Long> seen = new java.util.HashSet<>();
         for (int dx = -R - 1; dx <= R + 1; dx++) {
             for (int dz = -R - 1; dz <= R + 1; dz++) {
-                for (int dy = -DOWN; dy <= UP; dy++) {
-                    String s = at(dx, dy, dz).getBlockData().getAsString();
-                    Integer idx = palette.get(s);
-                    if (idx == null) {
-                        idx = order.size();
-                        palette.put(s, idx);
-                        order.add(s);
-                    }
-                    data[i++] = idx;
+                int bx = cx + dx, bz = cz + dz;
+                long key = ((long) (bx >> 4) << 32) ^ ((bz >> 4) & 0xffffffffL);
+                if (!seen.add(key)) continue;
+                for (BlockState st : w.getChunkAt(bx >> 4, bz >> 4).getTileEntities()) {
+                    Location l = st.getLocation();
+                    if (Math.abs(l.getBlockX() - cx) <= R + 1 && Math.abs(l.getBlockZ() - cz) <= R + 1
+                            && l.getBlockY() >= cy - DOWN && l.getBlockY() <= cy + UP) n++;
                 }
             }
         }
-        try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(undoFile())))) {
-            out.writeUTF(w.getName());
-            out.writeInt(cx);
-            out.writeInt(cy);
-            out.writeInt(cz);
-            out.writeInt(order.size());
-            for (String s : order) out.writeUTF(s);
-            for (int v : data) out.writeInt(v);
+        return n;
+    }
+
+    /** What would the plaza replace? Nothing is changed. */
+    public String check(World world, int x, int y, int z) {
+        this.w = world;
+        this.cx = x;
+        this.cy = y;
+        this.cz = z;
+        Map<String, Integer> built = new java.util.TreeMap<>();
+        for (int dx = -R - 1; dx <= R + 1; dx++) {
+            for (int dz = -R - 1; dz <= R + 1; dz++) {
+                if (Math.sqrt(dx * dx + dz * dz) > R + 1.5) continue;
+                for (int dy = -DOWN; dy <= UP; dy++) {
+                    Material m = at(dx, dy, dz).getType();
+                    if (manMade(m)) built.merge(m.name().toLowerCase(), 1, Integer::sum);
+                }
+            }
         }
+        Map<String, Integer> ents = new java.util.TreeMap<>();
+        for (Entity e : regionEntities()) if (!(e instanceof Player)) ents.merge(e.getType().name().toLowerCase(), 1, Integer::sum);
+        StringBuilder b = new StringBuilder("Area " + world.getName() + " " + x + " " + y + " " + z + " (radius " + (R + 1) + "): ");
+        b.append(countTiles()).append(" block entities (chests, signs...). ");
+        int total = built.values().stream().mapToInt(Integer::intValue).sum();
+        b.append(total).append(" player-made-looking blocks");
+        if (total > 0) {
+            b.append(": ");
+            built.entrySet().stream().sorted((a, c) -> c.getValue() - a.getValue()).limit(12)
+                    .forEach(e -> b.append(e.getKey()).append(' ').append(e.getValue()).append(", "));
+            b.setLength(b.length() - 2);
+        }
+        b.append(". Entities: ").append(ents.isEmpty() ? "none" : ents.toString());
+        int lo = Integer.MAX_VALUE, hi = Integer.MIN_VALUE, above = 0, cols = 0;
+        for (int dx = -R; dx <= R; dx += 2) {
+            for (int dz = -R; dz <= R; dz += 2) {
+                if (Math.sqrt(dx * dx + dz * dz) > R) continue;
+                int top = w.getHighestBlockYAt(cx + dx, cz + dz, org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES) - cy;
+                lo = Math.min(lo, top);
+                hi = Math.max(hi, top);
+                if (top > UP) above++;
+                cols++;
+            }
+        }
+        b.append(". Ground relative to the floor: ").append(lo).append(" to +").append(hi);
+        if (above > 0) b.append(" (").append(above).append("/").append(cols).append(" sampled columns rise above the cleared height!)");
+        return b.toString();
+    }
+
+    private static boolean manMade(Material m) {
+        String n = m.name();
+        if (n.contains("ORE") || n.contains("LEAVES") || n.endsWith("_LOG") || n.endsWith("_WOOD")) return false;
+        return n.contains("PLANKS") || n.contains("GLASS") || n.contains("WOOL") || n.contains("CONCRETE") || n.endsWith("BRICKS")
+                || n.endsWith("_STAIRS") || n.endsWith("_SLAB") || n.endsWith("_FENCE") || n.contains("DOOR") || n.contains("TORCH")
+                || n.contains("LANTERN") || n.endsWith("_BED") || n.contains("CARPET") || n.contains("CHEST") || n.contains("FURNACE")
+                || n.equals("CRAFTING_TABLE") || n.contains("SIGN") || n.contains("BANNER") || n.contains("RAIL") || n.startsWith("POLISHED_")
+                || n.startsWith("SMOOTH_") || n.contains("QUARTZ") || n.endsWith("_BLOCK") && !n.equals("GRASS_BLOCK") && !n.equals("SNOW_BLOCK")
+                && !n.equals("MOSS_BLOCK") && !n.equals("MUD_BLOCK") || n.equals("BARREL") || n.equals("LECTERN") || n.equals("BOOKSHELF");
     }
 
     public String undo() throws IOException {
+        if (structureFile().exists()) return undoStructure();
         File f = undoFile();
         if (!f.exists()) throw new IOException("Nothing to undo.");
         try (DataInputStream in = new DataInputStream(new GZIPInputStream(new FileInputStream(f)))) {
@@ -474,13 +578,106 @@ public final class PlazaBuilder {
                 }
             }
         }
+        removePlazaEntities();
+        f.delete();
+        return "Plaza removed and the area restored at " + w.getName() + " " + cx + " " + cy + " " + cz + ".";
+    }
+
+    private String undoStructure() throws IOException {
+        YamlConfiguration meta = YamlConfiguration.loadConfiguration(metaFile());
+        w = Bukkit.getWorld(meta.getString("world", ""));
+        if (w == null) throw new IOException("World " + meta.getString("world") + " not loaded.");
+        cx = meta.getInt("x");
+        cy = meta.getInt("y");
+        cz = meta.getInt("z");
+        Structure st = Bukkit.getStructureManager().loadStructure(structureFile());
+        removePlazaEntities();
+        // Clear the plaza silently first (top down, no physics), so lanterns, flowers and lily pads don't pop off
+        // as dropped items while the old blocks go back in.
+        for (int dy = UP; dy >= -DOWN; dy--) {
+            for (int dx = -R - 1; dx <= R + 1; dx++) {
+                for (int dz = -R - 1; dz <= R + 1; dz++) at(dx, dy, dz).setType(Material.AIR, false);
+            }
+        }
+        // Living mobs were never removed, so only the loose entities (frames, stands, paintings...) come back.
+        EntityTransformer onlyLoose = (region, x, y, z, entity, allowed) -> loose(entity);
+        st.place(corner(), true, StructureRotation.NONE, Mirror.NONE, 0, 1.0f, new Random(), List.of(), List.of(onlyLoose));
+        File done = new File(plugin.getDataFolder(), "plaza-undone-" + System.currentTimeMillis() + ".nbt");
+        structureFile().renameTo(done);
+        metaFile().delete();
+        return "Plaza removed and the area restored (blocks, containers, signs and " + st.getEntities().size()
+                + " saved entities) at " + w.getName() + " " + cx + " " + cy + " " + cz + ". Snapshot kept as " + done.getName() + ".";
+    }
+
+    /** Beacons under the plaza floor, with the (tinted) blocks their beam passes through: {dx, dy, dz, beam materials...}. */
+    private List<int[]> findBeacons() {
+        List<int[]> out = new ArrayList<>();
+        for (int dx = -R; dx <= R; dx++) {
+            for (int dz = -R; dz <= R; dz++) {
+                for (int dy = -DOWN; dy < 0; dy++) {
+                    if (at(dx, dy, dz).getType() != Material.BEACON) continue;
+                    int[] e = new int[3 + (-dy)];
+                    e[0] = dx;
+                    e[1] = dy;
+                    e[2] = dz;
+                    for (int k = dy + 1; k <= 0; k++) e[3 + k - dy - 1] = at(dx, k, dz).getType().ordinal();
+                    out.add(e);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Puts back the glass above each beacon and clears the air above the floor so the beams still shine. */
+    private int keepBeams(List<int[]> beacons) {
+        Material[] all = Material.values();
+        for (int[] e : beacons) {
+            int dx = e[0], dy = e[1], dz = e[2];
+            for (int k = dy + 1; k <= 0; k++) {
+                Material m = all[e[3 + k - dy - 1]];
+                // Only see-through blocks were part of the beam (glass, panes, air).
+                if (m.isAir() || m.name().contains("GLASS")) set(dx, k, dz, m.isAir() ? Material.GLASS : m);
+            }
+            for (int k = 1; k <= UP; k++) {
+                Material m = at(dx, k, dz).getType();
+                if (!m.isAir() && !m.name().contains("GLASS")) set(dx, k, dz, Material.AIR);
+            }
+        }
+        return beacons.size();
+    }
+
+    /** Mobs (villagers, colony citizens, animals) that ended up inside a new block are lifted to the first free space. */
+    private int unstick() {
+        int n = 0;
+        for (Entity e : regionEntities()) {
+            if (!(e instanceof LivingEntity) || e instanceof Player || e.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) continue;
+            if (plugin.npcs().idOf(e) != null) continue;
+            Location l = e.getLocation();
+            int x = l.getBlockX(), z = l.getBlockZ();
+            int h = (int) Math.ceil(e.getHeight());
+            if (free(x, l.getBlockY(), z, h)) continue;
+            for (int y = l.getBlockY() + 1; y <= cy + UP + 2; y++) {
+                if (free(x, y, z, h) && !w.getBlockAt(x, y - 1, z).isPassable()) {
+                    e.teleport(new Location(w, l.getX(), y, l.getZ(), l.getYaw(), l.getPitch()));
+                    n++;
+                    break;
+                }
+            }
+        }
+        return n;
+    }
+
+    private boolean free(int x, int y, int z, int h) {
+        for (int i = 0; i < Math.max(1, h); i++) if (!w.getBlockAt(x, y + i, z).isPassable()) return false;
+        return true;
+    }
+
+    private void removePlazaEntities() {
         for (Entity e : w.getNearbyEntities(loc(0, 5, 0), R + 4, UP + DOWN, R + 4)) {
             if (e.getPersistentDataContainer().has(key, PersistentDataType.BYTE)) e.remove();
         }
         plugin.npcs().removeGroup("plaza");
         plugin.crates().clearBlocks();
-        f.delete();
-        return "Plaza removed and the area restored at " + w.getName() + " " + cx + " " + cy + " " + cz + ".";
     }
 
     // ------------------------------------------------------------------ helpers
