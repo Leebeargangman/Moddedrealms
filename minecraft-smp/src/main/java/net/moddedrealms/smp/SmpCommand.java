@@ -108,7 +108,33 @@ final class SmpCommand implements TabExecutor {
                     say(sender, target.getName() + " has " + plugin.quests().keys(target.getUniqueId(), crate) + " " + plugin.crates().keyName(crate) + "(s).", NamedTextColor.GREEN);
                 }
             }
-            default -> say(sender, "/mrsmp <reload|spawn build|spawn undo|key>   /mrnpc for NPCs   /quests for quests", NamedTextColor.YELLOW);
+            case "poll" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.feedback().results()) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "suggestions", "ideas" -> {
+                if (!admin) return no(sender);
+                int n = 15;
+                try {
+                    if (args.length > 1) n = Math.max(1, Math.min(100, Integer.parseInt(args[1])));
+                } catch (NumberFormatException ignored) {
+                }
+                for (String l : plugin.feedback().suggestions(n)) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "insights", "stats" -> {
+                if (!admin) return no(sender);
+                int days = 7;
+                try {
+                    if (args.length > 1) days = Math.max(1, Math.min(90, Integer.parseInt(args[1])));
+                } catch (NumberFormatException ignored) {
+                }
+                for (String l : plugin.insights().report(days)) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "colonies" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.town().colonyStatus()) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            default -> say(sender, "/mrsmp <reload|spawn build|spawn undo|key|poll|suggestions|insights [days]|colonies>   /mrnpc for NPCs   /quests for quests", NamedTextColor.YELLOW);
         }
         return true;
     }
@@ -132,7 +158,7 @@ final class SmpCommand implements TabExecutor {
         List<String> out = new ArrayList<>();
         if (!sender.hasPermission("mrsmp.admin")) return out;
         if (args.length == 1) {
-            for (String s : List.of("reload", "spawn", "key")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
+            for (String s : List.of("reload", "spawn", "key", "poll", "suggestions", "insights", "colonies")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
             out.addAll(List.of("check", "build", "undo"));
         }

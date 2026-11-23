@@ -37,11 +37,33 @@ welcome:
   first-join-message:
     - ""
     - "<gold><bold>Welcome to Moddedrealms, <white><player></white>!</bold>"
-    - "<gray>Talk to <yellow>Elder Rowan</yellow> by the fountain to begin your story."
-    - "<gray>Quests: <white>/quests</white>  ·  Random wild spot: <white>/warp</white>  ·  Bosses: <white>/boss</white>"
+    - "<gray>A medieval survival world: found a <aqua>colony</aqua> of villagers with friends, work in the Old Town, trade at the market, hunt bosses."
+    - "<click:run_command:'/start'><hover:show_text:'<gray>What you can do here'><yellow><u>[What to do]</u></yellow></hover></click>  <click:run_command:'/quests'><yellow><u>[Quests]</u></yellow></click>  <click:run_command:'/warp'><hover:show_text:'<gray>A random spot in the wild'><yellow><u>[Into the wild]</u></yellow></hover></click>  <gray>· Elder Rowan by the fountain starts your story."
     - ""
   join-message:
-    - "<gray>Welcome back, <white><player></white>! <yellow>/quests</yellow> has your daily quests."
+    - "<gray>Welcome back, <white><player></white>! <yellow>/quests</yellow> has your daily quests. <dark_gray>(<online> online)"
+  # Opens the /start menu a few seconds after a first join.
+  open-guide-on-first-join: true
+  guide-delay-ticks: 80
+  # Given once, on a first join.
+  starter-kit: ["STONE_SWORD:1", "STONE_PICKAXE:1", "STONE_AXE:1", "STONE_SHOVEL:1", "BREAD:16", "TORCH:16", "WHITE_BED:1"]
+
+# ---- Asking players what they want: /poll (offered once they've played a while) and /suggest. Results: /mrsmp poll,
+# /mrsmp suggestions. Change a question's id to ask it afresh. Rewards are in-game money only.
+poll:
+  enabled: true
+  ask-after-minutes: 15
+  reward: 100
+  questions:
+    - id: what-next-2026-11
+      question: "What should Moddedrealms add next?"
+      options: ["More colony features", "Bosses and dungeons", "PvP events and arenas", "Town jobs and money", "Building contests", "Quests and story"]
+    - id: first-hour-2026-11
+      question: "What was hardest when you first joined?"
+      options: ["Didn't know what to do", "Server felt empty", "Lag or got kicked", "The resource pack", "Expected mods", "Nothing, it was fine"]
+    - id: play-how-2026-11
+      question: "How do you like to play?"
+      options: ["With friends in a colony", "Solo survival", "Trading and money", "Fighting (PvP or bosses)", "Building", "Exploring"]
 
 # NPCs turn to look at players within this many blocks.
 npc-look-radius: 8
@@ -465,6 +487,15 @@ town:
     herald-min-stories: 3
     court: true                  # /trial: appeal a jail sentence once
     advocate-fee: 500            # in-game money for an advocate who argues the appeal
+
+  # ---- ColonySMP: colonies sell spare goods at the market hall (/market colony) and buy wares for their storage,
+  # colony news goes to the Herald, and no colony may hold land in the towns.
+  colonies:
+    keep-out-of-towns: true
+    old-town-radius: 320
+    meadowbrook-radius: 200
+    herald: true
+    herald-per-hour: 6
 
 # ---- The server resource pack (NPC skins, the train, item art). Turn models off if the server doesn't send it.
 resource-pack:

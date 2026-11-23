@@ -126,6 +126,19 @@ commands:
   wanted:
     description: Who the Watch is after.
     permission: mrsmp.quests
+  start:
+    description: What to do on Moddedrealms (a menu).
+    aliases: [guide, begin]
+    permission: mrsmp.quests
+  poll:
+    description: Answer the poll about what Moddedrealms adds next.
+    aliases: [survey]
+    permission: mrsmp.quests
+  suggest:
+    description: Send the staff an idea.
+    usage: /suggest <your idea>
+    aliases: [idea, feedback]
+    permission: mrsmp.quests
 permissions:
   mrsmp.quests:
     default: true

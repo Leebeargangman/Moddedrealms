@@ -374,6 +374,29 @@ table needs clearing (click the chair) before anyone else can sit there. Waiters
 dishes are only for customers: they can't be eaten, stocked on a stall or kept after clocking out. Town-run eateries
 fill with NPC diners when players are about.
 
+## Colonies, new players and feedback (1.10.0)
+
+**ColonySMP link** (`town/ColonyLink.java`, only when ColonySMP 2.5+ is installed; `town.colonies` in config.yml).
+Colonies keep their barter economy, but meet the town's money at the market hall: `/market colony` (or the chest
+minecart in the market menu) is the freight desk. The colony's owner and co-owners sell what the colony can spare
+(stock not set aside for a task, food above its reserve) to the exchange for dollars, and any member who may store
+goods buys wares with their own money, carted to colony storage. Both move the exchange's prices, and the town's
+businesses buy from the same exchange, so colony wheat ends up in the bakeries. Big colony news (foundings, raids,
+wars, milestones, weddings, resettlements; at most `herald-per-hour`) goes to the Herald. No colony may hold land
+within `old-town-radius` of the fountain or `meadowbrook-radius` of Meadowbrook (ColonySMP refuses the claim).
+
+**New players.** A first join gets a starter kit (`welcome.starter-kit`) and the `/start` menu a few seconds later:
+start a colony (with the steps), quests, `/warp` into the wild, the market, town jobs, bosses, the Watch and the poll.
+`/start` (also `/guide`) opens it any time.
+
+**Feedback.** `/poll` asks the questions under `poll.questions` (multiple choice, in a menu), offered once to every
+player who has played `ask-after-minutes`, with `reward` dollars for answering (in-game money only). `/suggest <idea>`
+saves anything else and tells online staff. Staff: `/mrsmp poll` (tallies), `/mrsmp suggestions [n]`.
+
+**Insights.** `insights.yml` counts, for staff, how long new players' first visit lasts, who comes back on a later day,
+kick reasons, and the commands players (and newcomers in their first ten minutes) use. No chat or addresses. Read it
+with `/mrsmp insights [days]`; `/mrsmp colonies` lists the colonies.
+
 ## The resource pack
 
 `resourcepack/` holds the server pack's own art: 82 NPC skins (`gen_skins.py`, medieval clothes for every role and
@@ -408,6 +431,9 @@ Only someone who can already write the server's files can use it.
 
 ## Build
 
+ModdedrealmsSMP compiles against ColonySMP's API jar, so build `colony-smp/` first:
+
 ```bash
+(cd colony-smp && ./gradlew --offline build -x test)
 ~/.local/share/apache-maven-3.9.9/bin/mvn -f minecraft-smp/pom.xml package
 ```

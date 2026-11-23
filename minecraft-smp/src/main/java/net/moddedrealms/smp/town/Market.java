@@ -232,6 +232,14 @@ public final class Market implements Listener {
         return wares.values();
     }
 
+    List<Ware> wares(Cat c) {
+        return byCat.get(c);
+    }
+
+    void markDirty() {
+        dirty = true;
+    }
+
     /** Percentage change over the last day (from the hourly history). */
     double change(Ware w) {
         if (w.history.isEmpty()) return 0;
@@ -606,6 +614,8 @@ public final class Market implements Listener {
             movers.add(0, "<gray>Furthest from normal (buy / sell):");
             inv.setItem(40, icon(Material.CLOCK, "<gold>Market board", movers));
             if (m.trade) inv.setItem(49, icon(Material.HOPPER, "<green>Sell everything sellable", List.of("<gray>Sells every plain item in your inventory", "<gray>that the market trades. Click twice.")));
+            if (t.colonyLink() != null) inv.setItem(53, icon(Material.CHEST_MINECART, "<gold>Colony freight", List.of("<gray>Sell your colony's spare goods here,",
+                    "<gray>or buy wares for its storage.", "<dark_gray>/market colony")));
         } else {
             List<Ware> list = byCat.get(m.cat);
             int slot = 9;
@@ -654,6 +664,10 @@ public final class Market implements Listener {
                     return;
                 }
             }
+            if (slot == 53 && t.colonyLink() != null) {
+                t.colonyLink().open(p);
+                return;
+            }
             if (slot == 49 && m.trade) {
                 p.sendMessage(SmpPlugin.mm(sellAll(p)));
                 p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.2f);
@@ -689,6 +703,10 @@ public final class Market implements Listener {
     boolean command(Player p, String[] a) {
         String sub = a.length == 0 ? "" : a[0].toLowerCase(Locale.ROOT);
         switch (sub) {
+            case "colony", "colonies", "freight" -> {
+                if (t.colonyLink() == null) p.sendMessage(SmpPlugin.mm("<gray>There are no colonies on this server."));
+                else t.colonyLink().open(p);
+            }
             case "vendor" -> {
                 Cat c = a.length > 1 ? Cat.parse(a[1]) : null;
                 if (c == null) return true;

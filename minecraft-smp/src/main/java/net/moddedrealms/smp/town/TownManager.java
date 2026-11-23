@@ -115,6 +115,7 @@ public final class TownManager implements Listener {
     private Loans loans;
     private Market market;
     private MarketHall marketHall;
+    private ColonyLink colonyLink;
     private Stalls stalls;
     private Counter counter;
     private int marketTick;
@@ -232,6 +233,11 @@ public final class TownManager implements Listener {
             if (dirty) save();
         }, 2400L, 2400L);
         for (Player p : Bukkit.getOnlinePlayers()) joined(p);
+        if (ColonyLink.available()) {
+            colonyLink = new ColonyLink(this);
+            colonyLink.start();
+            plugin.getLogger().info("Linked with ColonySMP: colony freight at the market, colony news in the Herald, no colonies in the towns.");
+        }
     }
 
     public void stop() {
@@ -362,6 +368,39 @@ public final class TownManager implements Listener {
     public Railway railway() { return railway; }
     public Businesses businesses() { return businesses; }
     public Market market() { return market; }
+    /** The ColonySMP bridge, or null when ColonySMP isn't installed. */
+    ColonyLink colonyLink() { return colonyLink; }
+
+    /** True when ColonySMP is linked in. */
+    public boolean coloniesLinked() { return colonyLink != null; }
+
+    /** The player's colony name, or null (also null without ColonySMP). */
+    public String colonyName(Player p) {
+        if (colonyLink == null) return null;
+        var s = colonyLink.colonyOf(p);
+        return s == null ? null : s.name();
+    }
+
+    /** Colonies taking new members, biggest first: {name, population, owner name}. */
+    public List<String[]> recruitingColonies() {
+        List<String[]> out = new ArrayList<>();
+        if (colonyLink == null) return out;
+        for (var s : colonyLink.recruiting()) {
+            String owner = s.owner() == null ? "?" : Bukkit.getOfflinePlayer(s.owner()).getName();
+            out.add(new String[]{s.name(), String.valueOf(s.population()), owner == null ? "?" : owner});
+        }
+        return out;
+    }
+
+    /** Lines about the colonies, for admins. */
+    public List<String> colonyStatus() {
+        return colonyLink == null ? List.of("<gray>ColonySMP isn't linked.") : colonyLink.status();
+    }
+
+    /** Opens the colony freight desk (no-op without ColonySMP). */
+    public void openColonyFreight(Player p) {
+        if (colonyLink != null) colonyLink.open(p);
+    }
     public MarketHall marketHall() { return marketHall; }
     public Stalls stalls() { return stalls; }
     public Counter counter() { return counter; }

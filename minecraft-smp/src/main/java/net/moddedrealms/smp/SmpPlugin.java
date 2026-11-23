@@ -26,6 +26,9 @@ public final class SmpPlugin extends JavaPlugin {
     private CrateManager crates;
     private TownManager town;
     private PackSender packSender;
+    private Feedback feedback;
+    private Insights insights;
+    private Guide guide;
 
     @Override
     public void onEnable() {
@@ -49,6 +52,15 @@ public final class SmpPlugin extends JavaPlugin {
         pm.registerEvents(new Welcome(this), this);
         packSender = new PackSender(this);
         pm.registerEvents(packSender, this);
+        feedback = new Feedback(this);
+        pm.registerEvents(feedback, this);
+        insights = new Insights(this);
+        pm.registerEvents(insights, this);
+        guide = new Guide(this);
+        pm.registerEvents(guide, this);
+        getCommand("start").setExecutor(guide);
+        getCommand("poll").setExecutor(feedback);
+        getCommand("suggest").setExecutor(feedback);
 
         var smp = new SmpCommand(this);
         getCommand("mrsmp").setExecutor(smp);
@@ -84,11 +96,15 @@ public final class SmpPlugin extends JavaPlugin {
         npcs.start();
         quests.start();
         town.start();
+        feedback.start();
+        insights.start();
         if (getConfig().getBoolean("console-bridge", true)) new ConsoleBridge(this).start();
     }
 
     @Override
     public void onDisable() {
+        if (feedback != null) feedback.save();
+        if (insights != null) insights.save();
         if (town != null) town.stop();
         if (crates != null) crates.finishAll();
         if (quests != null) quests.saveAll();
@@ -122,4 +138,7 @@ public final class SmpPlugin extends JavaPlugin {
     public PlazaBuilder plaza() { return plaza; }
     public CrateManager crates() { return crates; }
     public TownManager town() { return town; }
+    public Feedback feedback() { return feedback; }
+    public Insights insights() { return insights; }
+    public Guide guide() { return guide; }
 }
