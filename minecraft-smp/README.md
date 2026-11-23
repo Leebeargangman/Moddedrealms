@@ -33,6 +33,24 @@ PLAYTIME, COMMAND, TALK. Rewards: `money:<n>` (Essentials), `key:<crate>:<n>`, `
 
 Admin: `/quests reset <player>`, `/quests complete <player> <quest id|story>`.
 
+## Graves
+
+When a player dies (and keepInventory is off), their drops and XP go into a **grave** where they fell: their own
+player head with a floating label (owner, item count, XP, lock timer). Right-click it to get everything back, and
+every item goes back **into the slot it came from** (armour on, offhand, hotbar), with anything that doesn't fit
+dropped at your feet. The death message and the respawn message give the coordinates and direction.
+
+- Only the owner (and `mrsmp.graves.admin`) can open it for `graves.unlock-minutes` (15); then anyone can, and
+  the owner is told who opened it.
+- Protected from breaking, explosions, pistons, flowing liquids and endermen. If something clears the head, it's
+  put back. Saved in `graves.yml` (items as bytes, so they keep every component), so graves survive restarts.
+- Lava or a full spot: looks within `search-radius` (4) blocks, preferring higher. Void: the first standable block
+  in that column, or a single obsidian block to rest on.
+- `expire-minutes` (0 = never) spills an old grave's items on the ground. `disabled-worlds` turns graves off per world.
+
+`/graves` lists your graves with distance and direction. Staff: `/graves all` (click an id to teleport),
+`/graves tp|return|remove <id>` (`return` gives the items to the online owner; `remove` spills them).
+
 ## Crates
 
 `/crates` (or Keeper Isolde, or the vaults at the Crate Shrine: right-click to open, left-click to preview).

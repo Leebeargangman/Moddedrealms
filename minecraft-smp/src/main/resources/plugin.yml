@@ -3,7 +3,7 @@ version: '${project.version}'
 main: net.moddedrealms.smp.SmpPlugin
 api-version: '1.21'
 author: Moddedrealms
-description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, and a town with police, townsfolk and a jail.
+description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, a town with police, townsfolk and a jail, and death graves.
 softdepend: [Essentials, MythicDepths, ColonySMP]
 commands:
   quests:
@@ -109,6 +109,11 @@ commands:
   wanted:
     description: Who the police are after.
     permission: mrsmp.quests
+  graves:
+    description: Your graves (where your items wait after you die). Staff - all, tp, return, remove.
+    aliases: [grave]
+    usage: /graves [all|tp <id>|return <id>|remove <id>]
+    permission: mrsmp.graves
 permissions:
   mrsmp.quests:
     default: true
@@ -116,6 +121,12 @@ permissions:
     description: Talking to NPCs (the NPCs run /mrsmp talk for the player).
     default: true
   mrsmp.admin:
+    default: op
+  mrsmp.graves:
+    description: Dying leaves a grave with your items, and /graves.
+    default: true
+  mrsmp.graves.admin:
+    description: Open anyone's grave and use /graves all|tp|return|remove.
     default: op
   mrsmp.lawless:
     description: The police ignore this player (for staff who are building or testing). Not given to ops.

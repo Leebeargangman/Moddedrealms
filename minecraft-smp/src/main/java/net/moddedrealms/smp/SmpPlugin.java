@@ -4,6 +4,7 @@ import java.io.File;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.moddedrealms.smp.crate.CrateManager;
+import net.moddedrealms.smp.grave.GraveManager;
 import net.moddedrealms.smp.npc.Dialogues;
 import net.moddedrealms.smp.npc.NpcCommand;
 import net.moddedrealms.smp.npc.NpcManager;
@@ -25,6 +26,7 @@ public final class SmpPlugin extends JavaPlugin {
     private PlazaBuilder plaza;
     private CrateManager crates;
     private TownManager town;
+    private GraveManager graves;
 
     @Override
     public void onEnable() {
@@ -39,12 +41,16 @@ public final class SmpPlugin extends JavaPlugin {
         crates = new CrateManager(this);
         plaza = new PlazaBuilder(this);
         town = new TownManager(this);
+        graves = new GraveManager(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(npcs, this);
         pm.registerEvents(quests, this);
         pm.registerEvents(crates, this);
         pm.registerEvents(new Welcome(this), this);
+        pm.registerEvents(graves, this);
+        getCommand("graves").setExecutor(graves);
+        getCommand("graves").setTabCompleter(graves);
 
         var smp = new SmpCommand(this);
         getCommand("mrsmp").setExecutor(smp);
@@ -80,11 +86,13 @@ public final class SmpPlugin extends JavaPlugin {
         npcs.start();
         quests.start();
         town.start();
+        graves.start();
         if (getConfig().getBoolean("console-bridge", true)) new ConsoleBridge(this).start();
     }
 
     @Override
     public void onDisable() {
+        if (graves != null) graves.stop();
         if (town != null) town.stop();
         if (crates != null) crates.finishAll();
         if (quests != null) quests.saveAll();
@@ -99,6 +107,7 @@ public final class SmpPlugin extends JavaPlugin {
         crates.reload();
         npcs.reload();
         town.loadSettings();
+        graves.loadSettings();
     }
 
     public YamlConfiguration yaml(String name) {
@@ -116,4 +125,5 @@ public final class SmpPlugin extends JavaPlugin {
     public PlazaBuilder plaza() { return plaza; }
     public CrateManager crates() { return crates; }
     public TownManager town() { return town; }
+    public GraveManager graves() { return graves; }
 }
