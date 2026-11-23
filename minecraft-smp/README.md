@@ -239,6 +239,20 @@ odds, and insurance pays 80% of the loss. `/business` opens the panel (prices, u
 security, insurance); `/business market` shows every seller's price, stock and rating; `/business deposit|withdraw`
 moves cash.
 
+**Premises and work** (1.8.0). A player's business makes nothing on an empty plot and nothing while nobody works
+it. It needs its fittings on the plot, under a roof: an inn needs at least 4 beds (one per room), a bell at
+reception, 4 lights and a door; a cookhouse stoves, 4 seats and lights; a tavern 2 barrels, 4 seats and lights; a
+bakery an oven and a barrel; a tailor or wool mill looms (and the mill 2 sheep); a sawmill a stonecutter and log piles;
+a carpenter a crafting table and a stonecutter; a store 4 chests or barrels and a counter (lectern or bell); a farm 16
+crops and a composter (outdoors); a still a brewing stand and a cauldron. The fittings set how much it can make a cycle
+(each level lets more of them count), and the work done sets how much of that gets made: 1.5 for each task by the owner
+or a worker, 3 a cycle for each NPC staff or resident employee, a quarter of that while the owner hasn't been active
+for 15 minutes. Staff take 75% of the margin on what they make, so a business left to its staff earns little and an
+AFK owner's earns nothing; one that's worked earns well. At shops, inns, taverns and cookhouses, a shift also brings
+customers: right-click one to serve them (a sale on the spot, and a tip for you); they walk out if the price is over
+1.6x the fair price, or if nobody serves them in 25 seconds. Anyone idle for 3 minutes on shift is clocked out.
+`/business premises` shows the checklist; the panel shows it too, with the work done this cycle.
+
 **Jobs** (`/jobs`, `/job`). Town and player businesses hire. `/jobs` lists who's hiring, `/job apply <business id>`: town
 businesses take you on the spot; a player owner gets your application and `/business accept`s it (or offers you a job
 first with `/business hire <player>`, which you take with `/job accept`). At work,

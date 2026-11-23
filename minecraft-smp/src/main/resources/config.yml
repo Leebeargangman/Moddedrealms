@@ -378,6 +378,15 @@ town:
     delivery-seconds: 300
     max-staff-walkers: 16
     max-customers: 8
+    # Player businesses only make what their premises hold (fittings under a roof, see /business premises)
+    # and what gets worked: tasks by the owner and workers, plus hired NPC staff and residents.
+    labour-per-task: 1.5         # work from each task done (/job clockin)
+    labour-per-staff: 3          # work from each NPC staff or resident per cycle...
+    unsupervised-rate: 0.25      # ...times this when the owner hasn't been active lately
+    supervision-minutes: 15
+    staff-share: 0.75            # staff take this share of the margin on what they make
+    staff-flat-wage: 5           # plus this each per cycle
+    afk-clockout-seconds: 180    # idle this long on shift and you're clocked out
 
   # ---- Bank loans (/loan, from Banker Oakes or the Old Town banker).
   loans:

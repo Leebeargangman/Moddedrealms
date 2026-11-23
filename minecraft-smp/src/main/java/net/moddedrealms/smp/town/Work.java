@@ -47,6 +47,7 @@ public final class Work implements Listener {
         String biz;
         Location target;
         Biz deliverTo;
+        Walker customer;
         long deadline, nextTask;
         int done;
     }
@@ -170,7 +171,8 @@ public final class Work implements Listener {
     }
 
     void clockOut(UUID u) {
-        shifts.remove(u);
+        Shift s = shifts.remove(u);
+        if (s != null && s.customer != null) t.unregister(s.customer, false);
     }
 
     private static boolean say(Player p, String m) {
@@ -232,7 +234,12 @@ public final class Work implements Listener {
             Shift s = shifts.get(u);
             Biz b = bz.get(s.biz);
             if (p == null || b == null || !b.open() || !(b.workers.contains(u) || u.equals(b.owner)) || t.data(p).jailed()) {
-                shifts.remove(u);
+                clockOut(u);
+                continue;
+            }
+            if (p.getIdleDuration().toSeconds() > cfg().getLong("town.business.afk-clockout-seconds", 180)) {
+                clockOut(u);
+                p.sendMessage(SmpPlugin.mm("<gray>You dozed off on the job, so you've been clocked out of " + b.name + ". <white>/job clockin</white> when you're back."));
                 continue;
             }
             if (s.deliverTo != null) {
@@ -257,6 +264,28 @@ public final class Work implements Listener {
                 if (s.target != null && now > s.deadline) s.target = null;
                 continue;
             }
+            if (s.customer != null) {
+                if (!s.customer.valid() && now <= s.deadline) {
+                    // the customer couldn't get here (despawned): no harm done, another task comes along
+                    s.customer = null;
+                    s.nextTask = now + 2000;
+                    continue;
+                }
+                if (now > s.deadline) {
+                    if (s.customer.valid()) {
+                        s.customer.say(p, "Forget it, I'll go elsewhere.");
+                        t.unregister(s.customer, false);
+                    }
+                    s.customer = null;
+                    b.rating = Math.max(0, b.rating - 0.05);
+                    p.sendActionBar(SmpPlugin.mm("<red>The customer gave up waiting. <gray>(-rating)"));
+                    s.nextTask = now + 4000;
+                    continue;
+                }
+                if (!s.customer.moving() && s.customer.dist(p.getLocation()) > 2.5) s.customer.moveTo(p, 0.9);
+                if (tick % 2 == 0) p.sendActionBar(SmpPlugin.mm("<gold>A customer is waiting: <white>right-click " + s.customer.name + "<white> to serve them <gray>(" + (s.deadline - now) / 1000 + "s)"));
+                continue;
+            }
             if (s.target != null) {
                 if (now > s.deadline) {
                     p.sendActionBar(SmpPlugin.mm("<gray>Too slow, that one's done by someone else."));
@@ -269,7 +298,20 @@ public final class Work implements Listener {
                 continue;
             }
             if (now < s.nextTask) continue;
-            // New task: a delivery now and then, otherwise a station.
+            // New task: customers to serve at shops, a delivery now and then, otherwise a station.
+            if (b.kind.output.consumer && r.nextInt(5) < 2 && t.canSpawnWalkers(p.getWorld())) {
+                Location at = t.spawnSpot(p, 3, 7);
+                if (at != null && bz.at(at) == b) {
+                    Walker c = Walker.spawn(t.key, at, Walker.Role.CUSTOMER, "<white>" + pickName(), "<gray>Waiting to be served", 0.22, 12, outfit(null));
+                    c.gang = b.id;
+                    t.register(c);
+                    c.moveTo(p, 0.9);
+                    s.customer = c;
+                    s.deadline = now + 25_000;
+                    p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 0.7f, 1.4f);
+                    continue;
+                }
+            }
             if (r.nextInt(5) == 0) {
                 Biz dest = deliveryTarget(b);
                 if (dest != null) {
@@ -291,6 +333,50 @@ public final class Work implements Listener {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
         }
         if (tick % 4 == 0) activity();
+    }
+
+    /** A worker right-clicked a customer: if it's theirs, sell to them now (a sale and a tip). Returns true if handled. */
+    boolean serve(Player p, Walker w) {
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null || s.customer != w) return false;
+        Biz b = bz.get(s.biz);
+        s.customer = null;
+        if (b == null) {
+            t.unregister(w, false);
+            return true;
+        }
+        Econ.Good g = b.kind.output;
+        double have = Math.floor(b.stock.getOrDefault(g, 0.0));
+        if (have < 1) {
+            w.say(p, "Nothing left? Shame.");
+            b.rating = Math.max(0, b.rating - 0.1);
+            p.sendActionBar(SmpPlugin.mm("<red>Out of " + g.label.toLowerCase() + "! <gray>The business makes more each cycle (when it's worked)."));
+            t.unregister(w, false);
+            s.nextTask = System.currentTimeMillis() + 4000;
+            return true;
+        }
+        if (b.price > g.ref * 1.6) {
+            w.say(p, "How much?! That's daylight robbery.");
+            b.rating = Math.max(0, b.rating - 0.1);
+            p.sendActionBar(SmpPlugin.mm("<red>Too dear: customers won't pay more than " + Money.fmt(g.ref * 1.6) + " for " + g.label.toLowerCase() + "."));
+            t.unregister(w, false);
+            s.nextTask = System.currentTimeMillis() + 4000;
+            return true;
+        }
+        int n = (int) Math.min(have, 1 + r.nextInt(2));
+        double sale = n * b.price;
+        double tip = Math.round(sale * (0.1 + r.nextDouble() * 0.15));
+        b.stock.merge(g, (double) -n, Double::sum);
+        b.cash += sale;
+        b.revenue += sale;
+        b.sold += n;
+        b.rating = Math.min(5, b.rating + 0.03);
+        t.money.give(p, tip);
+        w.say(p, r.nextBoolean() ? "Lovely, thank you!" : "Just what I was after.");
+        p.sendMessage(SmpPlugin.mm("<green>Served: " + n + " " + g.label.toLowerCase() + " for " + Money.fmt(sale) + " <gray>(to the business) <yellow>+ " + Money.fmt(tip) + " tip"));
+        complete(p, s, b, 1);
+        t.unregister(w, false);
+        return true;
     }
 
     private Biz deliveryTarget(Biz b) {

@@ -997,6 +997,7 @@ public final class TownManager implements Listener {
                 w.say(p, b == null ? "Busy, busy!" : "Can't stop, I'm on shift at " + b.name + ". They're hiring, you know: /jobs");
             }
             case CUSTOMER -> {
+                if (businesses.work().serve(p, w)) return;
                 Businesses.Biz b = businesses.get(w.gang);
                 w.say(p, b == null ? "Just browsing." : "Off to " + b.name + " for some " + b.kind.output.label.toLowerCase() + ". Best in town, they say.");
             }
