@@ -72,7 +72,10 @@ public final class Leaderboards implements TabExecutor, org.bukkit.event.Listene
         display = null;
     }
 
+    private long refreshed;
+
     private void refresh() {
+        refreshed = System.currentTimeMillis();
         Set<String> hide = new HashSet<>();
         for (String s : cfg().getStringList("leaderboards.hide")) hide.add(s.toLowerCase(Locale.ROOT));
         List<Object[]> money = new ArrayList<>(), play = new ArrayList<>();
@@ -212,7 +215,7 @@ public final class Leaderboards implements TabExecutor, org.bukkit.event.Listene
             if (a.length == 0) b = Board.MONEY;
             else return true;
         }
-        if (cache.isEmpty()) refresh();
+        if (cache.isEmpty() || System.currentTimeMillis() - refreshed > 60_000L) refresh();
         sender.sendMessage(SmpPlugin.mm("<gold><bold>" + b.title + "</bold>"));
         for (String l : lines(b, 10)) sender.sendMessage(SmpPlugin.mm(" " + l));
         return true;

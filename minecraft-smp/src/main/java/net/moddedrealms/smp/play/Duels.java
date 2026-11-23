@@ -43,6 +43,12 @@ public final class Duels implements Listener, TabExecutor {
     private final YamlConfiguration stats;
     private final Map<UUID, Challenge> challenges = new HashMap<>(); // by the challenged player
     private final Map<UUID, Duel> byPlayer = new HashMap<>();
+    /** After a duel the two can't hurt each other for a few seconds (a swing already on its way, a sore loser). */
+    private final Map<String, Long> truce = new HashMap<>();
+
+    private static String pair(UUID x, UUID y) {
+        return x.compareTo(y) < 0 ? x + ":" + y : y + ":" + x;
+    }
 
     record Challenge(UUID from, UUID to, double wager, long at) {
     }
@@ -314,6 +320,7 @@ public final class Duels implements Listener, TabExecutor {
         byPlayer.remove(d.a);
         byPlayer.remove(d.b);
         if (d.task >= 0) Bukkit.getScheduler().cancelTask(d.task);
+        truce.put(pair(d.a, d.b), System.currentTimeMillis() + cfg().getLong("duels.truce-seconds", 8) * 1000L);
         Player a = Bukkit.getPlayer(d.a), b = Bukkit.getPlayer(d.b);
         for (Player x : new Player[]{a, b}) if (x != null) heal(x);
         if (winner == null) {
@@ -383,7 +390,15 @@ public final class Duels implements Listener, TabExecutor {
             e.setCancelled(false);
             return;
         }
-        if (dv != null || da != null) e.setCancelled(true); // outsiders stay out
+        if (dv != null || da != null) {
+            e.setCancelled(true); // outsiders stay out
+            return;
+        }
+        Long t = truce.get(pair(a.getUniqueId(), v.getUniqueId()));
+        if (t != null) {
+            if (t > System.currentTimeMillis()) e.setCancelled(true);
+            else truce.remove(pair(a.getUniqueId(), v.getUniqueId()));
+        }
     }
 
     /** The blow that would kill ends the duel instead. Runs last, after armour and the other plugins. */

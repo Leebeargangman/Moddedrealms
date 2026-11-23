@@ -70,6 +70,7 @@ duels:
   max-seconds: 180
   max-wager: 100000
   announce-range: 80
+  truce-seconds: 8      # after a duel the two can't hurt each other for this long
 
 # ---- Supply drops: a crate falls in the wilds (min..max blocks from the fountain, never in a town or on colony
 # land), announced warning-seconds before it lands. First to open it gets first-reward. /drop shows the way.

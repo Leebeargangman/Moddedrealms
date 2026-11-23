@@ -130,7 +130,7 @@ public final class DailyStreak implements Listener, CommandExecutor {
             int n = nextStreak(p.getUniqueId());
             int day = (n - 1) % 7 + 1;
             String what = plugin.rewards().describe(days().get(day - 1));
-            p.sendMessage(SmpPlugin.mm("<gold>🎁 Daily reward ready!</gold> <gray>Day " + day + " of 7" + (n > 1 ? " · <yellow>" + n + "-day streak</yellow>" : "")
+            p.sendMessage(SmpPlugin.mm("<gold>★ Daily reward ready!</gold> <gray>Day " + day + " of 7" + (n > 1 ? " · <yellow>" + n + "-day streak</yellow>" : "")
                     + ": <white>" + what + "</white> <click:run_command:'/daily'><hover:show_text:'<gray>Claim it'><green><u>[Claim]</u></green></hover></click>"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
         }, 160L);
@@ -225,7 +225,7 @@ public final class DailyStreak implements Listener, CommandExecutor {
         p.playSound(p.getLocation(), day == 7 ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f);
         p.sendMessage(SmpPlugin.mm("<green>Day " + day + " claimed: <white>" + plugin.rewards().describe(r) + "</white>." + (n > 1 ? " <yellow>" + n + "-day streak!" : "")
                 + " <gray>Come back tomorrow for day " + (day % 7 + 1) + "."));
-        if (n % 7 == 0) Bukkit.broadcast(SmpPlugin.mm("<gold>🎁 " + p.getName() + " has logged in " + n + " days in a row!"));
+        if (n % 7 == 0) Bukkit.broadcast(SmpPlugin.mm("<gold>★ " + p.getName() + " has logged in " + n + " days in a row!"));
         open(p);
     }
 

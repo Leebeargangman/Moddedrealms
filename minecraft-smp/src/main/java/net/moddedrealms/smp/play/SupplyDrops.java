@@ -142,7 +142,7 @@ public final class SupplyDrops implements Listener, CommandExecutor {
             }
             pending = at;
             landsAt = System.currentTimeMillis() + cfg().getLong("supply-drops.warning-seconds", 60) * 1000L;
-            broadcast("<gold>📦 A supply drop is falling at <white>" + where(at) + "</white>!</gold> <gray>It lands in "
+            broadcast("<gold>✦ A supply drop is falling at <white>" + where(at) + "</white>!</gold> <gray>It lands in "
                     + cfg().getLong("supply-drops.warning-seconds", 60) + " seconds. First to open it gets a crate key. <white>/drop</white> shows the way.");
             for (Player p : Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.ITEM_GOAT_HORN_SOUND_2, 0.5f, 1.0f);
         });
@@ -174,7 +174,7 @@ public final class SupplyDrops implements Listener, CommandExecutor {
         fm.addEffect(FireworkEffect.builder().with(FireworkEffect.Type.BALL_LARGE).withColor(Color.ORANGE, Color.YELLOW).withFade(Color.RED).build());
         fm.setPower(1);
         fw.setFireworkMeta(fm);
-        broadcast("<gold>📦 The supply drop has landed at <white>" + where(at) + "</white>!");
+        broadcast("<gold>✦ The supply drop has landed at <white>" + where(at) + "</white>!");
     }
 
     /** Weighted loot from supply-drops.loot: "MATERIAL:min-max:weight". */
@@ -259,7 +259,7 @@ public final class SupplyDrops implements Listener, CommandExecutor {
         if (l == null || !isDrop(l.getBlock())) return;
         opener = p.getName();
         expiresAt = Math.min(expiresAt, System.currentTimeMillis() + 3 * 60_000L); // a few minutes for the others to fight over it
-        broadcast("<gold>📦 " + p.getName() + " reached the supply drop first!");
+        broadcast("<gold>✦ " + p.getName() + " reached the supply drop first!");
         List<String> bonus = cfg().getStringList("supply-drops.first-reward");
         plugin.rewards().give(p, bonus.isEmpty() ? List.of("key:rare:1") : bonus);
         if (plugin.town() != null) plugin.town().news(p.getName() + " reached a supply drop first, out in the wilds.");
@@ -291,7 +291,7 @@ public final class SupplyDrops implements Listener, CommandExecutor {
             sender.sendMessage(SmpPlugin.mm("<gray>No supply drop right now. The next one falls in about <white>" + mins + "</white> minute" + (mins == 1 ? "" : "s") + "."));
             return true;
         }
-        String s = "<gold>📦 Supply drop " + (pending != null ? "falling" : "on the ground") + " at <white>" + where(l) + "</white>";
+        String s = "<gold>✦ Supply drop " + (pending != null ? "falling" : "on the ground") + " at <white>" + where(l) + "</white>";
         if (sender instanceof Player p && p.getWorld() == l.getWorld()) {
             double dx = l.getX() - p.getLocation().getX(), dz = l.getZ() - p.getLocation().getZ();
             String dir = compass(Math.toDegrees(Math.atan2(-dx, dz)));

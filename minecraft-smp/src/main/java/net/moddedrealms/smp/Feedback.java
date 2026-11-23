@@ -118,7 +118,7 @@ public final class Feedback implements Listener, CommandExecutor {
             if (left.isEmpty()) continue;
             askedThisSession.add(p.getUniqueId());
             double reward = plugin.getConfig().getDouble("poll.reward", 100);
-            p.sendMessage(SmpPlugin.mm("<gold>📜 Quick question!</gold> <gray>Help decide what Moddedrealms adds next: " + left.size() + " click"
+            p.sendMessage(SmpPlugin.mm("<gold>✎ Quick question!</gold> <gray>Help decide what Moddedrealms adds next: " + left.size() + " click"
                     + (left.size() == 1 ? "" : "s") + (reward > 0 && !rewarded(p) ? ", and <green>$" + Math.round(reward) + "</green> in-game for your time" : "")
                     + ". <click:run_command:'/poll'><hover:show_text:'<gray>Open the poll'><yellow><u>[Answer]</u></yellow></hover></click>"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 1.4f);
