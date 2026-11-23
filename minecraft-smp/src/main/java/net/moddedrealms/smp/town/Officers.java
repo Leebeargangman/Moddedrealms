@@ -79,7 +79,7 @@ public final class Officers {
         gear.put(EquipmentSlot.LEGS, Walker.dyed(Material.LEATHER_LEGGINGS, uniform));
         gear.put(EquipmentSlot.FEET, Walker.dyed(Material.LEATHER_BOOTS, "#111111"));
         gear.put(EquipmentSlot.HAND, new ItemStack(Material.STICK));
-        Walker o = Walker.spawn(t.key, at, Walker.Role.OFFICER, "<blue>Officer " + sur, "<gray>Town Watch",
+        Walker o = Walker.spawn(t.key, at, Walker.Role.OFFICER, "<blue>Guard " + sur, "<gray>Town Watch",
                 cfg().getDouble("town.officer-speed", 0.25), cfg().getDouble("town.officer-health", 30), gear);
         o.nextWander = System.currentTimeMillis() + 1000;
         o.corrupt = r.nextDouble() < cfg().getDouble("town.bribe.chance", 0.3);
@@ -243,7 +243,7 @@ public final class Officers {
                 return;
             }
         }
-        if (now - o.lastAttack > 1500) {
+        if (now - o.lastAttack > 700) {
             org.bukkit.entity.Entity foe = foeNear(o);
             if (foe != null) {
                 o.mode = FIGHT;
@@ -359,9 +359,37 @@ public final class Officers {
     }
 
     /** A hostile mob or bandit this officer can see nearby (MythicDepths bosses are left to the players). */
+    /** A monster is attacking someone in town: up to two guards nearby take it on; with none around, one is called in. */
+    public void defend(org.bukkit.entity.LivingEntity mob, Location where) {
+        if (!cfg().getBoolean("town.officers-fight-mobs", true) || mob.isDead()) return;
+        long now = System.currentTimeMillis();
+        List<Walker> near = new ArrayList<>();
+        for (Walker o : t.walkers(Walker.Role.OFFICER)) {
+            if (!o.valid() || o.world() != mob.getWorld() || o.dist(mob.getLocation()) > 40) continue;
+            if (o.mode == FIGHT && mob.getUniqueId().equals(o.foe)) return; // already on it
+            if (o.mode == PATROL) near.add(o);
+        }
+        near.sort(java.util.Comparator.comparingDouble(o -> o.dist(mob.getLocation())));
+        for (int i = 0; i < Math.min(2, near.size()); i++) {
+            Walker o = near.get(i);
+            o.mode = FIGHT;
+            o.foe = mob.getUniqueId();
+            o.modeSince = now;
+        }
+        if (near.isEmpty() && t.canSpawnWalkers(mob.getWorld()) && t.walkers(Walker.Role.OFFICER).size() < cfg().getInt("town.max-officers", 24)) {
+            Player p = t.nearestPlayer(where, 24);
+            Location at = p == null ? null : t.spawnSpot(p, 8, 16);
+            if (at == null) return;
+            Walker o = spawn(at);
+            o.mode = FIGHT;
+            o.foe = mob.getUniqueId();
+            o.modeSince = now;
+        }
+    }
+
     private org.bukkit.entity.Entity foeNear(Walker o) {
         org.bukkit.entity.Entity best = null;
-        double bd = cfg().getDouble("town.officer-mob-range", 14);
+        double bd = cfg().getDouble("town.officer-mob-range", 24);
         for (Walker b : t.walkers(Walker.Role.BANDIT)) {
             double d = o.dist(b.loc());
             if (d < bd + 6 && b.valid() && o.legs.hasLineOfSight(b.body)) {
@@ -382,6 +410,7 @@ public final class Officers {
             if (!(e instanceof org.bukkit.entity.Enemy) || !(e instanceof org.bukkit.entity.LivingEntity le) || le.isDead() || t.isOurs(e)) continue;
             if (e.getPersistentDataContainer().getKeys().stream().anyMatch(k -> k.getNamespace().equals("mythicdepths"))) continue;
             double d = o.dist(e.getLocation());
+            if (e instanceof org.bukkit.entity.Mob m && m.getTarget() instanceof Player) d -= 8; // the ones going for someone first
             if (d < bd && o.legs.hasLineOfSight(e)) {
                 bd = d;
                 best = e;
@@ -401,7 +430,7 @@ public final class Officers {
         arm(o, true);
         double dist = o.dist(e.getLocation());
         if (dist > 2.2) o.moveTo(e.getLocation(), 1.35);
-        if (dist < 3.0 && now - o.lastAttack > 800) {
+        if (dist < 3.0 && now - o.lastAttack > 600) {
             o.lastAttack = now;
             o.lookAt(e.getLocation().add(0, 1.2, 0));
             o.swing();
@@ -458,7 +487,7 @@ public final class Officers {
         }
         Walker o = nearest(p.getLocation(), 6);
         if (o == null) {
-            p.sendMessage(SmpPlugin.mm("<gray>You'd have to be standing next to an officer."));
+            p.sendMessage(SmpPlugin.mm("<gray>You'd have to be standing next to a guard."));
             return;
         }
         if (o.bribeTried.contains(p.getUniqueId())) {
@@ -479,9 +508,9 @@ public final class Officers {
             t.clearWanted(d);
             forget(p);
             o.say(p, "<gray>*pockets the " + Money.fmt(cost) + "*</gray> I didn't see a thing. Now get lost.");
-            if (d.caseOpen) p.sendMessage(SmpPlugin.mm("<dark_gray>(The Bureau doesn't take bribes. Your case is still open.)"));
+            if (d.caseOpen) p.sendMessage(SmpPlugin.mm("<dark_gray>(The Inquisition doesn't take bribes. Your case is still open.)"));
         } else {
-            o.say(p, "Are you trying to bribe an officer of the law?! That's another charge.");
+            o.say(p, "Are you trying to bribe a guard of the law?! That's another charge.");
             t.commit(p, Crime.BRIBERY, p.getLocation(), "bribe" + o.legs.getUniqueId(), null, true);
             d.hostile = true;
             d.orderedAt = 0;
@@ -542,7 +571,7 @@ public final class Officers {
         TownData d = t.data(p);
         if (t.exempt(p)) return;
         if (o.health <= 0) {
-            o.shout("<red>Officer down! Officer down!", 32);
+            o.shout("<red>Guard down! Guard down!", 32);
             t.news(p.getName() + " killed " + o.name.replaceAll("<[^>]+>", "") + " of the Town Watch!");
             t.unregister(o, true);
             t.commit(p, Crime.COP_KILLING, p.getLocation(), "cop" + o.legs.getUniqueId(), null, true);
@@ -572,7 +601,7 @@ public final class Officers {
                     "Keep the peace and we'll get along fine. <gray>(/rep shows your record)",
                     "No explosives, no fires, no fighting within " + (int) t.policeRadius + " blocks of the fountain.",
                     "Seen a pickpocket? Catch them and you'll get the money back, plus a reward.",
-                    "If we're after you, crouch next to an officer. Running only makes it worse."
+                    "If we're after you, crouch next to a guard. Running only makes it worse."
             };
             o.say(p, lines[r.nextInt(lines.length)]);
         }

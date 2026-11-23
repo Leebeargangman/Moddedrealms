@@ -244,7 +244,7 @@ public final class Bandits {
                 t.money.give(tp, share);
                 if (tp.getPlayer() != null) tp.getPlayer().sendMessage(SmpPlugin.mm("<gold>⚑ Your tip paid off: " + plain + " was brought in. <yellow>+" + Money.fmt(share)));
             }
-            t.news((npc != null && npc.role == Walker.Role.AGENT ? "Bureau agents" : "The Town Watch") + " brought in " + plain + ".");
+            t.news((npc != null && npc.role == Walker.Role.AGENT ? "Inquisitors" : "The Town Watch") + " brought in " + plain + ".");
         }
         t.unregister(b, true);
     }

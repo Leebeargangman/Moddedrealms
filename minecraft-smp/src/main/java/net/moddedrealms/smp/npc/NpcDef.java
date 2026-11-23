@@ -20,6 +20,8 @@ public final class NpcDef {
     public float yaw;
     /** Minecraft account name whose skin to wear (resolved by the client/Mojang), or null for the default look. */
     public String skin;
+    /** A skin from the server resource pack (textures/entity/npc/<texture>.png); wins over skin when the pack is on. */
+    public String texture;
     /** What a click does: dialogue (default: dialogue:<id>), quests, command:<cmd>, console:<cmd>. */
     public String action;
     public boolean look = true;
@@ -54,6 +56,7 @@ public final class NpcDef {
         d.z = s.getDouble("z");
         d.yaw = (float) s.getDouble("yaw");
         d.skin = s.getString("skin");
+        d.texture = s.getString("texture");
         d.action = s.getString("action");
         d.look = s.getBoolean("look", true);
         d.wander = s.getDouble("wander", 0);
@@ -83,6 +86,7 @@ public final class NpcDef {
         s.set("z", z);
         s.set("yaw", (double) yaw);
         s.set("skin", skin);
+        s.set("texture", texture);
         s.set("action", action);
         s.set("look", look);
         s.set("wander", wander == 0 ? null : wander);

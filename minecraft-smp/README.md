@@ -267,6 +267,65 @@ Staff who build or test near spawn can be given `mrsmp.lawless` so the police ig
 How the NPCs walk: each one is an invisible, silent skeleton with its AI removed (it only pathfinds where told) carrying
 a Mannequin with the clothes. Neither is saved with the world. Needs a difficulty above peaceful.
 
+## Medieval look, repairs and protection (1.7.0)
+
+**Medieval.** Player-facing names are medieval: the Town Watch's guards (not police), the King's Inquisition and its
+inquisitors (not the Bureau's agents), the reeve, the gambling den, the counting house and its moneylenders, the inn,
+the cookhouse, the hidden still. Command names are unchanged (`/police`, `/casino`, `/loan`...). `/mrtown medieval
+[name|all]` gives generated buildings the look in place: quartz, polished deepslate/blackstone/andesite, smooth stone,
+sea lanterns and redstone lamps become stone brick, cobble, timber and glowstone (stairs and slabs keep their shape),
+the guardhouse's blue light becomes a brazier, flat roofs on the guardhouse and counting house get battlements, and
+floating signs, NPC names and business names are renamed. Players' own Meadowbrook plots are skipped. New builds get it
+automatically.
+
+![Before and after](docs/medieval-before-after.png)
+
+**Repair.** `/mrtown repair [name|all]` joins up fences, panes, bars and walls and gives stairs their corner shapes
+(generated buildings are placed without block updates), and moves any bed whose head is stuck in a wall back into the
+room. Runs after every build too.
+
+**Protection** (`town.protection`). Explosions (creepers, TNT, beds, withers...), fire spreading and burning, mobs
+changing blocks, trampled crops and liquids flowing in from outside can't damage the towns: every generated building's
+area plus a radius (default 160) around each town centre.
+
+**Guards and mobs.** Guards go for hostile mobs within 24 blocks (the ones chasing a player first), and when a mob
+hurts a player or a guard in town the nearest two come to help, or one is called in.
+
+## Meadowbrook's residents
+
+Families move into the town's free homes (not ones players own): couples, children and grandparents with medieval
+names and their own skins. Adults work at town businesses or at players' businesses (20 a cycle each, paid by the
+business, +25% output each; `/business fire <name>` lets one go); children play in the square and elders sit there.
+Everyone keeps to the clock: work from dawn, errands at the shops in the afternoon (they buy things), the tavern in the
+evening, home at night. Only residents near a player are walking about. Each real day brings births, weddings,
+children growing up and moving into a home of their own, and elders passing away, all in the news. Right-click one to
+chat; `/census` lists the families. Admin: `/mrtown residents [day]`. Settings under `town.residents`.
+
+## The Herald and the court (AI)
+
+**The Meadowbrook Herald** (`/herald`, or the editor): every few hours, when there's news, a new edition comes out and
+is announced; it opens as a book. **The court** (`/trial`): someone in jail may appeal once, with
+`/trial plead <their side>` or an advocate (`/trial advocate <notes>`, an in-game fee). The judge upholds, reduces,
+overturns or lengthens the sentence; the effect is clamped (from release to 1.5x the time left; 4-5 star crimes at
+least half), and everyone in the courthouse hears the hearing.
+
+Both run on OpenAI when a key is set, and on scripted text otherwise. The key goes in
+`plugins/ModdedrealmsSMP/openai.key` (use the AMP file manager; never chat or the console, which Essentials logs), then
+`/mrtown ai reload`. `/mrtown ai` shows the model and the spend. The cap is hard: before each request the worst case is
+checked against what's left of the month (`monthly-budget-usd`, default $6, about 5 pounds) and the day
+(`daily-budget-usd`); over it, nothing is sent. Spend is counted from the tokens OpenAI reports times
+`price-input-per-million` / `price-output-per-million`; the defaults are higher than the small models cost, so set them
+to the real prices from OpenAI's pricing page for an exact count. AI features are free for every player.
+
+## The resource pack
+
+`resourcepack/` holds the server pack's own art: 82 NPC skins (`gen_skins.py`, medieval clothes for every role and
+40 residents), the train's engine and carriages (`gen_models.py`, item models shown by item displays that follow the
+minecarts) and item art for bolt cutters, loot bags, gold bars and the Herald. `python3 build_pack.py
+<MythicDepths resourcepack.zip> out.zip` merges it with the MythicDepths pack and prints the SHA-1 for
+`server.properties`. NPCs wear the skins through their profile's skin patch; `resource-pack.models: false` turns all
+of it off for a server that doesn't send the pack. If the engine faces backwards, set `town.railway.model-yaw: 180`.
+
 ## Console bridge
 
 AMP has no command-line way to type into the console, so lines appended to

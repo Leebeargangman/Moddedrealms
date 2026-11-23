@@ -18,7 +18,7 @@ final class Econ {
         BEDS("Beds", Material.RED_BED, 120, false),
         MEALS("Meals", Material.RABBIT_STEW, 60, true),
         GOODS("Household goods", Material.CHEST, 40, true),
-        STAYS("Hotel stays", Material.WHITE_BED, 250, true),
+        STAYS("Inn stays", Material.WHITE_BED, 250, true),
         MOONSHINE("Moonshine", Material.POTION, 120, true);
 
         final String label;
@@ -39,15 +39,15 @@ final class Econ {
     enum Kind {
         FARM("Farm", Map.of(), Good.WHEAT, 40, 15000, true, Material.COMPOSTER),
         WOOL_MILL("Wool mill", Map.of(), Good.WOOL, 24, 15000, true, Material.LOOM),
-        LUMBER_MILL("Lumber mill", Map.of(), Good.PLANKS, 24, 15000, true, Material.STONECUTTER),
+        LUMBER_MILL("Sawmill", Map.of(), Good.PLANKS, 24, 15000, true, Material.STONECUTTER),
         BAKERY("Bakery", Map.of(Good.WHEAT, 1.0), Good.BREAD, 10, 20000, true, Material.SMOKER),
         TAVERN("Tavern", Map.of(Good.WHEAT, 1.0), Good.ALE, 10, 20000, true, Material.BARREL),
         TAILOR("Tailor", Map.of(Good.WOOL, 2.0), Good.CLOTH, 6, 25000, true, Material.LOOM),
-        FURNITURE("Furniture workshop", Map.of(Good.PLANKS, 2.0, Good.WOOL, 1.0), Good.BEDS, 4, 30000, true, Material.CRAFTING_TABLE),
-        RESTAURANT("Restaurant", Map.of(Good.BREAD, 1.0, Good.WHEAT, 1.0), Good.MEALS, 6, 30000, true, Material.SMOKER),
+        FURNITURE("Carpenter's workshop", Map.of(Good.PLANKS, 2.0, Good.WOOL, 1.0), Good.BEDS, 4, 30000, true, Material.CRAFTING_TABLE),
+        RESTAURANT("Cookhouse", Map.of(Good.BREAD, 1.0, Good.WHEAT, 1.0), Good.MEALS, 6, 30000, true, Material.SMOKER),
         STORE("General store", Map.of(Good.CLOTH, 1.0, Good.PLANKS, 1.0), Good.GOODS, 8, 25000, true, Material.BARREL),
-        HOTEL("Hotel", Map.of(Good.MEALS, 1.0, Good.CLOTH, 0.5, Good.BEDS, 0.2), Good.STAYS, 6, 50000, true, Material.WHITE_BED),
-        SPEAKEASY("Speakeasy", Map.of(Good.WHEAT, 2.0), Good.MOONSHINE, 5, 20000, false, Material.BREWING_STAND);
+        HOTEL("Inn", Map.of(Good.MEALS, 1.0, Good.CLOTH, 0.5, Good.BEDS, 0.2), Good.STAYS, 6, 50000, true, Material.WHITE_BED),
+        SPEAKEASY("Hidden still", Map.of(Good.WHEAT, 2.0), Good.MOONSHINE, 5, 20000, false, Material.BREWING_STAND);
 
         final String label;
         final Map<Good, Double> inputs;
@@ -58,6 +58,25 @@ final class Econ {
         final boolean legal;
         /** The block that counts as a workstation for player shifts. */
         final Material station;
+
+        /** The word players type: /business start <id>. */
+        String id() {
+            return switch (this) {
+                case LUMBER_MILL -> "sawmill";
+                case FURNITURE -> "carpenter";
+                case RESTAURANT -> "cookhouse";
+                case HOTEL -> "inn";
+                case SPEAKEASY -> "still";
+                case WOOL_MILL -> "woolmill";
+                case STORE -> "store";
+                default -> name().toLowerCase(java.util.Locale.ROOT);
+            };
+        }
+
+        static Kind parse(String s) {
+            for (Kind k : values()) if (k.id().equalsIgnoreCase(s) || k.name().equalsIgnoreCase(s)) return k;
+            return null;
+        }
 
         Kind(String label, Map<Good, Double> inputs, Good output, int capacity, double startCost, boolean legal, Material station) {
             this.label = label;

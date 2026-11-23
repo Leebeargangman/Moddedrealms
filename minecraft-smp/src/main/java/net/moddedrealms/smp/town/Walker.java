@@ -32,7 +32,7 @@ import org.bukkit.util.Vector;
  * Skeletons rather than zombies because villagers don't panic around them.
  */
 public final class Walker {
-    public enum Role { OFFICER, MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE, BANDIT, AGENT, PATRON, GANGSTER, COURIER, WORKER, CUSTOMER }
+    public enum Role { OFFICER, MERCHANT, GOSSIP, TRAVELLER, THIEF, FENCE, BANDIT, AGENT, PATRON, GANGSTER, COURIER, WORKER, CUSTOMER, RESIDENT }
 
     public final Role role;
     public final Skeleton legs;
@@ -94,6 +94,29 @@ public final class Walker {
 
     static Walker spawn(NamespacedKey key, Location at, Role role, String name, String title, double speed, double hp,
                         Map<EquipmentSlot, ItemStack> gear) {
+        return spawn(key, at, role, name, title, speed, hp, gear, defaultSkin(role));
+    }
+
+    /** The pack skin a role wears unless the caller picks one. */
+    static String defaultSkin(Role role) {
+        return switch (role) {
+            case OFFICER -> "officer";
+            case MERCHANT -> net.moddedrealms.smp.Pack.pick("merchant");
+            case GOSSIP -> "gossip";
+            case TRAVELLER -> "traveller";
+            case THIEF -> "thief";
+            case FENCE -> "fence";
+            case BANDIT -> "bandit";
+            case AGENT -> "agent";
+            case COURIER -> "courier";
+            case WORKER -> net.moddedrealms.smp.Pack.pick("worker");
+            case GANGSTER -> net.moddedrealms.smp.Pack.pick("gang_vipers");
+            case PATRON, CUSTOMER, RESIDENT -> net.moddedrealms.smp.Pack.pick(new java.util.Random().nextBoolean() ? "resident_m" : "resident_f");
+        };
+    }
+
+    static Walker spawn(NamespacedKey key, Location at, Role role, String name, String title, double speed, double hp,
+                        Map<EquipmentSlot, ItemStack> gear, String skin) {
         World w = at.getWorld();
         Skeleton legs = w.spawn(at, Skeleton.class, s -> {
             s.setPersistent(false);
@@ -131,6 +154,7 @@ public final class Walker {
             m.getPersistentDataContainer().set(key, PersistentDataType.STRING, role.name());
             var eq = m.getEquipment();
             for (var e : gear.entrySet()) eq.setItem(e.getKey(), e.getValue());
+            net.moddedrealms.smp.Pack.skin(m, skin);
         });
         return new Walker(role, legs, body, name, title, hp);
     }

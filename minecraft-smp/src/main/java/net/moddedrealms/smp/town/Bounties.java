@@ -97,7 +97,7 @@ public final class Bounties {
             return;
         }
         if (target.getWorld() != reporter.getWorld() || target.getLocation().distance(reporter.getLocation()) > 64 || !reporter.hasLineOfSight(target)) {
-            reporter.sendMessage(SmpPlugin.mm("<red>You have to be able to see " + target.getName() + " (within 64 blocks) to tip off the police."));
+            reporter.sendMessage(SmpPlugin.mm("<red>You have to be able to see " + target.getName() + " (within 64 blocks) to tip off the Watch."));
             return;
         }
         rd.lastTip = now;
@@ -111,7 +111,7 @@ public final class Bounties {
                     + " in the next 10 minutes you get <gold>" + share + "</gold>."));
         } else if (d.caseOpen && t.bureau().inReach(target)) {
             t.bureau().ambush(target, Bureau.Kind.TIP);
-            reporter.sendMessage(SmpPlugin.mm("<dark_gray>[Bureau] <gray>Noted. Agents are moving in. If they catch " + target.getName()
+            reporter.sendMessage(SmpPlugin.mm("<dark_gray>[Inquisition] <gray>Noted. Inquisitors are moving in. If they catch " + target.getName()
                     + " in the next 10 minutes you get <gold>" + share + "</gold>."));
         } else {
             reporter.sendMessage(SmpPlugin.mm("<gray>" + target.getName() + " is outside the watch's " + (int) t.policeRadius
@@ -141,12 +141,12 @@ public final class Bounties {
         Location at = best.loc();
         if (t.inPoliceZone(at)) {
             t.officers().hunt(best);
-            reporter.sendMessage(SmpPlugin.mm("<blue>[Watch] <gray>Officers are on their way to " + best.name + "<gray>. If they bring them in you get <gold>" + share + "</gold>."));
+            reporter.sendMessage(SmpPlugin.mm("<blue>[Watch] <gray>Guards are on their way to " + best.name + "<gray>. If they bring them in you get <gold>" + share + "</gold>."));
         } else if (best.stars >= cfg().getInt("town.bureau.from-stars", 3) && t.bureau().inReach(at)) {
             t.bureau().hunt(best);
-            reporter.sendMessage(SmpPlugin.mm("<dark_gray>[Bureau] <gray>Agents are moving in on " + best.name + "<gray>. If they bring them in you get <gold>" + share + "</gold>."));
+            reporter.sendMessage(SmpPlugin.mm("<dark_gray>[Inquisition] <gray>Inquisitors are moving in on " + best.name + "<gray>. If they bring them in you get <gold>" + share + "</gold>."));
         } else {
-            reporter.sendMessage(SmpPlugin.mm("<gray>That's too far out for the watch, and too small for the Bureau. Take " + best.name
+            reporter.sendMessage(SmpPlugin.mm("<gray>That's too far out for the watch, and too small for the Inquisition. Take " + best.name
                     + " <gray>down yourself for the full <gold>" + Money.fmt(best.bounty) + "</gold>."));
         }
     }
@@ -197,7 +197,7 @@ public final class Bounties {
         for (Player p : wanted) {
             TownData d = t.data(p);
             s.sendMessage(SmpPlugin.mm(" " + TownManager.stars(d.stars) + " <white>" + p.getName() + " <gold>" + Money.fmt(of(d)) + " <gray>" + d.reason
-                    + (d.caseOpen ? " <dark_gray>[Bureau case]" : "")));
+                    + (d.caseOpen ? " <dark_gray>[Inquisition case]" : "")));
         }
         for (Walker b : bandits) {
             Location l = b.loc();

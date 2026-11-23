@@ -90,6 +90,12 @@ public final class TownManager implements Listener {
     }
     private final List<Zone> zones = new ArrayList<>();
     private Crimes crimes;
+    private Protection protection;
+    private Residents residents;
+    private Ai ai;
+    private Herald herald;
+    private Court court;
+    private int heraldTick;
     private Bounties bounties;
     private PoliceForce police;
     private Bandits bandits;
@@ -155,6 +161,11 @@ public final class TownManager implements Listener {
         heists = new Heists(this);
         prisonBreak = new PrisonBreak(this);
         plots = new Plots(this);
+        protection = new Protection(this);
+        residents = new Residents(this);
+        ai = new Ai(this);
+        herald = new Herald(this);
+        court = new Court(this);
         meadowbrook = new Meadowbrook(this);
         railway = new Railway(this);
         businesses = new Businesses(this);
@@ -183,6 +194,7 @@ public final class TownManager implements Listener {
         var pm = Bukkit.getPluginManager();
         pm.registerEvents(this, plugin);
         pm.registerEvents(crimes, plugin);
+        pm.registerEvents(protection, plugin);
         for (Jail j : jails.values()) pm.registerEvents(j, plugin);
         pm.registerEvents(townsfolk, plugin);
         pm.registerEvents(service, plugin);
@@ -208,6 +220,7 @@ public final class TownManager implements Listener {
     }
 
     public void stop() {
+        if (residents != null) residents.stop();
         for (Walker w : new ArrayList<>(walkers)) w.remove(false);
         walkers.clear();
         byEntity.clear();
@@ -247,6 +260,86 @@ public final class TownManager implements Listener {
     public Heists heists() { return heists; }
     public PrisonBreak prisonBreak() { return prisonBreak; }
     public Plots plots() { return plots; }
+    Protection protection() { return protection; }
+
+    /** Give generated buildings (or "all") the medieval look; players' plots are left alone. Returns a summary. */
+    public String medieval(String which) {
+        int swapped = 0, merlons = 0, n = 0;
+        for (Protection.Area a : protection.built()) {
+            if (!which.equals("all") && !a.name().equals(which)) continue;
+            var b = a.box();
+            boolean battlements = a.name().equals("jail") || a.name().equals("bank");
+            Medieval m = Medieval.area(a.world(), (int) b.getMinX(), (int) b.getMinY(), (int) b.getMinZ(), (int) b.getMaxX() - 1, (int) b.getMaxY() - 1, (int) b.getMaxZ() - 1,
+                    bl -> { Plots.Plot p = plots.at(bl.getLocation()); return p != null && p.owner != null; }, battlements);
+            swapped += m.swapped;
+            merlons += m.merlons;
+            n++;
+        }
+        int renamed = 0;
+        for (Protection.Area a : protection.built()) {
+            if (!which.equals("all") && !a.name().equals(which)) continue;
+            renamed += renameSigns(a);
+        }
+        if (which.equals("all")) renamed += renameData();
+        return n == 0 ? "Nothing built under that name." : "Medieval look on " + n + " building" + (n == 1 ? "" : "s") + ": " + swapped + " blocks changed, " + merlons
+                + " merlons added, " + renamed + " signs/names renamed.";
+    }
+
+    /** Floating signs (text displays) in a building's area get the medieval wording. */
+    private int renameSigns(Protection.Area a) {
+        int n = 0;
+        var b = a.box();
+        for (Entity e : a.world().getNearbyEntities(b, x -> x instanceof org.bukkit.entity.TextDisplay)) {
+            org.bukkit.entity.TextDisplay d = (org.bukkit.entity.TextDisplay) e;
+            String mm = SmpPlugin.MM.serialize(d.text());
+            String nw = Medieval.text(mm);
+            if (!nw.equals(mm)) {
+                d.text(SmpPlugin.mm(nw));
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** NPC names and titles and business names saved before the medieval update. */
+    private int renameData() {
+        int n = 0;
+        var npcs = plugin.npcs();
+        for (var d : new ArrayList<>(npcs.all())) {
+            String nn = Medieval.text(d.name), nt = Medieval.text(d.title);
+            if (!java.util.Objects.equals(nn, d.name) || !java.util.Objects.equals(nt, d.title)) {
+                d.name = nn;
+                d.title = nt;
+                npcs.refresh(d.id);
+                n++;
+            }
+        }
+        npcs.save();
+        for (Businesses.Biz b : businesses.all()) {
+            String nn = Medieval.text(b.name);
+            if (!nn.equals(b.name)) {
+                b.name = nn;
+                n++;
+            }
+        }
+        businesses.save();
+        return n;
+    }
+
+    /** Fix fences, panes, walls, stairs and misplaced beds in one generated building (or "all"). Returns a summary. */
+    public String repair(String which) {
+        int shapes = 0, beds = 0, n = 0;
+        for (Protection.Area a : protection.built()) {
+            if (!which.equals("all") && !a.name().equals(which)) continue;
+            var b = a.box();
+            Repair r = Repair.area(a.world(), (int) b.getMinX(), (int) b.getMinY(), (int) b.getMinZ(), (int) b.getMaxX() - 1, (int) b.getMaxY() - 1, (int) b.getMaxZ() - 1);
+            shapes += r.shapes;
+            beds += r.beds;
+            n++;
+        }
+        protection.reload();
+        return n == 0 ? "Nothing built under that name." : "Repaired " + n + " building" + (n == 1 ? "" : "s") + ": " + shapes + " fences/panes/walls/stairs joined up, " + beds + " beds moved out of walls.";
+    }
     public Meadowbrook meadowbrook() { return meadowbrook; }
     public Railway railway() { return railway; }
     public Businesses businesses() { return businesses; }
@@ -254,8 +347,13 @@ public final class TownManager implements Listener {
 
     /** Extra demand from the town's residents (filled in when NPC families arrive). */
     public double residentsDemand() {
-        return 0;
+        return residents == null ? 0 : residents.demand();
     }
+
+    public Residents residents() { return residents; }
+    Ai ai() { return ai; }
+    Herald herald() { return herald; }
+    Court court() { return court; }
 
     public java.util.Set<UUID> knownPlayers() {
         return new java.util.HashSet<>(data.keySet());
@@ -506,14 +604,14 @@ public final class TownManager implements Listener {
                 dirty = true;
                 if (d.stars <= 0) {
                     clearWanted(d);
-                    p.sendMessage(SmpPlugin.mm("<green>The police have lost your trail. You're no longer wanted."));
+                    p.sendMessage(SmpPlugin.mm("<green>The Watch has lost your trail. You're no longer wanted."));
                     p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.7f, 1.2f);
                     continue;
                 }
             }
             String order = d.orderedAt > 0 && !d.hostile ? "  <yellow>Crouch to surrender: " + Math.max(0, 10 - (now - d.orderedAt) / 1000) + "s" : "";
             p.sendActionBar(SmpPlugin.mm("<red><bold>WANTED</bold> " + stars(d.stars) + " <gray>(" + d.reason + ") <gold>" + Money.fmt(bounties.of(d))
-                    + (d.caseOpen ? " <dark_red>[Bureau]" : "") + order));
+                    + (d.caseOpen ? " <dark_red>[Inquisition]" : "") + order));
         }
         for (Jail j : jails.values()) j.second();
         bank.second();
@@ -524,6 +622,8 @@ public final class TownManager implements Listener {
         prisonBreak.second();
         plots.second();
         businesses.second();
+        residents.second();
+        if (++heraldTick % 60 == 0) herald.minute();
         loans.second();
         if (tick % 100 == 0) meadowbrook.tickClock();
     }
@@ -596,10 +696,10 @@ public final class TownManager implements Listener {
             p.showTitle(Title.title(SmpPlugin.mm("<red><bold>WANTED"), SmpPlugin.mm(stars(d.stars) + " <gray>" + c.label),
                     Title.Times.times(Duration.ofMillis(150), Duration.ofMillis(1600), Duration.ofMillis(400))));
             p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1f, 0.8f);
-            p.sendMessage(SmpPlugin.mm("<red>★ " + (sawIt != null ? sawIt.name + " <red>saw that!" : "Someone called the police!")
+            p.sendMessage(SmpPlugin.mm("<red>★ " + (sawIt != null ? sawIt.name + " <red>saw that!" : "Someone called the Watch!")
                     + " You're wanted for <white>" + c.label + "</white>. " + (d.hostile
-                    ? "<gray>The officers will use force. Crouch next to one to give yourself up."
-                    : "<gray>Crouch next to an officer to give yourself up, or get away and lie low.")));
+                    ? "<gray>The guards will use force. Crouch next to one to give yourself up."
+                    : "<gray>Crouch next to a guard to give yourself up, or get away and lie low.")));
             if (before == 0) news(p.getName() + " is wanted for " + c.label + "!");
             police.alert(p, d, c);
             bounties.posted(p, d, before);
@@ -684,8 +784,8 @@ public final class TownManager implements Listener {
             }
         }
         if (evidence > 0) p.sendMessage(SmpPlugin.mm("<gray>The watch took " + evidence + " stolen item" + (evidence == 1 ? "" : "s") + " as evidence."));
-        bureau.close(d, p, d.caseOpen ? "<gray>The Bureau has closed your case." : null);
-        String by2 = arrester != null ? arrester.getName() : bureauArrest ? "Bureau agents" : "The watch";
+        bureau.close(d, p, d.caseOpen ? "<gray>The Inquisition has closed your case." : null);
+        String by2 = arrester != null ? arrester.getName() : bureauArrest ? "Inquisitors" : "The watch";
         news(by2 + " hauled " + p.getName() + " off to jail for " + reason + ".");
         if (Bukkit.getPluginManager().isPluginEnabled("ModdedrealmsGuard") && c.getBoolean("town.bodycam", true)) {
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "replay save " + p.getName() + " 60 Town Watch bodycam: arrest for " + reason);
@@ -711,6 +811,7 @@ public final class TownManager implements Listener {
         d.jailTown = jl.id;
         d.cell = jl.freeCell();
         dirty = true;
+        court.charged(p, new Court.Charge(reason, stars, busted, evidence, bureauArrest, secs));
         p.sendMessage(SmpPlugin.mm("<gray>Sentence: <white>" + fmtTime(secs) + "</white> in jail (served while online)"
                 + (fine > 0 ? ", fine <white>" + Money.fmt(fine) + "</white>" : "") + "."));
         final int arrestedStars = stars;
@@ -783,7 +884,7 @@ public final class TownManager implements Listener {
     public String tierPerk(Tier t) {
         return switch (t) {
             case HERO -> "Merchants give you their best prices and the watch salutes you.";
-            case RESPECTED -> "Merchants give you a discount, and you can join the Town Watch at the police station (/police).";
+            case RESPECTED -> "Merchants give you a discount, and you can join the Town Watch at the guardhouse (/police).";
             case CITIZEN -> "";
             case ROGUE -> "Merchants charge you more... but a shady figure might want to meet you at night.";
             case OUTLAW -> "Townsfolk avoid you and merchants won't trade. The Fence is your friend now.";
@@ -837,12 +938,27 @@ public final class TownManager implements Listener {
         return null;
     }
 
+    /** A monster hurting a player in town: the nearest guards come to help. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMobHitsPlayer(EntityDamageByEntityEvent e) {
+        if (!(e.getEntity() instanceof Player p)) return;
+        Entity d = e.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Entity sh ? sh : e.getDamager();
+        if (!(d instanceof org.bukkit.entity.Enemy) || !(d instanceof LivingEntity mob) || isOurs(d)) return;
+        if (!inPoliceZone(p.getLocation()) || data(p).jailed()) return;
+        officers.defend(mob, p.getLocation());
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onWalkerDamage(EntityDamageEvent e) {
         Walker w = walker(e.getEntity());
         if (w == null) return;
         e.setCancelled(true);
         if (!(e instanceof EntityDamageByEntityEvent by)) return;
+        Entity mobHit = by.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Entity sh ? sh : by.getDamager();
+        if (w.role == Walker.Role.OFFICER && mobHit instanceof org.bukkit.entity.Enemy && mobHit instanceof LivingEntity mob && !isOurs(mobHit)) {
+            officers.defend(mob, w.loc());
+            return;
+        }
         Player p = attacker(by.getDamager());
         if (p == null || p.getGameMode() == GameMode.SPECTATOR) return;
         if (data(p).jailed()) return;
@@ -884,6 +1000,7 @@ public final class TownManager implements Listener {
                 Businesses.Biz b = businesses.get(w.gang);
                 w.say(p, b == null ? "Just browsing." : "Off to " + b.name + " for some " + b.kind.output.label.toLowerCase() + ". Best in town, they say.");
             }
+            case RESIDENT -> residents.clicked(w, p);
             default -> townsfolk.clicked(w, p);
         }
     }

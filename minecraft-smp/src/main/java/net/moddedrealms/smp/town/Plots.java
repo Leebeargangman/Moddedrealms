@@ -181,6 +181,10 @@ public final class Plots implements Listener, TabExecutor {
         return null;
     }
 
+    public java.util.Collection<Plot> all() {
+        return plots.values();
+    }
+
     public Plot get(String id) {
         return plots.get(id);
     }

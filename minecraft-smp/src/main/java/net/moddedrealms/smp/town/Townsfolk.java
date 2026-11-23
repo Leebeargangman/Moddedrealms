@@ -320,7 +320,7 @@ public final class Townsfolk implements Listener {
     }
 
     void report(Object who, Player p, Crime c) {
-        String line = "<yellow>Help! Police! " + p.getName() + " is " + switch (c) {
+        String line = "<yellow>Help! Watch! " + p.getName() + " is " + switch (c) {
             case ASSAULT, ASSAULT_NPC -> "attacking people";
             case MURDER, MANSLAUGHTER -> "a murderer";
             case ARSON -> "setting fires";
@@ -497,7 +497,7 @@ public final class Townsfolk implements Listener {
             p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
             t.commit(p, Crime.PICKPOCKET, p.getLocation(), "npc" + w.legs.getUniqueId(), null, false, w);
         } else {
-            w.shout("<yellow>Thief! Get your hands off me! Police!", 24);
+            w.shout("<yellow>Thief! Get your hands off me! Watch!", 24);
             p.sendMessage(SmpPlugin.mm("<red>They felt your hand in their pocket!"));
             flee(w, p.getLocation(), 1.4);
             t.commit(p, Crime.PICKPOCKET, p.getLocation(), "npc" + w.legs.getUniqueId(), w, false);
@@ -610,7 +610,7 @@ public final class Townsfolk implements Listener {
                 "<gray>Worth: <gold>" + Money.fmt(value), "", value > 0 ? "<green>Click to sell" : "<red>You have nothing I want")));
         double disguise = cfg().getDouble("town.fence.disguise-price", 750);
         menu.inv.setItem(13, icon(Material.LEATHER_HELMET, 1, "<white>Disguise kit", List.of("<gray>New clothes, new face.",
-                "<gray>Clears your wanted stars, if no officer", "<gray>is watching you right now.", "", "<gray>Price: <gold>" + Money.fmt(disguise), "<green>Click to buy")));
+                "<gray>Clears your wanted stars, if no guard", "<gray>is watching you right now.", "", "<gray>Price: <gold>" + Money.fmt(disguise), "<green>Click to buy")));
         double keyPrice = cfg().getDouble("town.fence.key-price", 1500);
         String crate = cfg().getString("town.fence.key-crate", "blackmarket");
         if (!t.plugin().crates().all().containsKey(crate)) crate = "mythic";

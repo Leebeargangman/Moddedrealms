@@ -45,7 +45,7 @@ public final class CasinoGames implements Listener {
 
     private boolean inCasino(Player p) {
         if (p.hasPermission("mrsmp.admin") || t.casino().inside(p.getLocation())) return true;
-        p.sendMessage(SmpPlugin.mm("<gray>You can only gamble inside the casino."));
+        p.sendMessage(SmpPlugin.mm("<gray>You can only gamble inside the gambling den."));
         return false;
     }
 
@@ -150,7 +150,7 @@ public final class CasinoGames implements Listener {
             p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.2f);
             if (s[0].pays() >= 60) {
                 for (Player o : Bukkit.getOnlinePlayers()) o.sendMessage(SmpPlugin.mm("<gold><bold>JACKPOT!</bold> <white>" + p.getName() + "</white> hit " + Money.fmt(win) + " on the slots at the Golden Rat!"));
-                t.news(p.getName() + " hit a " + Money.fmt(win) + " jackpot at the underground casino!");
+                t.news(p.getName() + " hit a " + Money.fmt(win) + " jackpot at the underground gambling den!");
             }
         } else if (win == price) {
             p.sendActionBar(SmpPlugin.mm("<yellow>A pair: your " + Money.fmt(price) + " back."));

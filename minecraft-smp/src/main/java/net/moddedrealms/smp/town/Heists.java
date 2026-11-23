@@ -134,7 +134,7 @@ public final class Heists implements Listener {
                 SmpPlugin.mm("<dark_gray>Use on a cell's window from outside the station.").decoration(TextDecoration.ITALIC, false)));
         m.getPersistentDataContainer().set(cutterKey, PersistentDataType.BYTE, (byte) 1);
         it.setItemMeta(m);
-        return it;
+        return net.moddedrealms.smp.Pack.model(it, "bolt_cutters");
     }
 
     public boolean isCutters(ItemStack it) {
@@ -146,12 +146,12 @@ public final class Heists implements Listener {
         ItemMeta m = it.getItemMeta();
         m.displayName(SmpPlugin.mm("<gold>Loot Bag").decoration(TextDecoration.ITALIC, false));
         m.lore(List.of(SmpPlugin.mm("<gray>Heavy. Worth " + Money.fmt(value) + " at the getaway spot.").decoration(TextDecoration.ITALIC, false),
-                SmpPlugin.mm("<dark_gray>Stolen goods: the Fence pays half, the police take it.").decoration(TextDecoration.ITALIC, false)));
+                SmpPlugin.mm("<dark_gray>Stolen goods: the Fence pays half, the Watch takes it.").decoration(TextDecoration.ITALIC, false)));
         m.getPersistentDataContainer().set(bagKey, PersistentDataType.INTEGER, value);
         m.getPersistentDataContainer().set(t.stolenKey, PersistentDataType.INTEGER, value / 2);
         m.setMaxStackSize(16);
         it.setItemMeta(m);
-        return it;
+        return net.moddedrealms.smp.Pack.model(it, "loot_bag");
     }
 
     private int bagValue(Player p, boolean take) {
@@ -192,22 +192,22 @@ public final class Heists implements Listener {
 
     public void open(Player p) {
         if (!nearPlanner(p)) {
-            p.sendMessage(SmpPlugin.mm("<gray>Heists are planned with the Planner, in the back room of the underground casino."));
+            p.sendMessage(SmpPlugin.mm("<gray>Heists are planned with the Planner, in the back room of the underground gambling den."));
             return;
         }
         long now = System.currentTimeMillis();
         Board b = new Board();
         b.inv = Bukkit.createInventory(b, 27, SmpPlugin.mm("<dark_red>The Planner"));
         boolean bankOk = t.bank().ready();
-        b.inv.setItem(11, icon(Material.GOLD_BLOCK, "<gold><bold>Bank: the Deep Vault", "<gray>1. Cut the alarm behind the bank (or don't)",
-                "<gray>2. Drill the vault while the police come", "<gray>3. Carry the loot bags to the getaway spot", "",
+        b.inv.setItem(11, icon(Material.GOLD_BLOCK, "<gold><bold>Counting House: the Deep Vault", "<gray>1. Cut the alarm behind the counting house (or don't)",
+                "<gray>2. Drill the vault while the Watch comes", "<gray>3. Carry the loot bags to the getaway spot", "",
                 "<gray>Crew 2-4 · about " + Money.fmt(cfg().getDouble("town.heists.bank-bags", 3) * cfg().getDouble("town.heists.bank-bag-value", 2500)) + " each",
-                !bankOk ? "<red>There's no bank to hit" : now < bankReady ? "<red>Too hot right now: " + left(bankReady) : "<green>Click to plan (" + Money.fmt(cfg().getDouble("town.heists.plan-cost", 1000)) + " for equipment)"));
+                !bankOk ? "<red>There's no counting house to hit" : now < bankReady ? "<red>Too hot right now: " + left(bankReady) : "<green>Click to plan (" + Money.fmt(cfg().getDouble("town.heists.plan-cost", 1000)) + " for equipment)"));
         boolean wagonOk = bankOk && t.jail().releasePoint() != null;
-        b.inv.setItem(13, icon(Material.CHEST_MINECART, "<gold><bold>The Armored Wagon", "<gray>A treasury courier walks from the bank",
-                "<gray>to the police station with an escort.", "<gray>Stop it, take the strongbox, get away.", "",
+        b.inv.setItem(13, icon(Material.CHEST_MINECART, "<gold><bold>The Armored Wagon", "<gray>A treasury courier walks from the counting house",
+                "<gray>to the guardhouse with an escort.", "<gray>Stop it, take the strongbox, get away.", "",
                 "<gray>Crew 2-4 · about " + Money.fmt(cfg().getDouble("town.heists.wagon-bags", 2) * cfg().getDouble("town.heists.wagon-bag-value", 2000)) + " each",
-                !wagonOk ? "<red>Needs the bank and the police station" : now < wagonReady ? "<red>Next wagon in " + left(wagonReady) : "<green>Click to plan (" + Money.fmt(cfg().getDouble("town.heists.plan-cost", 1000)) + " for equipment)"));
+                !wagonOk ? "<red>Needs the counting house and the guardhouse" : now < wagonReady ? "<red>Next wagon in " + left(wagonReady) : "<green>Click to plan (" + Money.fmt(cfg().getDouble("town.heists.plan-cost", 1000)) + " for equipment)"));
         b.inv.setItem(15, icon(Material.SHEARS, "<gray><bold>Bolt Cutters", "<gray>For breaking a friend out of jail:", "<gray>use them on a cell's window from outside.",
                 "", "<gold>" + Money.fmt(cfg().getDouble("town.prison-break.cutter-price", 1500))));
         if (job != null) {
@@ -326,7 +326,7 @@ public final class Heists implements Listener {
 
     private void status(Player p) {
         if (job == null) {
-            p.sendMessage(SmpPlugin.mm("<gray>No job running. Bank vault: " + (System.currentTimeMillis() < bankReady ? left(bankReady) : "ready")
+            p.sendMessage(SmpPlugin.mm("<gray>No job running. Counting House vault: " + (System.currentTimeMillis() < bankReady ? left(bankReady) : "ready")
                     + ", wagon: " + (System.currentTimeMillis() < wagonReady ? left(wagonReady) : "ready") + "."));
             return;
         }
@@ -354,12 +354,12 @@ public final class Heists implements Listener {
             job.panel = new Location(v.getWorld(), v.getBlockX() + 0.5, v.getBlockY() - 1, v.getBlockZ() + 5.5);
             job.stage = Stage.ALARM;
             bankReady = now + cfg().getLong("town.heists.bank-cooldown-minutes", 360) * 60_000L;
-            crewSay("<white><bold>The job is on.</bold> <gray>First, the alarm: stand at the panel behind the bank (red sparks) for "
-                    + cfg().getInt("town.heists.alarm-seconds", 20) + "s without an officer seeing you. Or skip it and go straight for the vault, but then the police come at once.");
+            crewSay("<white><bold>The job is on.</bold> <gray>First, the alarm: stand at the panel behind the counting house (red sparks) for "
+                    + cfg().getInt("town.heists.alarm-seconds", 20) + "s without a guard seeing you. Or skip it and go straight for the vault, but then the Watch comes at once.");
         } else {
             job.stage = Stage.WAGON;
             wagonReady = now + cfg().getLong("town.heists.wagon-cooldown-minutes", 180) * 60_000L;
-            crewSay("<white><bold>The job is on.</bold> <gray>Get into position near the bank: the treasury courier sets off for the police station, with 3 officers, as soon as one of you is within 60 blocks. Stop it before it gets there!");
+            crewSay("<white><bold>The job is on.</bold> <gray>Get into position near the counting house: the treasury courier sets off for the guardhouse, with 3 guards, as soon as one of you is within 60 blocks. Stop it before it gets there!");
         }
         save();
     }
@@ -397,7 +397,7 @@ public final class Heists implements Listener {
             job.progress = 0;
             job.policeAt = job.alarmCut ? System.currentTimeMillis() + cfg().getLong("town.heists.alarm-delay-seconds", 60) * 1000L : System.currentTimeMillis();
             crewSay("<white>The drill is on the vault. <gray>Stay within 5 blocks. " + (job.alarmCut ? "The alarm is cut: you have a minute before anyone notices."
-                    : "<red>The alarm is live: the police are coming now!"));
+                    : "<red>The alarm is live: the Watch is coming now!"));
             return true;
         }
         if (job.stage == Stage.DRILL) {
@@ -411,14 +411,14 @@ public final class Heists implements Listener {
         if (job.policeCalled) return;
         job.policeCalled = true;
         for (Player o : Bukkit.getOnlinePlayers()) {
-            o.sendMessage(SmpPlugin.mm("<red><bold>⚠ HEIST!</bold> " + (job.kind == Kind.BANK ? "Robbers are drilling the bank's deep vault!" : "The treasury wagon is under attack!")));
+            o.sendMessage(SmpPlugin.mm("<red><bold>⚠ HEIST!</bold> " + (job.kind == Kind.BANK ? "Robbers are drilling the counting house's deep vault!" : "The treasury wagon is under attack!")));
             o.playSound(o.getLocation(), Sound.BLOCK_BELL_USE, 0.6f, 0.5f);
         }
         for (Player p : at) {
             t.commit(p, Crime.HEIST, p.getLocation(), "heist" + job.started, null, true);
             t.officers().dispatch(p, 2);
         }
-        t.news("A heist is under way" + (job.kind == Kind.BANK ? " at the bank!" : " on the treasury wagon!"));
+        t.news("A heist is under way" + (job.kind == Kind.BANK ? " at the counting house!" : " on the treasury wagon!"));
     }
 
     // ------------------------------------------------------------------ every second
@@ -470,7 +470,7 @@ public final class Heists implements Listener {
         }
         double need = cfg().getDouble("town.heists.alarm-seconds", 20);
         if (at > 0) job.progress += 1;
-        job.bar.name(SmpPlugin.mm("<light_purple>Cut the alarm (behind the bank): <white>" + (int) job.progress + "/" + (int) need + "s"));
+        job.bar.name(SmpPlugin.mm("<light_purple>Cut the alarm (behind the counting house): <white>" + (int) job.progress + "/" + (int) need + "s"));
         job.bar.progress((float) Math.min(1, job.progress / need));
         if (job.progress >= need && !job.alarmCut) {
             job.alarmCut = true;
@@ -489,7 +489,7 @@ public final class Heists implements Listener {
         for (Player p : crew) if (t.gangs().hasPerk(p, "safecracker")) need *= 0.7;
         job.progress += Math.min(3, at.size());
         job.bar.name(SmpPlugin.mm("<light_purple>Drilling the deep vault: <white>" + (int) (100 * Math.min(1, job.progress / need)) + "%"
-                + (at.isEmpty() ? " <yellow>(get back to the vault!)" : "") + (!job.policeCalled ? " <gray>police in " + Math.max(0, (job.policeAt - now) / 1000) + "s" : "")));
+                + (at.isEmpty() ? " <yellow>(get back to the vault!)" : "") + (!job.policeCalled ? " <gray>Watch in " + Math.max(0, (job.policeAt - now) / 1000) + "s" : "")));
         job.bar.progress((float) Math.min(1, job.progress / need));
         if (now % 3000 < 1000) v.getWorld().playSound(v, Sound.BLOCK_GRINDSTONE_USE, 1.5f, 0.6f);
         if (job.progress < need) return;
@@ -523,10 +523,10 @@ public final class Heists implements Listener {
             Location from = new Location(v.getWorld(), v.getBlockX() + 0.5, v.getBlockY() - 1, v.getBlockZ() - 10.5);
             boolean close = false;
             for (Player p : crew) if (p.getWorld() == from.getWorld() && p.getLocation().distance(from) < 60) close = true;
-            job.bar.name(SmpPlugin.mm("<light_purple>Get within 60 blocks of the bank: the wagon leaves when you're in position"));
+            job.bar.name(SmpPlugin.mm("<light_purple>Get within 60 blocks of the counting house: the wagon leaves when you're in position"));
             if (!close || !from.getWorld().isChunkLoaded(from.getBlockX() >> 4, from.getBlockZ() >> 4)) return;
             job.courier = courier(from);
-            crewSay("<white>The wagon is moving! <gray>The courier is heading for the police station.");
+            crewSay("<white>The wagon is moving! <gray>The courier is heading for the guardhouse.");
             return;
         }
         if (!c.valid()) {
@@ -537,7 +537,7 @@ public final class Heists implements Listener {
         if (c.dist(dest) < 3) {
             for (Walker o : new ArrayList<>(t.walkers(Walker.Role.OFFICER))) if (o.guarding == c) t.unregister(o, false);
             t.unregister(c, false);
-            end("<red>The wagon reached the police station. The job failed.", false);
+            end("<red>The wagon reached the guardhouse. The job failed.", false);
             return;
         }
         if (!c.moving()) c.moveTo(dest, 0.75);
@@ -594,7 +594,7 @@ public final class Heists implements Listener {
                 t.gangs().crimeIncome(p, v, 500);
                 p.sendMessage(SmpPlugin.mm("<gold><bold>You made it!</bold> <yellow>+" + Money.fmt(v) + "</yellow> <gray>from the loot bags."));
                 p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
-                t.news(p.getName() + " got away with " + Money.fmt(v) + " from the " + (job.kind == Kind.BANK ? "bank job" : "wagon job") + "!");
+                t.news(p.getName() + " got away with " + Money.fmt(v) + " from the " + (job.kind == Kind.BANK ? "counting house job" : "wagon job") + "!");
                 continue;
             }
             if (p.getWorld() == job.getaway.getWorld()) {

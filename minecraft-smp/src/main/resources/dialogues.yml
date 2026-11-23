@@ -63,7 +63,7 @@ townsfolk_3:
 warden:
   lines:
     - "Welcome to the Town Watch station. We keep the peace within 500 blocks of the fountain."
-    - "Fighting, theft, fires, explosives... if the watch sees it, you do time. If we're after you, crouch next to an officer."
+    - "Fighting, theft, fires, explosives... if the watch sees it, you do time. If we're after you, crouch next to a guard."
     - "Respected folk can join the Watch: a uniform, a radio, and pay for every outlaw they bring in."
   choices:
     - {text: "<gold>[My record]", action: "command:rep"}
@@ -80,9 +80,9 @@ jailguard:
 bartender:
   lines:
     - "What'll it be? Don't answer that, everything here's watered down."
-    - "Word of advice: when the siren goes, the emergency tunnel at the back comes up in the bushes. The cops never check there."
+    - "Word of advice: when the siren goes, the emergency tunnel at the back comes up in the bushes. The guards never check there."
   choices:
-    - {text: "<gold>[Casino games]", action: "command:casino"}
+    - {text: "<gold>[Gambling Den games]", action: "command:casino"}
     - {text: "<gray>[Goodbye]", action: close}
 bouncer:
   lines:
@@ -90,7 +90,7 @@ bouncer:
     - "Gamble all you like. Bring trouble and you leave through the wall."
 banker:
   lines:
-    - "Welcome to the Moddedrealms Bank. Your coin has never been safer."
+    - "Welcome to the Moddedrealms Counting House. Your coin has never been safer."
     - "That vault door? Finest iron in the land. And the Town Watch is just down the road. Not that anyone would try..."
   choices:
     - {text: "<gold>[Bounty board]", action: "command:bounties"}
@@ -99,11 +99,11 @@ mb_crier:
   lines:
     - "Hear ye! Welcome to Meadowbrook, the market city of the north!"
     - "Plots for sale and rent at the Land Agent, just south of the clock tower. Build a shop, a home, a factory!"
-    - "The train from the old town arrives at the south gate. The Herald, the courthouse and the bank are west of the square."
+    - "The train from the old town arrives at the south gate. The Herald, the courthouse and the counting house are west of the square."
 mb_shop1:
   lines:
     - "Welcome to the Copper Kettle! Best stew north of the sea."
-    - "Business is good... but I hear new restaurants are opening on every street. Competition, eh?"
+    - "Business is good... but I hear new cookhouses are opening on every street. Competition, eh?"
 mb_shop2:
   lines:
     - "General Store! A bit of everything. Well, it will be once the wagons start running."
@@ -112,7 +112,7 @@ mb_shop3:
     - "Fresh bread every morning! The wheat comes from the fields north of the square."
 mb_millowner:
   lines:
-    - "The Wool Mill keeps the whole town in blankets, carpets and beds. The hotel buys more than anyone."
+    - "The Wool Mill keeps the whole town in blankets, carpets and beds. The inn buys more than anyone."
     - "If someone opens a mill of their own, I'll have to cut my prices. That's business."
 mb_lumber:
   lines:
@@ -127,7 +127,7 @@ mb_sheriff:
     - "Keep the peace, and we'll get along."
 mb_hotel:
   lines:
-    - "Welcome to the Grand Meadow Hotel! Our beds are the finest wool in the north."
+    - "Welcome to the Grand Meadow Inn! Our beds are the finest wool in the north."
 mb_mayor:
   lines:
     - "Welcome, welcome! Meadowbrook grows by the day. Rent a plot, start a business, raise a family!"

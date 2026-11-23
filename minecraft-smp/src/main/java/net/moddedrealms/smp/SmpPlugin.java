@@ -29,6 +29,7 @@ public final class SmpPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        Pack.load(getConfig());
         for (String f : new String[]{"quests.yml", "dialogues.yml", "crates.yml"}) {
             if (!new File(getDataFolder(), f).exists()) saveResource(f, false);
         }
@@ -61,7 +62,7 @@ public final class SmpPlugin extends JavaPlugin {
 
         var tc = new TownCommand(town);
         for (String c : new String[]{"mrtown", "rep", "bail", "surrender", "police", "wanted", "tip", "bounty", "bounties", "bribe", "service",
-                "casino", "dice", "heist", "herald", "loan", "ticket"}) {
+                "casino", "dice", "heist", "herald", "loan", "ticket", "census", "trial"}) {
             getCommand(c).setExecutor(tc);
             getCommand(c).setTabCompleter(tc);
         }
@@ -93,6 +94,7 @@ public final class SmpPlugin extends JavaPlugin {
 
     public void reloadEverything() {
         reloadConfig();
+        Pack.load(getConfig());
         rewards = new Rewards(this);
         dialogues = new Dialogues(this);
         quests.reload();

@@ -180,6 +180,16 @@ public final class Work implements Listener {
 
     // ------------------------------------------------------------------ shifts
 
+    private static String workerSkin(Biz b) {
+        return switch (b.kind) {
+            case FARM -> "farmer";
+            case BAKERY, RESTAURANT -> "chef";
+            case HOTEL -> "bellhop";
+            case TAVERN, SPEAKEASY -> "bartender";
+            default -> net.moddedrealms.smp.Pack.pick("worker");
+        };
+    }
+
     private boolean atWork(Player p, Biz b) {
         Biz here = bz.at(p.getLocation());
         return here == b;
@@ -357,7 +367,7 @@ public final class Work implements Listener {
             if (have >= Math.min(2, b.npcStaff)) continue;
             Location spot = floor(pw, p);
             if (spot == null) continue;
-            Walker wk = Walker.spawn(t.key, spot, Walker.Role.WORKER, "<white>" + pickName(), "<gray>Works at " + b.name, 0.2, 12, outfit(b));
+            Walker wk = Walker.spawn(t.key, spot, Walker.Role.WORKER, "<white>" + pickName(), "<gray>Works at " + b.name, 0.2, 12, outfit(b), workerSkin(b));
             wk.gang = b.id;
             t.register(wk);
             staffNow++;

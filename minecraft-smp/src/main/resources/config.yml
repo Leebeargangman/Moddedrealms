@@ -217,7 +217,7 @@ town:
     salary-minutes: 10
 
   officers-fight-mobs: true
-  officer-mob-range: 14
+  officer-mob-range: 24
   officer-mob-damage: 7
 
   # ---- Bribes: this share of officers take the money (per star) and forget you. The rest add a charge.
@@ -394,4 +394,43 @@ town:
     agents: [Cole, Hart, Mercer, Lang, Shaw, Black, Price, Reed, Kade, Voss]
 
   # What prisoners may still type.
-  jail-allowed-commands: [bail, service, rep, wanted, bounties, msg, tell, w, r, reply, m, helpop, report, rules, list, mail, surrender]
+  jail-allowed-commands: [bail, service, trial, appeal, herald, census, rep, wanted, bounties, msg, tell, w, r, reply, m, helpop, report, rules, list, mail, surrender]
+
+  # ---- Protection: explosions, fire, mob griefing, trampling and liquids from outside can't damage the towns.
+  protection:
+    enabled: true
+    radius: 160                  # around each town centre (plus every generated building's own area)
+
+  # ---- Residents of Meadowbrook: families in the town's free homes, jobs, a daily routine (/census).
+  residents:
+    enabled: true
+    max: 80
+    max-walking: 24              # residents walking about at once (only near players)
+    wage: 20                     # per economy cycle, paid by the business they work at (each adds 25% output)
+    demand-each: 0.015           # extra shop demand per resident
+    birth-chance: 0.04           # per couple per day
+    wedding-chance: 0.25         # per day, for the whole town
+    childhood-days: 21           # real days until a child grows up
+    elder-days: 120
+
+
+
+  # ---- AI: the Herald broadsheet and the court, on OpenAI. Free for every player. The key goes in
+  # plugins/ModdedrealmsSMP/openai.key (never in chat or the console), then /mrtown ai reload. Without a key, or over
+  # budget, the Herald prints the headlines as they are and a scripted judge hears appeals.
+  ai:
+    enabled: true
+    model: auto                  # auto = the cheapest small model the key can use; or a model name
+    monthly-budget-usd: 6.0      # hard cap (about 5 pounds); requests stop when the next one could pass it
+    daily-budget-usd: 0.40
+    price-input-per-million: 0.50   # set these to OpenAI's real prices for the model; the defaults are high on purpose
+    price-output-per-million: 2.00
+    max-answer-tokens: 700
+    herald-hours: 6              # a new edition at most this often, when there's news
+    herald-min-stories: 3
+    court: true                  # /trial: appeal a jail sentence once
+    advocate-fee: 500            # in-game money for an advocate who argues the appeal
+
+# ---- The server resource pack (NPC skins, the train, item art). Turn off if the server doesn't send it.
+resource-pack:
+  models: true

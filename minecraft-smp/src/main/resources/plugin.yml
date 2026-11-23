@@ -3,7 +3,7 @@ version: '${project.version}'
 main: net.moddedrealms.smp.SmpPlugin
 api-version: '1.21'
 author: Moddedrealms
-description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, and a town with police, townsfolk and a jail.
+description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, and a town with a Watch, townsfolk and a jail.
 softdepend: [Essentials, MythicDepths, ColonySMP]
 commands:
   quests:
@@ -23,7 +23,7 @@ commands:
     usage: /mrnpc <list|create|move|skin|name|title|action|remove|tp>
     permission: mrsmp.admin
   mrtown:
-    description: Town admin - police, townsfolk, reputation and the jail.
+    description: Town admin - Watch, townsfolk, reputation and the jail.
     usage: /mrtown <status|spawn|wanted|pardon|release|arrest|rep|jail|toggle|clear>
     permission: mrsmp.admin
   rep:
@@ -34,7 +34,7 @@ commands:
     description: Pay to get out of jail early.
     permission: mrsmp.quests
   surrender:
-    description: Give yourself up to a nearby officer.
+    description: Give yourself up to a nearby guard.
     permission: mrsmp.quests
   police:
     description: Join the Town Watch, go on duty, radar, cuff.
@@ -42,7 +42,7 @@ commands:
     usage: /police <join|duty|radar|cuff|quit>
     permission: mrsmp.quests
   tip:
-    description: Tip off the police about a wanted player (or a bandit) you can see.
+    description: Tip off the Watch about a wanted player (or a bandit) you can see.
     permission: mrsmp.quests
   bounty:
     description: Add your money to a wanted player's bounty.
@@ -52,20 +52,20 @@ commands:
     aliases: [bountyboard]
     permission: mrsmp.quests
   bribe:
-    description: Try to bribe the officer arresting you.
+    description: Try to bribe the guard arresting you.
     permission: mrsmp.quests
   service:
     description: Swap your jail time for community service.
     permission: mrsmp.quests
   casino:
-    description: Casino games (the dealers run this for you).
+    description: Gambling Den games (the dealers run this for you).
     permission: mrsmp.quests
   dice:
-    description: Challenge a player to dice in the casino.
+    description: Challenge a player to dice in the gambling den.
     usage: /dice <player> <stake> | /dice accept
     permission: mrsmp.quests
   heist:
-    description: Plan and run crew heists (with the Planner in the casino).
+    description: Plan and run crew heists (with the Planner in the gambling den).
     usage: /heist <invite|join|start|status|leave|cancel>
     permission: mrsmp.quests
   plot:
@@ -93,12 +93,19 @@ commands:
     description: The Meadowbrook Herald.
     aliases: [news, newspaper]
     permission: mrsmp.quests
+  trial:
+    description: Appeal your jail sentence to the Meadowbrook court (once per sentence).
+    aliases: [appeal]
+    permission: mrsmp.quests
+  census:
+    description: The families of Meadowbrook - who lives where, and who works.
+    permission: mrsmp.quests
   loan:
-    description: Loans from Meadowbrook Savings & Loans.
+    description: Loans from Meadowbrook Counting House.
     aliases: [loans]
     permission: mrsmp.quests
   gang:
-    description: Gangs - create, invite, bank, perks, turf, wars.
+    description: Gangs - create, invite, coffers, perks, turf, wars.
     aliases: [gangs]
     usage: /gang <create|invite|join|leave|deposit|perks|claim|hideout|war|peace|list>
     permission: mrsmp.quests
@@ -107,7 +114,7 @@ commands:
     aliases: [gangchat]
     permission: mrsmp.quests
   wanted:
-    description: Who the police are after.
+    description: Who the Watch is after.
     permission: mrsmp.quests
 permissions:
   mrsmp.quests:
@@ -118,5 +125,5 @@ permissions:
   mrsmp.admin:
     default: op
   mrsmp.lawless:
-    description: The police ignore this player (for staff who are building or testing). Not given to ops.
+    description: The Watch ignores this player (for staff who are building or testing). Not given to ops.
     default: false

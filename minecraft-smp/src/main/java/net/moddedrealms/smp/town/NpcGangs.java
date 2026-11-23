@@ -189,7 +189,7 @@ public final class NpcGangs implements Listener {
         gear.put(EquipmentSlot.FEET, Walker.dyed(Material.LEATHER_BOOTS, d.color()));
         gear.put(EquipmentSlot.HAND, new ItemStack(r.nextBoolean() ? Material.IRON_AXE : Material.IRON_SWORD));
         Walker w = Walker.spawn(t.key, at, Walker.Role.GANGSTER, d.text() + d.names()[r.nextInt(d.names().length)], d.text() + d.name(),
-                0.26, cfg().getDouble("town.npc-gangs.health", 30), gear);
+                0.26, cfg().getDouble("town.npc-gangs.health", 30), gear, net.moddedrealms.smp.Pack.pick("gang_" + gang));
         w.gang = gang;
         w.nextWander = System.currentTimeMillis() + 2000;
         return t.register(w);

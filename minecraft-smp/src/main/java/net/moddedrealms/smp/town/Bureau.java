@@ -76,11 +76,11 @@ public final class Bureau {
             d.visits.clear();
             d.visitSpot.clear();
             d.nextAmbush = System.currentTimeMillis() + (120 + r.nextInt(120)) * 1000L;
-            p.sendMessage(SmpPlugin.mm("<dark_red><bold>The Bureau has opened a case on you.</bold> <gray>Agents will track you anywhere within "
+            p.sendMessage(SmpPlugin.mm("<dark_red><bold>The Inquisition has opened a case on you.</bold> <gray>Inquisitors will track you anywhere within "
                     + (int) reach() + " blocks of spawn for " + cfg().getLong("town.bureau.case-days", 3)
                     + " Minecraft days. They set traps and watch your home. Get further away, or give yourself up."));
             p.playSound(p.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 0.5f, 1.2f);
-            t.news("The Bureau opened a case on " + p.getName() + ".");
+            t.news("The Inquisition opened a case on " + p.getName() + ".");
         }
     }
 
@@ -103,18 +103,18 @@ public final class Bureau {
             TownData d = t.data(p);
             if (!d.caseOpen) continue;
             if (wt >= d.caseUntil) {
-                close(d, p, "<green>The Bureau has closed your case. You're in the clear... for now.");
+                close(d, p, "<green>The Inquisition has closed your case. You're in the clear... for now.");
                 continue;
             }
             if (d.jailed() || d.inService() || t.exempt(p)) continue;
             if (!inReach(p)) {
-                if (!d.outOfReachNotified) p.sendMessage(SmpPlugin.mm("<gray>You're beyond the Bureau's reach here (" + (int) reach() + " blocks from spawn)."));
+                if (!d.outOfReachNotified) p.sendMessage(SmpPlugin.mm("<gray>You're beyond the Inquisition's reach here (" + (int) reach() + " blocks from spawn)."));
                 d.outOfReachNotified = true;
                 continue;
             }
             if (d.outOfReachNotified) {
                 d.outOfReachNotified = false;
-                p.sendMessage(SmpPlugin.mm("<dark_red>You're back within the Bureau's reach."));
+                p.sendMessage(SmpPlugin.mm("<dark_red>You're back within the Inquisition's reach."));
             }
             Location l = p.getLocation();
             // Track where they keep coming back to, and lay a snare there.
@@ -174,7 +174,7 @@ public final class Bureau {
         if (made == 0) return;
         String sub = switch (kind) {
             case STAKEOUT -> "They were waiting for you at home!";
-            case TRAP -> "You walked into a Bureau snare!";
+            case TRAP -> "You walked into an Inquisition snare!";
             case TIP -> "Someone tipped them off!";
             default -> "Freeze, " + p.getName() + "! You're under arrest!";
         };
@@ -186,7 +186,7 @@ public final class Bureau {
         p.showTitle(Title.title(SmpPlugin.mm("<dark_red><bold>BUREAU!"), SmpPlugin.mm("<white>" + sub),
                 Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2200), Duration.ofMillis(400))));
         p.playSound(p.getLocation(), Sound.ENTITY_EVOKER_PREPARE_ATTACK, 1f, 0.7f);
-        p.sendMessage(SmpPlugin.mm("<dark_red>Bureau agents! <gray>Crouch next to one to give yourself up, or fight your way out."));
+        p.sendMessage(SmpPlugin.mm("<dark_red>Inquisitors! <gray>Crouch next to one to give yourself up, or fight your way out."));
     }
 
     public Walker spawn(Location at) {
@@ -197,7 +197,7 @@ public final class Bureau {
         gear.put(EquipmentSlot.LEGS, Walker.dyed(Material.LEATHER_LEGGINGS, "#151515"));
         gear.put(EquipmentSlot.FEET, Walker.dyed(Material.LEATHER_BOOTS, "#0A0A0A"));
         gear.put(EquipmentSlot.HAND, new ItemStack(Material.IRON_SWORD));
-        Walker a = Walker.spawn(t.key, at, Walker.Role.AGENT, "<dark_gray>Agent " + sur, "<white>The Bureau",
+        Walker a = Walker.spawn(t.key, at, Walker.Role.AGENT, "<dark_gray>Inquisitor " + sur, "<white>The Inquisition",
                 cfg().getDouble("town.bureau.speed", 0.27), cfg().getDouble("town.bureau.health", 40), gear);
         return t.register(a);
     }
@@ -275,7 +275,7 @@ public final class Bureau {
         a.hurt();
         if (t.exempt(p)) return;
         if (a.health <= 0) {
-            a.shout("<dark_red>Agent down!", 32);
+            a.shout("<dark_red>Inquisitor down!", 32);
             t.unregister(a, true);
             t.wanted(p, Crime.COP_KILLING, null);
             t.addRep(p, -Crime.COP_KILLING.rep);
@@ -301,7 +301,7 @@ public final class Bureau {
             a.say(p, "Smart move. You're coming with us.");
             t.arrest(p, a, false, null);
         } else {
-            a.say(p, r.nextBoolean() ? "Bureau business. Move along." : "Nothing to see here, citizen.");
+            a.say(p, r.nextBoolean() ? "Inquisition business. Move along." : "Nothing to see here, citizen.");
         }
     }
 

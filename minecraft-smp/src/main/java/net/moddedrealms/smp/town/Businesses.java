@@ -254,7 +254,7 @@ public final class Businesses implements Listener, TabExecutor {
         String w = d.getString("world", "world");
         if (c.size() == 3) {
             townBiz("Meadowbrook Farms", Kind.FARM, null, w + "," + (c.get(0) - 17) + "," + (c.get(1) + 1) + "," + (c.get(2) - 17));
-            townBiz("The Grand Meadow Hotel", Kind.HOTEL, null, w + "," + (c.get(0) - 17) + "," + (c.get(1) + 1) + "," + (c.get(2) + 45));
+            townBiz("The Grand Meadow Inn", Kind.HOTEL, null, w + "," + (c.get(0) - 17) + "," + (c.get(1) + 1) + "," + (c.get(2) + 45));
             townBiz("The Rusty Tankard", Kind.TAVERN, null, w + "," + (c.get(0) + 9) + "," + (c.get(1) + 1) + "," + (c.get(2) + 9));
             townBiz("Thistle & Thread Tailors", Kind.TAILOR, null, w + "," + (c.get(0) - 9) + "," + (c.get(1) + 1) + "," + (c.get(2) + 9));
             townBiz("Oakheart Furniture", Kind.FURNITURE, null, w + "," + (c.get(0) - 9) + "," + (c.get(1) + 1) + "," + (c.get(2) - 9));
@@ -295,7 +295,7 @@ public final class Businesses implements Listener, TabExecutor {
     // ------------------------------------------------------------------ the cycle
 
     private double capacity(Biz b) {
-        double staff = 1 + 0.25 * b.npcStaff + Math.min(1.0, 0.05 * b.tasks);
+        double staff = 1 + 0.25 * b.npcStaff + Math.min(1.0, 0.05 * b.tasks) + t.residents().bonus(b);
         return b.kind.capacity * b.level * staff * (1 - b.damage);
     }
 
@@ -407,6 +407,7 @@ public final class Businesses implements Listener, TabExecutor {
         }
         // 4. costs: staff, upkeep, insurance, tax; damage heals
         for (Biz b : all.values()) {
+            t.residents().pay(b);
             double staff = b.npcStaff * cfg().getDouble("town.business.npc-wage", 15);
             double upkeep = b.level * cfg().getDouble("town.business.upkeep-per-level", 25) + (b.insured ? b.level * 30 : 0) + b.security * 20;
             double tax = b.revenue * cfg().getDouble("town.business.tax", 0.05);
@@ -590,8 +591,8 @@ public final class Businesses implements Listener, TabExecutor {
             double fine = Math.floor(Math.max(0, b.cash) * 0.2);
             b.cash -= fine;
             b.stock.clear();
-            close(b, now + 12 * cycleMs(), "raided by the police for selling moonshine (fine " + Money.fmt(fine) + ")");
-            t.news("Police raided " + b.name + " and found an illegal still!");
+            close(b, now + 12 * cycleMs(), "raided by the Watch for selling moonshine (fine " + Money.fmt(fine) + ")");
+            t.news("The Watch raided " + b.name + " and found an illegal still!");
             return;
         }
         if ((b.kind == Kind.RESTAURANT || b.kind == Kind.BAKERY || b.kind == Kind.HOTEL) && b.rating < 1.0 && r.nextDouble() < 0.3) {
@@ -763,15 +764,11 @@ public final class Businesses implements Listener, TabExecutor {
                 if (atPlot(plot) != null) return say(p, "<red>There's already a business here.");
                 if (a.length < 3) {
                     StringBuilder kinds = new StringBuilder();
-                    for (Kind k : Kind.values()) kinds.append(k.name().toLowerCase(Locale.ROOT)).append(k.legal ? "" : " (illegal)").append(" ").append(Money.fmt(k.startCost)).append(", ");
+                    for (Kind k : Kind.values()) kinds.append(k.id()).append(k.legal ? "" : " (illegal)").append(" ").append(Money.fmt(k.startCost)).append(", ");
                     return say(p, "<yellow>/business start <type> <name>  <gray>Types: " + kinds.substring(0, kinds.length() - 2));
                 }
-                Kind k;
-                try {
-                    k = Kind.valueOf(a[1].toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException e) {
-                    return say(p, "<red>Unknown type.");
-                }
+                Kind k = Kind.parse(a[1]);
+                if (k == null) return say(p, "<red>Unknown type.");
                 String name = String.join(" ", java.util.Arrays.copyOfRange(a, 2, a.length)).replace("<", "");
                 if (name.length() > 32) return say(p, "<red>Keep the name under 32 characters.");
                 if (!t.money.pay(p, k.startCost)) return say(p, "<red>Setting up a " + k.label.toLowerCase() + " costs " + Money.fmt(k.startCost) + ".");
@@ -792,7 +789,7 @@ public final class Businesses implements Listener, TabExecutor {
                 save();
                 say(p, "<green>" + name + " is open for business! <gray>It starts with " + Money.fmt(b.cash) + " in cash. <white>/business</white> to manage it. "
                         + "Put a " + k.station.name().toLowerCase().replace('_', ' ') + " (or any job block) inside so workers have somewhere to work.");
-                if (!k.legal) say(p, "<red>This is illegal. Police raids will close it and take a fine.");
+                if (!k.legal) say(p, "<red>This is illegal. Watch raids will close it and take a fine.");
                 t.news(p.getName() + " opened " + name + ", a new " + k.label.toLowerCase() + " in " + Plots.cap(plot.town) + ".");
             }
             case "deposit", "withdraw" -> {
@@ -833,6 +830,9 @@ public final class Businesses implements Listener, TabExecutor {
             }
             case "fire" -> {
                 Biz b = mine(p);
+                if (b != null && a.length > 1 && t.residents().fire(b, String.join(" ", java.util.Arrays.copyOfRange(a, 1, a.length)))) {
+                    return say(p, "<gray>" + a[1] + " no longer works at " + b.name + ".");
+                }
                 OfflinePlayer o = a.length > 1 ? Bukkit.getOfflinePlayer(a[1]) : null;
                 if (b == null || o == null || !b.workers.remove(o.getUniqueId())) return say(p, "<yellow>/business fire <employee>");
                 work.clockOut(o.getUniqueId());
@@ -889,7 +889,7 @@ public final class Businesses implements Listener, TabExecutor {
         if (args.length == 1) {
             for (String s : List.of("start", "market", "list", "deposit", "withdraw", "hire", "fire", "accept")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("start")) {
-            for (Kind k : Kind.values()) out.add(k.name().toLowerCase(Locale.ROOT));
+            for (Kind k : Kind.values()) out.add(k.id());
         } else if (args.length == 2) {
             return null;
         }

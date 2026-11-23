@@ -411,7 +411,7 @@ public final class Jail implements Listener {
         box = new BoundingBox(cx - HX - 1, cy - DOWN, cz - HZ - 1, cx + HX + 2, cy + UP, cz + HZ + 2);
         boxWorld = w.getName();
         save();
-        return "Police station built at " + w.getName() + " " + x + " " + y + " " + z + " in " + (System.currentTimeMillis() - t0) + "ms with "
+        return "Guardhouse built at " + w.getName() + " " + x + " " + y + " " + z + " in " + (System.currentTimeMillis() - t0) + "ms with "
                 + cells.size() + " cells" + (gate != null ? " and a path to the plaza's south gate" : "") + " (" + lifted
                 + " mobs lifted out of new blocks). Undo with /mrtown jail undo.";
     }
@@ -568,7 +568,7 @@ public final class Jail implements Listener {
             ((Directional) banner).setFacing(BlockFace.NORTH);
             at(side, 3, -HZ - 1).setBlockData(banner, false);
         }
-        hologram(cx + 0.5, cy + 8.2, cz - HZ + 0.5, "<blue><bold>⚖ TOWN WATCH ⚖</bold>\n<gray>Police station & jail");
+        hologram(cx + 0.5, cy + 8.2, cz - HZ + 0.5, "<blue><bold>⚖ TOWN WATCH ⚖</bold>\n<gray>Guardhouse & jail");
         npc("jailguard", "<blue>Sergeant Pike", "<gray>Station guard", cx + 2.5, cz - HZ - 1.5 + 0.0, 180, "#1F2A44",
                 Map.of(EquipmentSlot.HEAD, Material.IRON_HELMET, EquipmentSlot.HAND, Material.IRON_SWORD, EquipmentSlot.CHEST, Material.LEATHER_CHESTPLATE,
                         EquipmentSlot.LEGS, Material.LEATHER_LEGGINGS, EquipmentSlot.FEET, Material.LEATHER_BOOTS));
@@ -655,7 +655,7 @@ public final class Jail implements Listener {
         boxWorld = null;
         board = null;
         save();
-        return "Police station removed and the area restored exactly as before. Snapshot kept as " + done.getName() + ".";
+        return "Guardhouse removed and the area restored exactly as before. Snapshot kept as " + done.getName() + ".";
     }
 
     private int unstick(int[] a) {

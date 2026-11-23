@@ -89,6 +89,8 @@ public final class Railway implements Listener {
     private int n = 4;
     private double boardFront, runLength;
     private final List<RideableMinecart> cars = new ArrayList<>();
+    /** The engine and carriage models (resource pack), one per car, following it every tick. */
+    private final List<org.bukkit.entity.ItemDisplay> bodies = new ArrayList<>();
     private final List<Entity> npcRiders = new ArrayList<>();
     private int announced;
 
@@ -123,16 +125,27 @@ public final class Railway implements Listener {
 
     /** Where the front car (the engine) stands while boarding: the train fills the platform back from the bumper. */
     private double boardFront(boolean south, int cars) {
-        return south ? southZ - 0.5 - (cars - 1) * 2.0 : northZ + 0.5 + (cars - 1) * 2.0;
+        return south ? southZ - 0.5 - pad() - (cars - 1) * gap() : northZ + 0.5 + pad() + (cars - 1) * gap();
+    }
+
+    /** Distance between cars: the pack's engine and carriages are longer than a minecart. */
+    private double gap() {
+        return net.moddedrealms.smp.Pack.on() ? cfg().getDouble("town.railway.car-gap", 2.6) : 2.0;
+    }
+
+    /** How far the models stick out past the end cars, kept clear of the buffers. */
+    private double pad() {
+        return net.moddedrealms.smp.Pack.on() ? 0.8 : 0;
     }
 
     /** Where the engine stops on arrival: right at the bumper of the other end. */
     private double arriveFront(boolean fromSouth) {
-        return fromSouth ? northZ + 0.5 : southZ - 0.5;
+        return fromSouth ? northZ + 0.5 + pad() : southZ - 0.5 - pad();
     }
 
     private int carCount() {
-        return Math.min(cfg().getInt("town.railway.max-cars", 10), Math.max(4, playersAtStation(atSouth) + 3));
+        int fits = (int) ((22 - 2 * pad()) / gap()) + 1; // the platform is 23 blocks long
+        return Math.min(Math.min(fits, cfg().getInt("town.railway.max-cars", 10)), Math.max(4, playersAtStation(atSouth) + 3));
     }
 
     private int playersAtStation(boolean south) {
@@ -257,7 +270,7 @@ public final class Railway implements Listener {
     private void spawnTrain(double frontZ, int dir) {
         despawnTrain();
         for (int i = 0; i < n; i++) {
-            double z = frontZ - dir * i * 2.0;
+            double z = frontZ - dir * i * gap();
             Location l = new Location(w, lx + 0.5, Y + 0.0625, z, dir < 0 ? 180 : 0, 0);
             if (!w.isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4)) continue;
             final boolean loco = i == 0;
@@ -267,18 +280,50 @@ public final class Railway implements Listener {
                 m.setSlowWhenEmpty(false);
                 m.setInvulnerable(true);
                 m.getPersistentDataContainer().set(carKey, PersistentDataType.BYTE, (byte) (loco ? 1 : 0));
-                if (loco) {
+                if (loco && !net.moddedrealms.smp.Pack.on()) {
                     m.setDisplayBlockData(Material.BLAST_FURNACE.createBlockData());
                     m.setDisplayBlockOffset(6);
+                }
+                if (loco) {
                     m.customName(SmpPlugin.mm("<gold>The Meadowbrook Express"));
                     m.setCustomNameVisible(true);
                 }
             });
             cars.add(c);
+            if (net.moddedrealms.smp.Pack.on()) bodies.add(body(c, loco));
+        }
+    }
+
+    private org.bukkit.entity.ItemDisplay body(RideableMinecart c, boolean loco) {
+        return w.spawn(c.getLocation(), org.bukkit.entity.ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.setItemStack(net.moddedrealms.smp.Pack.model(new org.bukkit.inventory.ItemStack(Material.PAPER), loco ? "train_engine" : "train_carriage"));
+            d.setItemDisplayTransform(org.bukkit.entity.ItemDisplay.ItemDisplayTransform.NONE);
+            d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(0, 0.5f, 0), new org.joml.Quaternionf(),
+                    new org.joml.Vector3f(1, 1, 1), new org.joml.Quaternionf()));
+            d.setTeleportDuration(2);
+            d.setViewRange(2.5f);
+            d.getPersistentDataContainer().set(carKey, PersistentDataType.BYTE, (byte) 2);
+        });
+    }
+
+    /** Keep each model on its car, facing the way the train goes. */
+    private void moveBodies() {
+        float yaw = (float) (cfg().getDouble("town.railway.model-yaw", 0) + ((atSouth ? -1 : 1) < 0 ? 180 : 0));
+        for (int i = 0; i < Math.min(bodies.size(), cars.size()); i++) {
+            var d = bodies.get(i);
+            var c = cars.get(i);
+            if (!d.isValid() || !c.isValid()) continue;
+            Location l = c.getLocation();
+            l.setYaw(yaw);
+            l.setPitch(0);
+            d.teleport(l);
         }
     }
 
     private void despawnTrain() {
+        for (Entity b : bodies) b.remove();
+        bodies.clear();
         for (Entity e : npcRiders) e.remove();
         npcRiders.clear();
         for (RideableMinecart c : cars) {
@@ -317,6 +362,7 @@ public final class Railway implements Listener {
                 mq.getEquipment().setChestplate(Walker.dyed(Material.LEATHER_CHESTPLATE, cols[r.nextInt(cols.length)]));
                 if (r.nextBoolean()) mq.getEquipment().setHelmet(Walker.dyed(Material.LEATHER_HELMET, "#3A2A1A"));
                 mq.getPersistentDataContainer().set(t.key, PersistentDataType.STRING, "PASSENGER");
+                net.moddedrealms.smp.Pack.skin(mq, net.moddedrealms.smp.Pack.pick(r.nextBoolean() ? "resident_m" : "resident_f"));
             });
             npcRiders.add(m);
             c.addPassenger(m);
@@ -367,6 +413,7 @@ public final class Railway implements Listener {
                 announced = 0;
             }
             for (RideableMinecart c : cars) c.setVelocity(new Vector());
+            moveBodies();
             return;
         }
         // RUNNING
@@ -384,7 +431,7 @@ public final class Railway implements Listener {
                 for (int i = 0; i < cars.size(); i++) {
                     RideableMinecart c = cars.get(i);
                     if (!c.isValid()) continue;
-                    double want = frontZ - dir * i * 2.0;
+                    double want = frontZ - dir * i * gap();
                     double drift = want - c.getLocation().getZ();
                     c.setVelocity(new Vector(0, 0, dir * speed + Math.max(-0.3, Math.min(0.3, drift * 0.5))));
                 }
@@ -394,6 +441,7 @@ public final class Railway implements Listener {
                 }
             }
         }
+        moveBodies();
         if (pos >= total) arrive();
     }
 

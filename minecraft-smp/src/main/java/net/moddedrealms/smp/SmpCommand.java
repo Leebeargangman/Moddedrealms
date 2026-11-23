@@ -69,7 +69,7 @@ final class SmpCommand implements TabExecutor {
                             return say(sender, "/mrsmp spawn build <x> <floorY> <z> [world]", NamedTextColor.YELLOW);
                         }
                         if (w == null) return say(sender, "World not found.", NamedTextColor.RED);
-                        say(sender, plugin.plaza().build(w, x, y, z), NamedTextColor.GREEN);
+                        say(sender, plugin.plaza().build(w, x, y, z) + " " + plugin.town().medieval("plaza") + " " + plugin.town().repair("plaza"), NamedTextColor.GREEN);
                     } else if (what.equals("undo")) {
                         say(sender, plugin.plaza().undo(), NamedTextColor.GREEN);
                     } else {
