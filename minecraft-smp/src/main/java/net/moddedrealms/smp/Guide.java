@@ -39,7 +39,8 @@ public final class Guide implements Listener, CommandExecutor {
         }
     }
 
-    private static final int COLONY = 10, QUESTS = 12, WILD = 14, MARKET = 16, JOBS = 28, BOSSES = 30, WATCH = 32, IDEAS = 34, HOME = 22;
+    private static final int COLONY = 10, QUESTS = 12, WILD = 14, MARKET = 16, JOBS = 28, BOSSES = 30, WATCH = 32, IDEAS = 34, HOME = 22,
+            DAILY = 46, AUCTION = 48, DUEL = 50, TOP = 52;
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -49,9 +50,9 @@ public final class Guide implements Listener, CommandExecutor {
 
     public void open(Player p) {
         Menu m = new Menu();
-        m.inv = Bukkit.createInventory(m, 45, SmpPlugin.mm("What to do on Moddedrealms"));
+        m.inv = Bukkit.createInventory(m, 54, SmpPlugin.mm("What to do on Moddedrealms"));
         ItemStack glass = item(Material.BROWN_STAINED_GLASS_PANE, " ", List.of());
-        for (int i = 0; i < 45; i++) m.inv.setItem(i, glass);
+        for (int i = 0; i < 54; i++) m.inv.setItem(i, glass);
         var t = plugin.town();
         String colony = t == null ? null : t.colonyName(p);
         List<String> colonyLore = new ArrayList<>();
@@ -75,14 +76,19 @@ public final class Guide implements Listener, CommandExecutor {
         boolean colonies = t != null && t.coloniesLinked();
         if (colonies) m.inv.setItem(COLONY, item(Material.LODESTONE, "<aqua><bold>Start a colony", colonyLore));
         m.inv.setItem(QUESTS, item(Material.WRITABLE_BOOK, "<gold><bold>Quests and story", List.of("<gray>Daily quests with money and crate keys,", "<gray>and Elder Rowan's story by the fountain.", "", "<yellow>Click</yellow> <gray>to open your quests.")));
-        m.inv.setItem(WILD, item(Material.COMPASS, "<green><bold>Head into the wild", List.of("<gray>A random spot far from town to", "<gray>settle, mine and explore.", "", "<yellow>Click</yellow> <gray>to go (/warp).")));
+        m.inv.setItem(WILD, item(Material.COMPASS, "<green><bold>Head into the wild", List.of("<gray>A random spot far from town to", "<gray>settle, mine and explore.", "<gray>Supply drops fall out there: <white>/drop", "", "<yellow>Click</yellow> <gray>to go (/warp).")));
         m.inv.setItem(MARKET, item(Material.EMERALD, "<yellow><bold>The market hall", List.of("<gray>Sell what you gather and buy what you need.", "<gray>Prices follow supply. It's east of the", "<gray>spawn plaza, through the east gate.", "", "<yellow>Click</yellow> <gray>to see today's prices.")));
         m.inv.setItem(JOBS, item(Material.IRON_PICKAXE, "<white><bold>Town jobs", List.of("<gray>Work for the town's businesses for pay,", "<gray>or open a business of your own on a plot.", "", "<yellow>Click</yellow> <gray>to see the jobs.")));
         m.inv.setItem(BOSSES, item(Material.WITHER_SKELETON_SKULL, "<red><bold>Bosses", List.of("<gray>Mythic bosses with their own loot.", "", "<yellow>Click</yellow> <gray>to see them.")));
         m.inv.setItem(WATCH, item(Material.SHIELD, "<blue><bold>The Town Watch", List.of("<gray>Join the Watch and arrest outlaws,", "<gray>or become one. Your record: /rep", "", "<yellow>Click</yellow> <gray>to find out more.")));
         m.inv.setItem(IDEAS, item(Material.OAK_SIGN, "<light_purple><bold>Tell us what you want", List.of("<gray>Answer a 1-minute poll or send an", "<gray>idea: the server is built around them.", "", "<yellow>Click</yellow> <gray>for the poll.")));
+        m.inv.setItem(DAILY, item(Material.CHEST, "<gold><bold>Daily reward", List.of("<gray>Log in every day for money, gear", "<gray>and crate keys. Day 7 is the big one.", "", "<yellow>Click</yellow> <gray>to claim (/daily).")));
+        m.inv.setItem(AUCTION, item(Material.GOLD_INGOT, "<yellow><bold>Auction house", List.of("<gray>Buy and sell with other players,", "<gray>even while they're offline.", "", "<yellow>Click</yellow> <gray>to browse (/ah).")));
+        m.inv.setItem(DUEL, item(Material.IRON_SWORD, "<red><bold>Duels", List.of("<gray>1v1 anyone nearby: <white>/duel <name> [wager]", "<gray>Nobody dies, nothing drops.", "", "<yellow>Click</yellow> <gray>for how it works.")));
+        m.inv.setItem(TOP, item(Material.GOLD_BLOCK, "<gold><bold>Leaderboards", List.of("<gray>Richest, most played, duel wins,", "<gray>best streaks, biggest colonies.", "", "<yellow>Click</yellow> <gray>to see them (/top).")));
         m.inv.setItem(HOME, item(Material.RED_BED, "<white>Handy commands", List.of("<white>/spawn <gray>back to the plaza", "<white>/sethome <gray>· <white>/home", "<white>/tpa <name> <gray>visit a friend",
-                "<white>/quests <gray>· <white>/market <gray>· <white>/jobs", "<white>/start <gray>this menu")));
+                "<white>/quests <gray>· <white>/market <gray>· <white>/jobs", "<white>/daily <gray>· <white>/ah <gray>· <white>/duel <gray>· <white>/top", "<white>/drop <gray>where the supply drop is",
+                "<white>/start <gray>this menu")));
         p.openInventory(m.inv);
     }
 
@@ -126,6 +132,10 @@ public final class Guide implements Listener, CommandExecutor {
             case BOSSES -> run = "boss";
             case WATCH -> run = "police";
             case IDEAS -> run = "poll";
+            case DAILY -> run = "daily";
+            case AUCTION -> run = "ah";
+            case DUEL -> run = "duel help";
+            case TOP -> run = "leaderboard money";
             default -> {
                 return;
             }

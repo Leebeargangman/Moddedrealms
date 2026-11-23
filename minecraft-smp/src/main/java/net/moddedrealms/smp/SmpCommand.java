@@ -130,11 +130,19 @@ final class SmpCommand implements TabExecutor {
                 }
                 for (String l : plugin.insights().report(days)) sender.sendMessage(SmpPlugin.mm(l));
             }
+            case "drop" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.drops().admin(sender, args.length > 1 ? args[1].toLowerCase() : "status")));
+            }
+            case "ah" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.auctions().status()));
+            }
             case "colonies" -> {
                 if (!admin) return no(sender);
                 for (String l : plugin.town().colonyStatus()) sender.sendMessage(SmpPlugin.mm(l));
             }
-            default -> say(sender, "/mrsmp <reload|spawn build|spawn undo|key|poll|suggestions|insights [days]|colonies>   /mrnpc for NPCs   /quests for quests", NamedTextColor.YELLOW);
+            default -> say(sender, "/mrsmp <reload|spawn build|spawn undo|key|poll|suggestions|insights [days]|colonies|drop now|ah>   /mrnpc for NPCs   /quests for quests", NamedTextColor.YELLOW);
         }
         return true;
     }
@@ -158,7 +166,7 @@ final class SmpCommand implements TabExecutor {
         List<String> out = new ArrayList<>();
         if (!sender.hasPermission("mrsmp.admin")) return out;
         if (args.length == 1) {
-            for (String s : List.of("reload", "spawn", "key", "poll", "suggestions", "insights", "colonies")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
+            for (String s : List.of("reload", "spawn", "key", "poll", "suggestions", "insights", "colonies", "drop", "ah")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
             out.addAll(List.of("check", "build", "undo"));
         }

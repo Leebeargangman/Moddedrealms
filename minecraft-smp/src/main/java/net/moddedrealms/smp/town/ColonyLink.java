@@ -126,6 +126,16 @@ final class ColonyLink implements Listener {
         return out;
     }
 
+    boolean landAt(org.bukkit.Location l) {
+        return ColonyApi.at(l) != null;
+    }
+
+    List<ColonyApi.Summary> bySize() {
+        List<ColonyApi.Summary> out = new ArrayList<>(ColonyApi.colonies());
+        out.sort((a, b) -> Integer.compare(b.population(), a.population()));
+        return out;
+    }
+
     ColonyApi.Summary colonyOf(Player p) {
         return ColonyApi.of(p.getUniqueId());
     }

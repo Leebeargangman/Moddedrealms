@@ -371,6 +371,26 @@ public final class TownManager implements Listener {
     /** The ColonySMP bridge, or null when ColonySMP isn't installed. */
     ColonyLink colonyLink() { return colonyLink; }
 
+    public boolean isJailed(Player p) { return data(p).jailed(); }
+
+    /** True if a colony holds this spot (false without ColonySMP). */
+    public boolean colonyLand(org.bukkit.Location l) { return colonyLink != null && colonyLink.landAt(l); }
+
+    /** Colonies by population: {name, population, owner name}, biggest first. */
+    public List<String[]> coloniesBySize() {
+        List<String[]> out = new ArrayList<>();
+        if (colonyLink == null) return out;
+        for (var s : colonyLink.bySize()) {
+            String owner = s.owner() == null ? "?" : Bukkit.getOfflinePlayer(s.owner()).getName();
+            out.add(new String[]{s.name(), String.valueOf(s.population()), owner == null ? "?" : owner});
+        }
+        return out;
+    }
+
+    public double centerX() { return cx; }
+    public double centerZ() { return cz; }
+    public String townWorld() { return worldName; }
+
     /** True when ColonySMP is linked in. */
     public boolean coloniesLinked() { return colonyLink != null; }
 

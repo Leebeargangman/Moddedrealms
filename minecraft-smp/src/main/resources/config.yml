@@ -48,6 +48,65 @@ welcome:
   # Given once, on a first join.
   starter-kit: ["STONE_SWORD:1", "STONE_PICKAXE:1", "STONE_AXE:1", "STONE_SHOVEL:1", "BREAD:16", "TORCH:16", "WHITE_BED:1"]
 
+# ---- Daily login rewards (/daily): claim once a day (UTC); come back the next day to keep the streak. Day 7 is the
+# big one, then the week repeats. Reward lines as in quests: money:N, item:MATERIAL:N, key:<crate>:N, xp:N.
+daily:
+  enabled: true
+  rewards:
+    day-1: ["money:100"]
+    day-2: ["money:150", "item:COOKED_BEEF:16"]
+    day-3: ["money:200", "key:common:1"]
+    day-4: ["money:250", "item:IRON_INGOT:12"]
+    day-5: ["money:300", "key:rare:1"]
+    day-6: ["money:400", "item:GOLDEN_APPLE:2"]
+    day-7: ["money:600", "key:rare:1", "item:DIAMOND:3"]
+
+# ---- Duels (/duel <player> [wager]): 1v1 inside a ring that forms around the two; the hit that would kill ends it,
+# nobody dies, nothing drops. Exempt from the town's assault laws and colony no-PvP land.
+duels:
+  enabled: true
+  challenge-range: 30
+  ring-radius: 14
+  max-seconds: 180
+  max-wager: 100000
+  announce-range: 80
+
+# ---- Supply drops: a crate falls in the wilds (min..max blocks from the fountain, never in a town or on colony
+# land), announced warning-seconds before it lands. First to open it gets first-reward. /drop shows the way.
+supply-drops:
+  enabled: true
+  every-minutes: 45
+  first-after-minutes: 20
+  min-players: 1
+  min-distance: 600
+  max-distance: 1600
+  warning-seconds: 60
+  lasts-minutes: 15
+  items: 6
+  first-reward: ["key:rare:1"]
+  # MATERIAL:min-max:weight
+  loot: ["DIAMOND:2-5:10", "GOLDEN_APPLE:2-4:10", "IRON_INGOT:8-24:14", "GOLD_INGOT:4-12:10", "ENDER_PEARL:2-6:8", "EXPERIENCE_BOTTLE:8-24:10",
+    "COOKED_BEEF:12-32:12", "ARROW:16-48:8", "EMERALD:4-12:8", "NETHERITE_SCRAP:1-1:2", "ENCHANTED_GOLDEN_APPLE:1-1:1", "TOTEM_OF_UNDYING:1-1:2",
+    "OBSIDIAN:8-16:5", "SADDLE:1-1:3", "NAME_TAG:1-2:4"]
+
+# ---- Auction house (/ah): fixed-price listings between players, paid even when the seller is offline.
+auction:
+  enabled: true
+  hours: 48
+  max-listings: 6
+  max-price: 10000000
+  tax: 0.05            # taken from the price on sale (money leaves the economy)
+  listing-fee: 0
+  announce-over: 5000  # tell everyone about listings at or above this price
+
+# ---- Leaderboards (/top, /leaderboard): a board floats above the spawn fountain ("fountain"), or give
+# "world,x,y,z", or "off". Names in hide are left off every board.
+leaderboards:
+  board: fountain
+  board-height: 3.2
+  board-seconds: 8
+  hide: []
+
 # ---- Asking players what they want: /poll (offered once they've played a while) and /suggest. Results: /mrsmp poll,
 # /mrsmp suggestions. Change a question's id to ask it afresh. Rewards are in-game money only.
 poll:

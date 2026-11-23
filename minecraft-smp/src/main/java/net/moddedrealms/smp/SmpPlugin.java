@@ -29,6 +29,11 @@ public final class SmpPlugin extends JavaPlugin {
     private Feedback feedback;
     private Insights insights;
     private Guide guide;
+    private net.moddedrealms.smp.play.DailyStreak streaks;
+    private net.moddedrealms.smp.play.Duels duels;
+    private net.moddedrealms.smp.play.SupplyDrops drops;
+    private net.moddedrealms.smp.play.AuctionHouse auctions;
+    private net.moddedrealms.smp.play.Leaderboards boards;
 
     @Override
     public void onEnable() {
@@ -61,6 +66,24 @@ public final class SmpPlugin extends JavaPlugin {
         getCommand("start").setExecutor(guide);
         getCommand("poll").setExecutor(feedback);
         getCommand("suggest").setExecutor(feedback);
+        streaks = new net.moddedrealms.smp.play.DailyStreak(this);
+        pm.registerEvents(streaks, this);
+        getCommand("daily").setExecutor(streaks);
+        duels = new net.moddedrealms.smp.play.Duels(this);
+        pm.registerEvents(duels, this);
+        getCommand("duel").setExecutor(duels);
+        getCommand("duel").setTabCompleter(duels);
+        drops = new net.moddedrealms.smp.play.SupplyDrops(this);
+        pm.registerEvents(drops, this);
+        getCommand("drop").setExecutor(drops);
+        auctions = new net.moddedrealms.smp.play.AuctionHouse(this);
+        pm.registerEvents(auctions, this);
+        getCommand("ah").setExecutor(auctions);
+        getCommand("ah").setTabCompleter(auctions);
+        boards = new net.moddedrealms.smp.play.Leaderboards(this);
+        pm.registerEvents(boards, this);
+        getCommand("leaderboard").setExecutor(boards);
+        getCommand("leaderboard").setTabCompleter(boards);
 
         var smp = new SmpCommand(this);
         getCommand("mrsmp").setExecutor(smp);
@@ -98,11 +121,17 @@ public final class SmpPlugin extends JavaPlugin {
         town.start();
         feedback.start();
         insights.start();
+        drops.start();
+        auctions.start();
+        boards.start();
         if (getConfig().getBoolean("console-bridge", true)) new ConsoleBridge(this).start();
     }
 
     @Override
     public void onDisable() {
+        if (duels != null) duels.shutdown();
+        if (drops != null) drops.shutdown();
+        if (boards != null) boards.shutdown();
         if (feedback != null) feedback.save();
         if (insights != null) insights.save();
         if (town != null) town.stop();
@@ -141,4 +170,9 @@ public final class SmpPlugin extends JavaPlugin {
     public Feedback feedback() { return feedback; }
     public Insights insights() { return insights; }
     public Guide guide() { return guide; }
+    public net.moddedrealms.smp.play.DailyStreak streaks() { return streaks; }
+    public net.moddedrealms.smp.play.Duels duels() { return duels; }
+    public net.moddedrealms.smp.play.SupplyDrops drops() { return drops; }
+    public net.moddedrealms.smp.play.AuctionHouse auctions() { return auctions; }
+    public net.moddedrealms.smp.play.Leaderboards boards() { return boards; }
 }

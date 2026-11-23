@@ -65,6 +65,7 @@ public final class Crimes implements Listener {
         }
         Player a = attacker(e.getDamager());
         if (a == null || a == victim || !t.plugin().getConfig().getBoolean("town.bounty.citizens-arrest", true)) return;
+        if (t.plugin().duels() != null && t.plugin().duels().dueling(a, victim)) return; // a duel, not an arrest
         TownData vd = t.data(victim), ad = t.data(a);
         if (vd.stars <= 0 || ad.stars > 0 || t.exempt(a) || !t.bureau().inReach(victim)) return;
         e.setCancelled(true);
@@ -85,6 +86,7 @@ public final class Crimes implements Listener {
             vd.damagedBy.put(a.getUniqueId(), now);
             if (vd.stars > 0) return; // helping the police
             if (t.gangs().atWar(a, v)) return; // gang war: settled between the gangs
+            if (t.plugin().duels() != null && t.plugin().duels().dueling(a, v)) return; // an agreed duel
             Long theyHitFirst = vd.attacked.get(a.getUniqueId());
             if (theyHitFirst != null && now - theyHitFirst <= selfDefenceMs()) return;
             t.commit(a, Crime.ASSAULT, v.getLocation(), v.getUniqueId().toString(), null, false);
