@@ -106,7 +106,8 @@ public final class ColonyApi {
 
     /**
      * Plain goods the colony can spare, by item: in storage, not set aside for a task, and food above the colony's
-     * food reserve. Colony-made goods with no vanilla item (flour, rope...) are left out.
+     * food reserve (no food at all during the founding grace). Colony-made goods with no vanilla item (flour, rope...)
+     * are left out.
      */
     public static Map<Material, Long> spare(String colonyId) {
         Map<Material, Long> out = new LinkedHashMap<>();
@@ -116,6 +117,7 @@ public final class ColonyApi {
             if (!Goods.known(key) || Goods.get(key).custom()) continue;
             Material m = Material.matchMaterial(Goods.get(key).material());
             if (m == null || !m.isItem()) continue;
+            if (c.inGrace() && plugin.sim().citizens().edible(key)) continue; // a new colony's provisions stay with it
             long n = plugin.sim().finances().spare(c, key);
             if (n > 0) out.merge(m, n, Long::sum);
         }
@@ -127,6 +129,7 @@ public final class ColonyApi {
         Colony c = colony(colonyId);
         String key = key(m);
         if (c == null || key == null || qty <= 0) return 0;
+        if (c.inGrace() && plugin.sim().citizens().edible(key)) return 0;
         long n = Math.min(qty, plugin.sim().finances().spare(c, key));
         n = c.storage.take(key, n);
         if (n > 0) {

@@ -340,8 +340,8 @@ public final class Population {
         if (c.needs.satiety <= 5) c.needs.satiety = 25;
         c.downedUntil = 0;
         c.remember(day, "Pulled through the hard first days");
-        String what = how.startsWith("starved") ? "nearly starved" : how.startsWith("was killed") ? "was badly hurt (" + how.replace("was killed ", "") + ")"
-                : "nearly " + how;
+        String what = how.startsWith("starved") ? "nearly starved" : how.startsWith("was killed by ") ? "was badly hurt (" + how.substring("was killed ".length()) + ")"
+                : how.startsWith("was killed") ? "was badly hurt" : "nearly " + how;
         col.log(ColonyEvent.Type.POPULATION, day, c.name + " (" + c.title() + ") " + what + ", but pulled through: founding grace, " + graceDays(col) + " day(s) left.");
         long now = System.currentTimeMillis();
         boolean hint = now - col.lastGraceHint > 120_000;
