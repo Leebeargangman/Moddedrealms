@@ -115,6 +115,11 @@ public final class Colony {
     public long shieldUntil;
     public long warCooldownUntil;
     public long mobilizedUntil;
+    /** Founding grace left, in Minecraft hours (it only runs down while a member is online). Nobody dies meanwhile. */
+    public double graceHours;
+    /** Colony day the last free band of settlers came (founding or /colony resettle). */
+    public long lastSettlersDay = Long.MIN_VALUE;
+    public transient long lastGraceHint;
 
     // onboarding
     public int questStage = 1;
@@ -154,6 +159,11 @@ public final class Colony {
 
     public boolean shielded() {
         return shieldUntil > System.currentTimeMillis();
+    }
+
+    /** In the founding grace: its people can't die yet. */
+    public boolean inGrace() {
+        return graceHours > 0;
     }
 
     public boolean mobilized() {
@@ -301,11 +311,16 @@ public final class Colony {
 
     // ───────────── history ─────────────
 
+    /** Told about every new history entry (the API's colony news); null when nobody listens. */
+    public static volatile java.util.function.BiConsumer<Colony, ColonyEvent> logHook;
+
     public ColonyEvent log(ColonyEvent.Type type, long day, String message) {
         ColonyEvent e = new ColonyEvent(nextEventId++, System.currentTimeMillis(), day, type, message);
         events.addFirst(e);
         while (events.size() > KEEP_EVENTS) events.removeLast();
         unsavedEvents.add(e);
+        var hook = logHook;
+        if (hook != null) hook.accept(this, e);
         return e;
     }
 
@@ -362,6 +377,8 @@ public final class Colony {
         s.set("shield-until", shieldUntil);
         s.set("war-cooldown", warCooldownUntil);
         s.set("mobilized-until", mobilizedUntil);
+        s.set("grace-hours", graceHours);
+        s.set("last-settlers-day", lastSettlersDay);
         s.set("quest-stage", questStage);
         s.set("founded", founded);
         List<String> hidden = new ArrayList<>();
@@ -484,6 +501,8 @@ public final class Colony {
         c.shieldUntil = s.getLong("shield-until");
         c.warCooldownUntil = s.getLong("war-cooldown");
         c.mobilizedUntil = s.getLong("mobilized-until");
+        c.graceHours = s.getDouble("grace-hours", 0);
+        c.lastSettlersDay = s.getLong("last-settlers-day", c.foundedDay);
         c.questStage = s.getInt("quest-stage", 1);
         c.founded = s.getBoolean("founded");
         for (String u : s.getStringList("quest-hidden")) {

@@ -84,11 +84,17 @@ public final class Population {
         }
         plugin.sim().housing().assign(col);
         plugin.sim().jobs().refreshWorkplaces(col);
+        col.lastSettlersDay = plugin.sim().day(col);
+        col.graceHours = Math.max(col.graceHours, plugin.settings().foundingGraceDays * 24);
         col.log(ColonyEvent.Type.POPULATION, plugin.sim().day(col), col.citizens.size() + " settlers arrived to found the colony.");
         for (Player p : col.onlineMembers()) {
             Text.send(p, "<green>Your first <white>" + col.citizens.size() + "</white> settlers have arrived. Right-click one to see them, or use the Town Hall. "
                     + "Register a house so they have beds, and workplaces so they can work. <yellow>They bring no tools:</yellow> put a hoe and an axe in storage "
                     + "(or sneak + right-click a settler with one) before they can farm or fell.");
+            if (col.inGrace()) {
+                Text.send(p, "<aqua>Founding grace:</aqua> <gray>for the first <white>" + graceDays(col) + "</white> days you play, nobody in "
+                        + Text.esc(col.name) + " can die. Use them to give everyone a bed and get a farm going. Leave the bread in storage: it's their food.");
+            }
         }
         plugin.requestSave();
     }
@@ -161,7 +167,7 @@ public final class Population {
             // misery
             if (c.needs.mood < s.emigrateBelow && c.trait != Trait.LOYAL) c.miserableDays++;
             else c.miserableDays = 0;
-            if (c.miserableDays >= s.emigrateDays && col.population() > 2 && r.nextDouble() < s.emigrateChance) {
+            if (c.miserableDays >= s.emigrateDays && col.population() > 2 && !col.inGrace() && r.nextDouble() < s.emigrateChance) {
                 leave(col, c, "was miserable for too long and left the colony (" + plugin.sim().citizens().why(col, c).toLowerCase() + ")");
             }
         }
@@ -286,8 +292,33 @@ public final class Population {
     // ───────────── leaving ─────────────
 
     /** A citizen dies: their gear goes back to the armoury and their family grieves. */
+    /** Whole days of founding grace left (rounded up). */
+    public static long graceDays(Colony col) {
+        return (long) Math.ceil(Math.max(0, col.graceHours) / 24);
+    }
+
+    /**
+     * A band of settlers for a colony nobody lives in any more, free once every {@code colonies.resettle-cooldown-days}.
+     * Returns an error, or null when they came.
+     */
+    public String resettle(Player by, Colony col) {
+        if (col.core == null) return "Place the Town Hall Core first.";
+        if (!col.citizens.isEmpty()) return Text.esc(col.name) + " still has people. Recruit more from the Town Hall (Recruitment).";
+        long day = plugin.sim().day(col);
+        long wait = col.lastSettlersDay == Long.MIN_VALUE ? 0 : col.lastSettlersDay + plugin.settings().resettleCooldownDays - day;
+        if (wait > 0) return "New settlers will hear of the empty town hall in " + wait + " day" + (wait == 1 ? "" : "s") + ".";
+        col.graceHours = 0;
+        settlers(col);
+        col.log(ColonyEvent.Type.COLONY, day, (by == null ? "New settlers" : by.getName() + " called new settlers") + " to resettle " + col.name + ".");
+        return null;
+    }
+
     public void die(Colony col, Citizen c, String how) {
         long day = plugin.sim().day(col);
+        if (col.inGrace() && c.status.free() && !how.contains("old age")) {
+            rescue(col, c, how, day);
+            return;
+        }
         for (Map.Entry<UUID, Bond> e : c.bonds.entrySet()) {
             Citizen o = col.citizens.get(e.getKey());
             if (o == null) continue;
@@ -301,6 +332,28 @@ public final class Population {
         if (c.status.free()) col.addStability(-1.5);
         for (Player p : col.onlineMembers()) Text.send(p, "<red>✝ " + Text.esc(c.name) + " <gray>(" + c.title() + ") " + Text.esc(how) + ".");
         remove(col, c);
+    }
+
+    /** Founding grace: instead of dying, the citizen pulls through (the others share the last of their rations). */
+    private void rescue(Colony col, Citizen c, String how, long day) {
+        c.needs.health = Math.max(c.needs.health, c.needs.maxHealth * 0.4);
+        if (c.needs.satiety <= 5) c.needs.satiety = 25;
+        c.downedUntil = 0;
+        c.remember(day, "Pulled through the hard first days");
+        String what = how.startsWith("starved") ? "nearly starved" : how.startsWith("was killed") ? "was badly hurt (" + how.replace("was killed ", "") + ")"
+                : "nearly " + how;
+        col.log(ColonyEvent.Type.POPULATION, day, c.name + " (" + c.title() + ") " + what + ", but pulled through: founding grace, " + graceDays(col) + " day(s) left.");
+        long now = System.currentTimeMillis();
+        boolean hint = now - col.lastGraceHint > 120_000;
+        if (hint) col.lastGraceHint = now;
+        for (Player p : col.onlineMembers()) {
+            Text.send(p, "<yellow>⚠ " + Text.esc(c.name) + " <gray>" + Text.esc(what) + ". <aqua>Founding grace</aqua> saved them (" + graceDays(col) + " day(s) left).");
+            if (hint && how.startsWith("starved")) {
+                Text.send(p, "<gray>Your people need food in <gold>colony storage</gold> (the chest beside the Town Hall): bread, cooked meat, carrots... "
+                        + "A <white>farmer</white> with a <white>hoe</white> and a registered farm grows more. You can also buy food at the Old Town market.");
+            }
+        }
+        plugin.requestSave();
     }
 
     /** A citizen leaves (emigration, release, escape) without dying. */

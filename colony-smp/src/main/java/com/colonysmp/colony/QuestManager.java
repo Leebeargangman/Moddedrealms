@@ -225,6 +225,14 @@ public final class QuestManager implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         Colony c = plugin.colonies().of(e.getPlayer());
         if (c != null) Bukkit.getScheduler().runTaskLater(plugin, () -> refresh(c), 20);
+        if (c != null && c.core != null && c.citizens.isEmpty()) {
+            org.bukkit.entity.Player p = e.getPlayer();
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!p.isOnline()) return;
+                Text.send(p, "<yellow>Nobody lives in " + Text.esc(c.name) + " any more.</yellow> <gray>Call a new band of settlers (free, with provisions): "
+                        + "<click:run_command:'/colony resettle'><hover:show_text:'<gray>Calls new settlers to your Town Hall'><white><u>/colony resettle</u></white></hover></click>");
+            }, 100);
+        }
     }
 
     @EventHandler

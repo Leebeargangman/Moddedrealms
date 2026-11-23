@@ -37,6 +37,8 @@ public final class TerritoryManager {
         Colony owner = plugin.colonies().chunk(world, cx, cz);
         if (owner == c) return "Your colony already holds this land.";
         if (owner != null) return "This land belongs to " + Text.esc(owner.name) + ".";
+        String zone = plugin.noFoundZone(world, cx, cz);
+        if (zone != null) return "This land belongs to " + Text.esc(zone) + ": colonies are founded out in the wild.";
         int gap = plugin.settings().chunkGap;
         for (Colony o : plugin.colonies().all()) {
             if (o == c || !o.world.equals(world) || o.territory.isEmpty()) continue;

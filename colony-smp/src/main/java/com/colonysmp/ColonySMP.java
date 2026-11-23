@@ -148,6 +148,7 @@ public final class ColonySMP extends JavaPlugin {
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
+        com.colonysmp.api.ColonyApi.attach(this);
         for (Colony c : colonies.list()) {
             buildings.applyCapacity(c);
             sim.logistics().recover(c);
@@ -226,6 +227,7 @@ public final class ColonySMP extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        com.colonysmp.api.ColonyApi.detach();
         if (!loaded) return;
         npcs.rememberAll();
         Snapshot snap = snapshot();
@@ -305,6 +307,12 @@ public final class ColonySMP extends JavaPlugin {
             return true;
         }
         return false;
+    }
+
+    /** The name of the place that keeps colonies off this chunk (config or another plugin), or null. */
+    public String noFoundZone(String world, int cx, int cz) {
+        Settings.Zone z = settings.noFoundZone(world, cx, cz);
+        return z != null ? z.label() : com.colonysmp.api.ColonyApi.zoneAt(world, cx, cz);
     }
 
     public Settings settings() {

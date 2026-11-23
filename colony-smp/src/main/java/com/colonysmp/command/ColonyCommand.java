@@ -65,7 +65,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             "resources", "storage", "economy", "trade", "production", "deposit", "withdraw", "shop", "policies",
             "military", "recruit", "army", "orders", "squad", "mobilize",
             "diplomacy", "declarewar", "peace", "surrender", "prison", "events", "stats",
-            "research", "raid", "requests", "refugees", "milestones", "today", "chatter", "christmas", "civ", "audit", "admin");
+            "research", "raid", "requests", "refugees", "milestones", "today", "chatter", "christmas", "civ", "audit", "resettle", "admin");
 
     private final ColonySMP plugin;
     private final Info info;
@@ -260,6 +260,15 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
                 else for (String l : info.military(c)) Text.raw(p, " " + l);
             }
             case "recruit" -> recruit(p, c, a);
+            case "resettle" -> {
+                if (need(p, c)) return;
+                if (!plugin.access().can(p, c, Perm.MANAGE_CITIZENS)) {
+                    Text.send(p, "<red>You may not call settlers for " + Text.esc(c.name) + ".");
+                    return;
+                }
+                String err = plugin.sim().population().resettle(p, c);
+                if (err != null) Text.send(p, "<red>" + err);
+            }
             case "army" -> army(p, c);
             case "orders" -> orders(p, c, a);
             case "squad" -> squad(p, c, a);
@@ -1575,7 +1584,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         Text.raw(s, "<aqua><bold>ColonySMP</bold> <gray>- /colony help [colony|citizens|buildings|economy|military|diplomacy|prisoners|events|admin]");
         List<String> l = switch (topic) {
             case "citizens" -> List.of("citizens · citizen <name> · jobs · assign <citizen> <job> [building] · home <citizen> [house] · needs [citizen]",
-                    "settler (recruit from the region) · traveller recruit|dismiss · exile <citizen>",
+                    "settler (recruit from the region) · traveller recruit|dismiss · exile <citizen> · resettle (an empty colony, free once a week)",
                     "Right-click a citizen for their menu. Children study; adults work; an Administrator fills empty jobs.");
             case "buildings" -> List.of("buildings · building <id> · building register <type> · building crop|herd|recipe|name|remove ... · validate [id|all] · upgrade <id> · construction",
                     "Build rooms and fields by hand, then place a Building Marker inside (/colony marker): it works out what the building is",

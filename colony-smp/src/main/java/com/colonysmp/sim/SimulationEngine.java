@@ -168,6 +168,16 @@ public final class SimulationEngine {
             elapsed = cap;
         }
         c.lastSim = now;
+        if (c.graceHours > 0 && c.anyMemberOnline()) {
+            c.graceHours = Math.max(0, c.graceHours - GameTime.hours(elapsed));
+            if (c.graceHours <= 0) {
+                c.log(ColonyEvent.Type.COLONY, day(c), "The founding grace is over: from now on hunger, illness and monsters can kill.");
+                for (org.bukkit.entity.Player p : c.onlineMembers()) {
+                    com.colonysmp.util.Text.send(p, "<gold>" + com.colonysmp.util.Text.esc(c.name) + "'s founding grace is over.</gold> <gray>From now on hunger, illness and monsters can kill. "
+                            + "Keep food in storage and beds for everyone.");
+                }
+            }
+        }
         // workers without a body can't walk to the stores: they are issued the best tool there is, if there is one
         for (com.colonysmp.model.Citizen ct : c.citizens.values()) {
             if (Jobs.wantsTool(ct) && ct.status.free() && plugin.npcs() != null && plugin.npcs().npc(ct) == null) jobs.issueTool(c, ct);

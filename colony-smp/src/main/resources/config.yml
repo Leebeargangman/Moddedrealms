@@ -23,6 +23,15 @@ colonies:
   claim-cost-step: 5
   # Worlds colonies may be founded in (empty: all).
   worlds: []
+  # Founding grace: for this many days (Minecraft days, counted only while a member is online) nobody in a new
+  # colony can die of hunger, illness or monsters, and nobody emigrates. 0 turns it off.
+  founding-grace-days: 4
+  # A colony nobody lives in any more can call a new band of settlers (with provisions) with /colony resettle,
+  # once every this many days.
+  resettle-cooldown-days: 7
+  # Places no colony may be founded or claim land: "world,x,z,radius,name". Other plugins (ModdedrealmsSMP's
+  # towns) add their own through the API.
+  no-found-zones: []
 
 protection:
   # Players can't fight each other on colony land unless their colonies are at war.

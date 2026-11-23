@@ -43,7 +43,7 @@ public final class Reports {
     public List<String> problems(Colony c, double foodDays) {
         List<String> out = new ArrayList<>();
         if (c.population() == 0) {
-            out.add("nobody lives here any more: recruit settlers from the Town Hall");
+            out.add("nobody lives here any more: /colony resettle calls a new band of settlers");
             return out;
         }
         if (foodDays < 1) out.add("almost out of food");

@@ -27,6 +27,29 @@ public final class Settings {
     public final List<String> worlds;
     public final boolean blockPvp, protectExplosions, protectFire, protectFarmland, enterMessages;
     public final double shieldNewHours, shieldDefeatHours;
+    /** Days (Minecraft days, counted only while a member is online) in which a new colony's people can't die. */
+    public final double foundingGraceDays;
+    /** Days between two free bands of settlers for a colony nobody lives in any more ({@code /colony resettle}). */
+    public final int resettleCooldownDays;
+    /** Places colonies can't be founded or claim land: config list plus zones other plugins add (the API). */
+    public final List<Zone> noFoundZones = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** A circle (in blocks) of a world where no colony may hold land. */
+    public record Zone(String key, String world, int x, int z, int radius, String label) {
+        public boolean covers(String w, int cx, int cz) {
+            if (!world.equalsIgnoreCase(w)) return false;
+            // nearest point of the chunk to the centre
+            int nx = Math.max(cx << 4, Math.min(x, (cx << 4) + 15)), nz = Math.max(cz << 4, Math.min(z, (cz << 4) + 15));
+            long dx = nx - x, dz = nz - z;
+            return dx * dx + dz * dz <= (long) radius * radius;
+        }
+    }
+
+    /** The zone that keeps colonies off this chunk, or null. */
+    public Zone noFoundZone(String world, int cx, int cz) {
+        for (Zone z : noFoundZones) if (z.covers(world, cx, cz)) return z;
+        return null;
+    }
 
     // citizens
     public final List<Job> startingJobs;
@@ -211,6 +234,19 @@ public final class Settings {
         enterMessages = c.getBoolean("protection.enter-messages", true);
         shieldNewHours = c.getDouble("protection.new-colony-shield-hours", 72);
         shieldDefeatHours = c.getDouble("protection.after-defeat-shield-hours", 24);
+        foundingGraceDays = Math.max(0, c.getDouble("colonies.founding-grace-days", 4));
+        resettleCooldownDays = Math.max(0, c.getInt("colonies.resettle-cooldown-days", 7));
+        for (String z : c.getStringList("colonies.no-found-zones")) {
+            String[] f = z.split(",");
+            try {
+                if (f.length < 4) throw new NumberFormatException();
+                String label = f.length > 4 ? String.join(",", java.util.Arrays.copyOfRange(f, 4, f.length)).trim() : "a protected area";
+                noFoundZones.add(new Zone("config:" + noFoundZones.size(), f[0].trim(), Integer.parseInt(f[1].trim()), Integer.parseInt(f[2].trim()),
+                        Math.max(0, Integer.parseInt(f[3].trim())), label));
+            } catch (NumberFormatException ex) {
+                log.warning("colonies.no-found-zones: expected \"world,x,z,radius[,name]\", got " + z);
+            }
+        }
 
         List<Job> jobs = new ArrayList<>();
         for (String s : c.getStringList("citizens.starting-jobs")) {

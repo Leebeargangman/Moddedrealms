@@ -987,6 +987,34 @@ public final class NpcManager implements Listener {
         });
     }
 
+    /** Founding grace: a blow that would kill a new colony's citizen leaves them standing (and sends them home). */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onGraceDamage(EntityDamageEvent e) {
+        Npc n = npc(e.getEntity());
+        if (n == null || n.body == null) return;
+        org.bukkit.entity.Mob le = n.body;
+        Colony col = plugin.colonies().colonyOf(n.c);
+        if (col == null || !col.inGrace() || !n.c.status.free()) return;
+        if (le.getHealth() - e.getFinalDamage() > 0) return;
+        e.setCancelled(true);
+        String how = n.c.needs.satiety <= 0 ? "starved" : "was killed";
+        if (e instanceof EntityDamageByEntityEvent be) {
+            Entity src = source(be.getDamager());
+            if (src instanceof Player pl) how = "was killed by " + pl.getName();
+            else if (src != null) how = "was killed by a " + src.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
+        }
+        plugin.sim().population().die(col, n.c, how);
+        org.bukkit.attribute.AttributeInstance max = le.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
+        le.setHealth(Math.max(1, Math.min(max == null ? 20 : max.getValue(), n.c.needs.health)));
+        le.setNoDamageTicks(100);
+        n.enemy = null;
+        Location home = col.coreLocation();
+        if (home != null && home.getWorld() == le.getWorld() && home.distanceSquared(le.getLocation()) > 9) {
+            n.mover.stop();
+            le.teleport(home.clone().add(0.5, 1, 1.5));
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onDeath(EntityDeathEvent e) {
         Npc n = byEntity.get(e.getEntity().getUniqueId());
