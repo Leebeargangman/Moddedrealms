@@ -271,6 +271,20 @@ public final class TownCommand implements TabExecutor {
                 }
                 case "ai" -> {
                     String what = a.length > 1 ? a[1].toLowerCase() : "status";
+                    if (what.equals("key")) {
+                        // the key comes from a book and quill in the hand: typed in a command it would land in the logs
+                        if (!(s instanceof Player p)) return say(s, "<gray>Do this in game: paste the key into a book and quill, hold it, then /mrtown ai key.");
+                        var hand = p.getInventory().getItemInMainHand();
+                        if (hand.getType() != org.bukkit.Material.WRITABLE_BOOK || !(hand.getItemMeta() instanceof org.bukkit.inventory.meta.BookMeta bm) || !bm.hasPages()) {
+                            return say(p, "<yellow>Paste the OpenAI key into a book and quill (first page), hold it, then run /mrtown ai key. <gray>The book is wiped afterwards.");
+                        }
+                        String key = String.join("", bm.getPages());
+                        boolean ok = t.ai().setKey(key);
+                        p.getInventory().setItemInMainHand(new org.bukkit.inventory.ItemStack(org.bukkit.Material.WRITABLE_BOOK));
+                        if (!ok) return say(p, "<red>That doesn't look like an OpenAI key (they start with sk-). The book was wiped anyway.");
+                        say(p, "<green>Key saved to openai.key and the book wiped. <gray>Picking a model... check with /mrtown ai in a few seconds.");
+                        return true;
+                    }
                     if (what.equals("reload")) {
                         t.ai().reload();
                         say(s, "<green>Read openai.key and the AI settings again. <gray>(The model is picked in a moment.)");
@@ -280,7 +294,7 @@ public final class TownCommand implements TabExecutor {
                         return true;
                     }
                     say(s, "<gold>AI: " + t.ai().status());
-                    say(s, "<dark_gray>Put the OpenAI key in plugins/ModdedrealmsSMP/openai.key (with the AMP file manager), then /mrtown ai reload. Never paste it in chat or the console.");
+                    say(s, "<dark_gray>To set the key: paste it into a book and quill, hold it, /mrtown ai key. Or put it in plugins/ModdedrealmsSMP/openai.key and /mrtown ai reload. Never paste it in chat or the console.");
                 }
                 case "residents" -> {
                     if (a.length > 1 && a[1].equalsIgnoreCase("day")) {

@@ -50,7 +50,18 @@ final class Ai {
         this.keyFile = new File(t.plugin().getDataFolder(), "openai.key");
         this.usageFile = new File(t.plugin().getDataFolder(), "ai-usage.yml");
         loadUsage();
-        reload();
+        try {
+            reload();
+        } catch (RuntimeException e) {
+            key = "";
+            lastError = "couldn't start (" + e.getClass().getSimpleName() + ")";
+        }
+    }
+
+    /** Only the characters a key can have: drops a byte-order mark, spaces and line breaks from a pasted or uploaded key. */
+    private static String sanitize(String k) {
+        if (k == null) return "";
+        return k.replace("\uFEFF", "").replaceAll("[^A-Za-z0-9_\\-]", "");
     }
 
     private org.bukkit.configuration.file.FileConfiguration cfg() {
@@ -61,13 +72,38 @@ final class Ai {
     void reload() {
         key = "";
         try {
-            if (keyFile.exists()) key = Files.readString(keyFile.toPath(), StandardCharsets.UTF_8).trim();
-        } catch (IOException e) {
+            if (keyFile.isFile()) key = sanitize(Files.readString(keyFile.toPath(), StandardCharsets.UTF_8));
+        } catch (IOException | RuntimeException e) {
             lastError = "can't read openai.key";
+        }
+        if (!key.isEmpty() && (!key.startsWith("sk-") || key.length() < 20)) {
+            key = "";
+            lastError = "openai.key doesn't hold a key (it should start with sk-)";
         }
         String m = cfg().getString("town.ai.model", "auto").trim();
         model = m.equalsIgnoreCase("auto") ? "" : m;
         if (model.isEmpty() && !key.isEmpty() && enabled()) pickModel();
+    }
+
+    /**
+     * Save a new key (from a book and quill, so it never goes through chat or a logged command) and reload. The file
+     * is made readable by its owner only where the system allows it. Returns false if it doesn't look like a key.
+     */
+    boolean setKey(String k) {
+        k = sanitize(k);
+        if (k.length() < 20 || !k.startsWith("sk-")) return false;
+        try {
+            Files.writeString(keyFile.toPath(), k + "\n", StandardCharsets.UTF_8);
+            try {
+                Files.setPosixFilePermissions(keyFile.toPath(), java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+            } catch (UnsupportedOperationException | IOException ignored) {
+            }
+        } catch (IOException e) {
+            lastError = "can't write openai.key";
+            return false;
+        }
+        reload();
+        return true;
     }
 
     boolean enabled() {
@@ -80,8 +116,14 @@ final class Ai {
 
     /** Ask the API which models this key can use and take the cheapest we know of. */
     private void pickModel() {
-        HttpRequest r = HttpRequest.newBuilder(URI.create(base() + "/models")).timeout(Duration.ofSeconds(10))
-                .header("Authorization", "Bearer " + key).GET().build();
+        HttpRequest r;
+        try {
+            r = HttpRequest.newBuilder(URI.create(base() + "/models")).timeout(Duration.ofSeconds(10))
+                    .header("Authorization", "Bearer " + key).GET().build();
+        } catch (RuntimeException e) {
+            lastError = "couldn't build the request (check base-url and the key file)"; // never the exception text: it can contain the key
+            return;
+        }
         http.sendAsync(r, HttpResponse.BodyHandlers.ofString()).whenComplete((res, err) -> Bukkit.getScheduler().runTask(t.plugin(), () -> {
             if (err != null || res.statusCode() != 200) {
                 lastError = err != null ? "can't reach OpenAI" : "OpenAI said " + res.statusCode() + " (is the key right?)";
@@ -206,9 +248,16 @@ final class Ai {
         u.addProperty("content", user);
         msgs.add(u);
         body.add("messages", msgs);
-        HttpRequest r = HttpRequest.newBuilder(URI.create(base() + "/chat/completions")).timeout(Duration.ofSeconds(40))
-                .header("Authorization", "Bearer " + key).header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
+        HttpRequest r;
+        try {
+            r = HttpRequest.newBuilder(URI.create(base() + "/chat/completions")).timeout(Duration.ofSeconds(40))
+                    .header("Authorization", "Bearer " + key).header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
+        } catch (RuntimeException e) {
+            lastError = "couldn't build the request";
+            done.accept(null);
+            return;
+        }
         busy = true;
         http.sendAsync(r, HttpResponse.BodyHandlers.ofString()).whenComplete((res, err) -> Bukkit.getScheduler().runTask(t.plugin(), () -> {
             busy = false;
