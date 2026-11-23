@@ -25,6 +25,7 @@ public final class SmpPlugin extends JavaPlugin {
     private PlazaBuilder plaza;
     private CrateManager crates;
     private TownManager town;
+    private PackSender packSender;
 
     @Override
     public void onEnable() {
@@ -46,6 +47,8 @@ public final class SmpPlugin extends JavaPlugin {
         pm.registerEvents(quests, this);
         pm.registerEvents(crates, this);
         pm.registerEvents(new Welcome(this), this);
+        packSender = new PackSender(this);
+        pm.registerEvents(packSender, this);
 
         var smp = new SmpCommand(this);
         getCommand("mrsmp").setExecutor(smp);
@@ -95,6 +98,7 @@ public final class SmpPlugin extends JavaPlugin {
     public void reloadEverything() {
         reloadConfig();
         Pack.load(getConfig());
+        if (packSender != null) packSender.load(getConfig());
         rewards = new Rewards(this);
         dialogues = new Dialogues(this);
         quests.reload();

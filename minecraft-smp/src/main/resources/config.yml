@@ -440,6 +440,15 @@ town:
     court: true                  # /trial: appeal a jail sentence once
     advocate-fee: 500            # in-game money for an advocate who argues the appeal
 
-# ---- The server resource pack (NPC skins, the train, item art). Turn off if the server doesn't send it.
+# ---- The server resource pack (NPC skins, the train, item art). Turn models off if the server doesn't send it.
 resource-pack:
   models: true
+  # This plugin sends the pack while players join; leave resource-pack= empty in server.properties (AMP).
+  # It must sit on a host Minehut allows (raw.githubusercontent.com, mc-packs.net...), or Minehut drops it.
+  url: "https://raw.githubusercontent.com/Leebeargangman/Moddedrealms/71f1041cf0b21fa3f44797c1e437fcb0ee591ef6/minecraft-smp/resourcepack/hosted/moddedrealms-cbc6d2dd37.zip"
+  sha1: "cbc6d2dd3741dfb932ab11251fb849f02fa9cc55"
+  prompt: "<gold>The Moddedrealms pack adds townsfolk skins, the train and boss art."
+  required: true          # Java players must accept it (a decline gets them kicked with decline-message once in)
+  skip-bedrock: true      # Bedrock players never get it: Minehut can't send them packs
+  wait-seconds: 90        # longest a join waits for the pack before letting the player in anyway
+  decline-message: "<gold>This server needs its resource pack</gold> <gray>(townsfolk skins, the train, boss art).</gray>\n\n<white>In your server list, select this server, press <yellow>Edit</yellow> and set <yellow>Server Resource Packs: Enabled</yellow>, then join again.</white>"

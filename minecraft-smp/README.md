@@ -345,10 +345,17 @@ of it off for a server that doesn't send the pack. If the engine faces backwards
 else is declined before the client sees it; with `require-resource-pack=true` that kicks everyone mid-join, and the
 client shows "Network Protocol Error". So the live pack is committed in `resourcepack/hosted/` and served from
 `https://raw.githubusercontent.com/Leebeargangman/Moddedrealms/<commit>/minecraft-smp/resourcepack/hosted/<file>.zip`
-(a commit hash in the URL, so it never changes under a client). After rebuilding: add the new zip there, push, then put
-the new URL and SHA-1 in AMP's `MinecraftModule.kvp` (`Minecraft.ResourcePackURL`, `Minecraft.ResourcePackSHA1`) with
-the instance stopped, because AMP rewrites `server.properties` from it on every start. Minehut sends no packs to
-Bedrock players.
+(a commit hash in the URL, so it never changes under a client).
+
+**Sending.** The plugin sends the pack itself while a player joins (`resource-pack.url`, `sha1`, `prompt` in
+config.yml), so `server.properties` has no pack and `require-resource-pack=false`. In AMP that's
+`Minecraft.ResourcePackURL` empty and `Minecraft.RequireResourcePack=False` in `MinecraftModule.kvp`, changed with the
+instance stopped, because AMP rewrites `server.properties` from it on every start. Minehut can't send packs to Bedrock
+players, so Bedrock players are skipped (`skip-bedrock`, recognised by Floodgate's `.` name prefix or all-zero id). Java
+players still have to accept the pack (`required`). One who declines is let in and kicked a second later with
+`decline-message`, because a kick during the join reaches them through Minehut as "Network Protocol Error". A pack
+that fails to download kicks nobody. After rebuilding the pack: add the new zip to `hosted/`, push, then set the new
+URL and SHA-1 in config.yml and run `/mrsmp reload`.
 
 ## Console bridge
 
