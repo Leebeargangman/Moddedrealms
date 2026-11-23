@@ -340,6 +340,16 @@ minecarts) and item art for bolt cutters, loot bags, gold bars and the Herald. `
 `server.properties`. NPCs wear the skins through their profile's skin patch; `resource-pack.models: false` turns all
 of it off for a server that doesn't send the pack. If the engine faces backwards, set `town.railway.model-yaw: 180`.
 
+**Hosting.** Players reach the server through Minehut's proxy, which only lets packs through from its approved hosts
+(raw.githubusercontent.com, mc-packs.net, resourcepack.host, digitaloceanspaces.com, lobfile.com). A pack anywhere
+else is declined before the client sees it; with `require-resource-pack=true` that kicks everyone mid-join, and the
+client shows "Network Protocol Error". So the live pack is committed in `resourcepack/hosted/` and served from
+`https://raw.githubusercontent.com/Leebeargangman/Moddedrealms/<commit>/minecraft-smp/resourcepack/hosted/<file>.zip`
+(a commit hash in the URL, so it never changes under a client). After rebuilding: add the new zip there, push, then put
+the new URL and SHA-1 in AMP's `MinecraftModule.kvp` (`Minecraft.ResourcePackURL`, `Minecraft.ResourcePackSHA1`) with
+the instance stopped, because AMP rewrites `server.properties` from it on every start. Minehut sends no packs to
+Bedrock players.
+
 ## Console bridge
 
 AMP has no command-line way to type into the console, so lines appended to
