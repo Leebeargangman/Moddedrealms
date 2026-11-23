@@ -331,6 +331,49 @@ checked against what's left of the month (`monthly-budget-usd`, default $6, abou
 `price-input-per-million` / `price-output-per-million`; the defaults are higher than the small models cost, so set them
 to the real prices from OpenAI's pricing page for an exact count. AI features are free for every player.
 
+## The market hall (1.9.0)
+
+![The market hall](docs/market-hall.png) ![Inside, roof cut away](docs/market-hall-inside.png)
+
+A covered timber market east of the spawn plaza, reached by a lantern-lit path from the plaza's east gate
+(`/mrtown market check|build <x> <floorY> <z> [west]`, undo with `/mrtown market undo`; on Bedwars201 it stands at
+-352 70 511 facing west).
+
+**The exchange.** About 100 wares in eight kinds (ores and gems, farm produce, meat and fish, bread and cooked food,
+timber, stone, wool/leather/paper, curios). Each has a normal stock; its price is `base × (normal / stock)^0.7`, so
+every unit sold makes the next one cheaper and every unit bought makes it dearer. Sell 640 iron and iron drops from
+$13 to about $4; buy the market out of something and it gets dear. Stock drifts back to normal over a few hours, a
+shortage or glut hits one ware every six hours (Herald news, as do huge sales), there's a 7% spread so flipping never
+pays, prices stay between 0.15× and 4× base, and past 12× normal stock the market stops buying (so a farm can't print
+money). Only plain items trade: nothing named, enchanted or carrying plugin data. Master Aldous (the broker, in the
+middle under the price board) trades everything and can sell your whole inventory in two clicks; the eight vendors
+along the sides each trade their own kind and cry their wares (and their bargains) to people walking past. `/market`
+shows the prices anywhere; trading happens in the hall. Town businesses with no local supplier buy wheat, wool,
+logs and bread here before importing at double price, so selling them to the market feeds the town.
+
+**Stalls.** Twelve stalls to rent by the day ($400, up to 14 days ahead, two per player, renewing itself unless
+switched off). Right-click a stall's counter: an empty one offers to rent; your own opens your stock, where clicking
+items in your inventory puts them out and left/right (shift for ×10) sets the price; anyone else gets a shop. Buyers
+pay the owner straight away, even offline, minus the market's 5%. Hire a keeper (+$100 a day) and townsfolk shopping
+in the hall buy market wares from the stall too, as long as it's priced at or under the exchange. When the rent runs
+out the stall is cleared and its stock waits for `/stall claim`. Stolen goods and dishes can't be stocked.
+
+**Business counters.** Every business, town-run or a player's, has a counter: its bell or lectern (sneak to use the
+block itself), its shopkeeper, or `/business shop` inside. Buy what it makes as real items (meals at the cookhouse,
+ale and mead at the tavern, tunics at the tailor, planks at the sawmill, a night's stay at the inn: you wake there
+and leave well rested) and sell it what it needs (wheat to bakeries and cookhouses, wool to the tailor, logs or
+planks to the carpenter). Prices follow the exchange: a counter never sells under the exchange's price or pays over
+it, so there's nothing to farm between them. Owners stock their own business from the same screen for free.
+
+**Table service.** Workers on shift at a cookhouse or tavern get diners. One comes in wanting a table: click them,
+they follow, click a free chair (a stair or slab inside) and they sit. They order from the menu (rabbit stew, steak,
+pumpkin pie..., or ale, pork pie, roast mutton at a tavern); cook it at a stove (smoker, furnace or campfire: pick
+the dish, stay by it for a few seconds) and hand it to them. The right dish is a sale for the business and a tip for
+the worker, bigger the faster it came; the wrong one is sent back (twice and they walk out). They eat, leave, and the
+table needs clearing (click the chair) before anyone else can sit there. Waiters aren't sent on deliveries, and the
+dishes are only for customers: they can't be eaten, stocked on a stall or kept after clocking out. Town-run eateries
+fill with NPC diners when players are about.
+
 ## The resource pack
 
 `resourcepack/` holds the server pack's own art: 82 NPC skins (`gen_skins.py`, medieval clothes for every role and

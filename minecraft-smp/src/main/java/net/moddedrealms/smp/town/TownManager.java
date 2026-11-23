@@ -113,6 +113,11 @@ public final class TownManager implements Listener {
     private Railway railway;
     private Businesses businesses;
     private Loans loans;
+    private Market market;
+    private MarketHall marketHall;
+    private Stalls stalls;
+    private Counter counter;
+    private int marketTick;
     private boolean warnedPeaceful;
     private boolean dirty;
     private int tick;
@@ -169,6 +174,10 @@ public final class TownManager implements Listener {
         meadowbrook = new Meadowbrook(this);
         railway = new Railway(this);
         businesses = new Businesses(this);
+        market = new Market(this);
+        marketHall = new MarketHall(this);
+        stalls = new Stalls(this);
+        counter = new Counter(this, businesses);
         loans = new Loans(this);
     }
 
@@ -209,8 +218,14 @@ public final class TownManager implements Listener {
         pm.registerEvents(railway, plugin);
         pm.registerEvents(businesses, plugin);
         pm.registerEvents(businesses.work, plugin);
+        pm.registerEvents(businesses.work.dining, plugin);
+        pm.registerEvents(market, plugin);
+        pm.registerEvents(stalls, plugin);
+        pm.registerEvents(counter, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
+        counter.wireShopkeepers();
+        Bukkit.getScheduler().runTaskLater(plugin, stalls::refreshAll, 100L);
         Bukkit.getScheduler().runTaskTimer(plugin, this::onTick, 20L, 1L);
         Bukkit.getScheduler().runTaskTimer(plugin, this::second, 20L, 20L);
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -232,7 +247,10 @@ public final class TownManager implements Listener {
         gangs.save();
         plots.save();
         railway.shutdown();
+        businesses.work.dining.stop();
         businesses.save();
+        market.save();
+        stalls.save();
         save();
     }
 
@@ -343,6 +361,10 @@ public final class TownManager implements Listener {
     public Meadowbrook meadowbrook() { return meadowbrook; }
     public Railway railway() { return railway; }
     public Businesses businesses() { return businesses; }
+    public Market market() { return market; }
+    public MarketHall marketHall() { return marketHall; }
+    public Stalls stalls() { return stalls; }
+    public Counter counter() { return counter; }
     public Loans loans() { return loans; }
 
     /** Extra demand from the town's residents (filled in when NPC families arrive). */
@@ -622,6 +644,9 @@ public final class TownManager implements Listener {
         prisonBreak.second();
         plots.second();
         businesses.second();
+        market.second();
+        marketHall.second(++marketTick);
+        stalls.second();
         residents.second();
         if (++heraldTick % 60 == 0) herald.minute();
         loans.second();

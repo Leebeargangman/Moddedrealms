@@ -352,8 +352,13 @@ public final class Plots implements Listener, TabExecutor {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null) return;
         Block b = e.getClickedBlock();
         if (!(b.getState() instanceof InventoryHolder) && b.getType() != Material.ANVIL) return;
+        // a business's lectern is its counter: the counter opens instead of the lectern (sneak-clicks stay protected)
+        if (b.getType() == Material.LECTERN && !e.getPlayer().isSneaking() && t.businesses().at(b.getLocation()) != null) return;
         if (!canBuild(e.getPlayer(), b.getLocation())) {
             e.setCancelled(true);
+            // a worker on shift here is cooking or doing a station task, not raiding the stores: no telling-off
+            Businesses.Biz here = t.businesses().at(b.getLocation());
+            if (here != null && here == t.businesses().work().shiftBiz(e.getPlayer().getUniqueId())) return;
             e.getPlayer().sendActionBar(SmpPlugin.mm("<red>That isn't yours."));
         }
     }

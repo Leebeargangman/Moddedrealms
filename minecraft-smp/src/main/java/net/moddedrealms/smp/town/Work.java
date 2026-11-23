@@ -58,10 +58,36 @@ public final class Work implements Listener {
     private final Map<UUID, String> offers = new HashMap<>();
     private final Random r = new Random();
     private int tick;
+    final Dining dining;
 
     Work(TownManager t, Businesses bz) {
         this.t = t;
         this.bz = bz;
+        this.dining = new Dining(t, bz, this);
+    }
+
+    /** Is this block the worker's current station task? */
+    boolean isTarget(UUID u, Block b) {
+        Shift s = shifts.get(u);
+        return s != null && s.target != null && s.target.getBlock().equals(b);
+    }
+
+    /** The business this player is clocked in at, or null. */
+    Biz shiftBiz(UUID u) {
+        Shift s = shifts.get(u);
+        return s == null ? null : bz.get(s.biz);
+    }
+
+    private boolean isShiftCustomer(Walker w) {
+        for (Shift s : shifts.values()) if (s.customer == w) return true;
+        return false;
+    }
+
+    /** Pay a worker for a job done outside the task queue (seating, serving and clearing at an eatery). */
+    void credit(Player p, Biz b, int mult) {
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null || !b.id.equals(s.biz)) return;
+        earn(p, s, b, mult);
     }
 
     private org.bukkit.configuration.file.FileConfiguration cfg() {
@@ -173,6 +199,7 @@ public final class Work implements Listener {
     void clockOut(UUID u) {
         Shift s = shifts.remove(u);
         if (s != null && s.customer != null) t.unregister(s.customer, false);
+        if (s != null) dining.clockOut(u);
     }
 
     private static boolean say(Player p, String m) {
@@ -298,8 +325,13 @@ public final class Work implements Listener {
                 continue;
             }
             if (now < s.nextTask) continue;
-            // New task: customers to serve at shops, a delivery now and then, otherwise a station.
-            if (b.kind.output.consumer && r.nextInt(5) < 2 && t.canSpawnWalkers(p.getWorld())) {
+            // New task: diners at eateries, customers to serve at shops, a delivery now and then, otherwise a station.
+            if (Dining.handles(b)) {
+                if (dining.spawnFor(p, b)) {
+                    s.nextTask = now + 15_000 + r.nextInt(10_000);
+                    continue;
+                }
+            } else if (b.kind.output.consumer && r.nextInt(5) < 2 && t.canSpawnWalkers(p.getWorld())) {
                 Location at = t.spawnSpot(p, 3, 7);
                 if (at != null && bz.at(at) == b) {
                     Walker c = Walker.spawn(t.key, at, Walker.Role.CUSTOMER, "<white>" + pickName(), "<gray>Waiting to be served", 0.22, 12, outfit(null));
@@ -312,7 +344,7 @@ public final class Work implements Listener {
                     continue;
                 }
             }
-            if (r.nextInt(5) == 0) {
+            if (r.nextInt(5) == 0 && !Dining.handles(b)) { // waiters stay in the dining room
                 Biz dest = deliveryTarget(b);
                 if (dest != null) {
                     s.deliverTo = dest;
@@ -333,10 +365,12 @@ public final class Work implements Listener {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
         }
         if (tick % 4 == 0) activity();
+        dining.second();
     }
 
     /** A worker right-clicked a customer: if it's theirs, sell to them now (a sale and a tip). Returns true if handled. */
     boolean serve(Player p, Walker w) {
+        if (dining.clicked(p, w)) return true;
         Shift s = shifts.get(p.getUniqueId());
         if (s == null || s.customer != w) return false;
         Biz b = bz.get(s.biz);
@@ -392,6 +426,15 @@ public final class Work implements Listener {
     }
 
     private void complete(Player p, Shift s, Biz b, int mult) {
+        double pay = earn(p, s, b, mult);
+        s.target = null;
+        s.nextTask = System.currentTimeMillis() + 6000 + r.nextInt(8000);
+        p.sendActionBar(SmpPlugin.mm("<green>Task done!" + (pay > 0 ? " <yellow>+" + Money.fmt(pay) : "") + " <gray>(" + s.done + " this shift)"));
+        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
+    }
+
+    /** The wage for a job and the business's productivity for it. Returns what the worker was paid. */
+    private double earn(Player p, Shift s, Biz b, int mult) {
         double pay = wage(b) * mult;
         if (b.playerOwned() && !p.getUniqueId().equals(b.owner)) {
             if (b.cash < pay) {
@@ -406,11 +449,8 @@ public final class Work implements Listener {
         if (pay > 0) t.money.give(p, pay);
         b.tasks += mult;
         s.done++;
-        s.target = null;
-        s.nextTask = System.currentTimeMillis() + 6000 + r.nextInt(8000);
-        p.sendActionBar(SmpPlugin.mm("<green>Task done!" + (pay > 0 ? " <yellow>+" + Money.fmt(pay) : "") + " <gray>(" + s.done + " this shift)"));
-        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
         if (s.done % 10 == 0) t.addRep(p, 1);
+        return pay;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -426,7 +466,7 @@ public final class Work implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        shifts.remove(e.getPlayer().getUniqueId());
+        clockOut(e.getPlayer().getUniqueId());
     }
 
     // ------------------------------------------------------------------ NPC staff and customers
@@ -437,7 +477,7 @@ public final class Work implements Listener {
         int staffNow = 0, custNow = 0;
         for (Walker x : t.walkers()) {
             if (x.role == Walker.Role.WORKER) staffNow++;
-            if (x.role == Walker.Role.CUSTOMER) custNow++;
+            if (x.role == Walker.Role.CUSTOMER && !"market".equals(x.gang) && !dining.owns(x)) custNow++;
         }
         long now = System.currentTimeMillis();
         // staff: up to 2 per business with a plot, near players
@@ -492,6 +532,7 @@ public final class Work implements Listener {
                     if (r.nextInt(3) == 0) x.swing();
                 }
             } else if (x.role == Walker.Role.CUSTOMER) {
+                if ("market".equals(x.gang) || dining.owns(x) || isShiftCustomer(x)) continue; // the market hall and the dining room run their own
                 Biz b = bz.get(x.gang);
                 if (b == null || now - x.modeSince > 90_000 || t.nearestPlayer(x.loc(), 64) == null) {
                     t.unregister(x, false);
@@ -513,6 +554,17 @@ public final class Work implements Listener {
                 }
             }
         }
+    }
+
+    /** A free floor spot inside a business: on its plot, or near its door for a town building. */
+    Location floorIn(Biz b) {
+        if (b.plot != null) {
+            Plots.Plot p = t.plots().get(b.plot);
+            World w = p == null ? null : Bukkit.getWorld(p.world);
+            return w == null ? null : floor(w, p);
+        }
+        Location a = bz.anchor(b);
+        return a == null ? null : t.surface(a.getWorld(), a.getBlockX() + r.nextInt(7) - 3, a.getBlockZ() + r.nextInt(7) - 3, a.getY(), 4);
     }
 
     private Location floor(World w, Plots.Plot p) {

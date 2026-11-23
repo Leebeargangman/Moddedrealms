@@ -51,7 +51,7 @@ final class Protection implements Listener {
     List<Area> built() {
         List<Area> out = new ArrayList<>();
         File dir = t.plugin().getDataFolder();
-        for (String n : List.of("meadowbrook", "casino", "jail", "bank", "railway", "plaza")) {
+        for (String n : List.of("meadowbrook", "casino", "jail", "bank", "railway", "plaza", "market")) {
             File f = new File(dir, n + "-undo.yml");
             if (!f.exists()) continue;
             YamlConfiguration y = YamlConfiguration.loadConfiguration(f);

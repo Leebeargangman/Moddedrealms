@@ -513,10 +513,42 @@ public final class Businesses implements Listener, TabExecutor {
         };
     }
 
+    /** The market ware a good is traded as (one unit = one item), or null. */
+    static org.bukkit.Material marketItem(Good g) {
+        return switch (g) {
+            case WHEAT -> org.bukkit.Material.WHEAT;
+            case WOOL -> org.bukkit.Material.WHITE_WOOL;
+            case PLANKS -> org.bukkit.Material.OAK_LOG;
+            case BREAD -> org.bukkit.Material.BREAD;
+            default -> null;
+        };
+    }
+
+    /** How many more units of an input this business will take in (players selling at the counter). */
+    double inputRoom(Biz b, Good g) {
+        Double per = b.kind.inputs.get(g);
+        if (per == null) return 0;
+        return Math.max(0, per * b.kind.capacity * b.level * 4 - b.stock.getOrDefault(g, 0.0));
+    }
+
     private void buy(Biz buyer, Good g, double need) {
         while (need > 0.01) {
             Biz s = cheapest(g, buyer);
             if (s == null) {
+                // nobody local makes it: buy what the market has (at its price, up to the import price), then import
+                org.bukkit.Material m = marketItem(g);
+                if (m != null && t.market() != null) {
+                    double want = buyer.playerOwned() ? Math.min(need, Math.floor(buyer.cash / (g.ref * 2))) : need;
+                    double[] got = t.market().supply(m, want, g.ref * 2);
+                    if (got[0] > 0) {
+                        buyer.cash -= got[1];
+                        buyer.costs += got[1];
+                        buyer.imported += got[1];
+                        buyer.stock.merge(g, got[0], Double::sum);
+                        need -= got[0];
+                        if (need <= 0.01) return;
+                    }
+                }
                 // nobody local has it: import at double the fair price
                 double cost = need * g.ref * 2;
                 if (buyer.playerOwned() && buyer.cash < cost) need = Math.max(0, Math.floor(buyer.cash / (g.ref * 2)));
@@ -852,6 +884,7 @@ public final class Businesses implements Listener, TabExecutor {
         if (cmd.equals("jobs")) return work.list(p);
         if (cmd.equals("job")) return work.command(p, a);
         String sub = a.length == 0 ? "" : a[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("shop") || sub.equals("counter")) return t.counter().command(p);
         switch (sub) {
             case "start" -> {
                 Plots.Plot plot = t.plots().at(p.getLocation());

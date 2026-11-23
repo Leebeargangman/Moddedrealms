@@ -82,6 +82,10 @@ public final class Walker {
     // merchants
     public List<String> offers = List.of();
 
+    /** The invisible seat this walker sits on, or null when standing. */
+    private org.bukkit.entity.ArmorStand seat;
+    private static NamespacedKey KEY;
+
     private Walker(Role role, Skeleton legs, Mannequin body, String name, String title, double hp) {
         this.role = role;
         this.legs = legs;
@@ -118,6 +122,7 @@ public final class Walker {
     static Walker spawn(NamespacedKey key, Location at, Role role, String name, String title, double speed, double hp,
                         Map<EquipmentSlot, ItemStack> gear, String skin) {
         World w = at.getWorld();
+        KEY = key;
         Skeleton legs = w.spawn(at, Skeleton.class, s -> {
             s.setPersistent(false);
             s.setRemoveWhenFarAway(false);
@@ -182,6 +187,13 @@ public final class Walker {
 
     /** Keep the body on the legs; swim upwards in water (the float goal was removed with the rest). */
     void sync() {
+        if (seat != null) {
+            if (!seat.isValid()) stand();
+            else {
+                if (faceYaw != null && Math.abs(body.getYaw() - faceYaw) > 0.5f) body.setRotation(faceYaw, 0);
+                return;
+            }
+        }
         Location l = legs.getLocation();
         if (legs.isInWater()) {
             Vector v = legs.getVelocity();
@@ -258,6 +270,53 @@ public final class Walker {
         body.getEquipment().setItemInMainHand(it);
     }
 
+    public ItemStack held() {
+        return body.getEquipment().getItemInMainHand();
+    }
+
+    /**
+     * Sit down: the body rides an invisible marker at {@code at} (0.4 above a stair or slab block's base, so the
+     * seated body rests on the seat) and faces {@code yaw}; the legs stop where they are.
+     */
+    public void sit(Location at, float yaw) {
+        stand();
+        stop();
+        legs.teleport(at.clone().add(0, 0.1, 0));
+        Location l = at.clone();
+        l.setYaw(yaw);
+        l.setPitch(0);
+        seat = world().spawn(l, org.bukkit.entity.ArmorStand.class, a -> {
+            a.setInvisible(true);
+            a.setMarker(true);
+            a.setGravity(false);
+            a.setPersistent(false);
+            a.setSilent(true);
+            a.setInvulnerable(true);
+            if (KEY != null) a.getPersistentDataContainer().set(KEY, PersistentDataType.STRING, "SEAT");
+        });
+        faceYaw = yaw;
+        facePitch = 0;
+        seat.addPassenger(body);
+        body.setRotation(yaw, 0);
+    }
+
+    public boolean seated() {
+        return seat != null && seat.isValid();
+    }
+
+    /** Get up from the seat, if sitting. */
+    public void stand() {
+        if (seat == null) return;
+        org.bukkit.entity.ArmorStand s = seat;
+        seat = null;
+        if (s.isValid()) {
+            s.removePassenger(body);
+            s.remove();
+        }
+        faceYaw = null;
+        if (body.isValid() && legs.isValid()) body.teleport(legs.getLocation());
+    }
+
     public void swing() {
         body.swingMainHand();
     }
@@ -268,6 +327,10 @@ public final class Walker {
     }
 
     public void remove(boolean poof) {
+        if (seat != null) {
+            seat.remove();
+            seat = null;
+        }
         if (poof && body.isValid()) {
             Location l = body.getLocation().add(0, 1, 0);
             l.getWorld().spawnParticle(Particle.CLOUD, l, 12, 0.3, 0.5, 0.3, 0.02);

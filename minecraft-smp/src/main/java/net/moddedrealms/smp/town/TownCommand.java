@@ -130,6 +130,14 @@ public final class TownCommand implements TabExecutor {
                 t.residents().census(sender);
                 return true;
             }
+            case "market" -> {
+                if (sender instanceof Player p) t.market().command(p, args);
+                return true;
+            }
+            case "stall" -> {
+                if (sender instanceof Player p) t.stalls().command(p, args);
+                return true;
+            }
             case "wanted" -> {
                 List<Player> w = t.wantedOnline();
                 if (w.isEmpty()) return say(sender, "<green>Nobody is wanted right now.");
@@ -260,6 +268,7 @@ public final class TownCommand implements TabExecutor {
                 }
                 case "jail" -> jail(s, a);
                 case "bank" -> bank(s, a);
+                case "market" -> market(s, a);
                 case "casino" -> casino(s, a);
                 case "medieval" -> {
                     String which = a.length > 1 ? a[1].toLowerCase() : "all";
@@ -451,6 +460,54 @@ public final class TownCommand implements TabExecutor {
         }
     }
 
+    /** /mrtown market check|build [x y z] [north|south|east|west] | undo | restock | shock <item> <factor> | info */
+    private void market(CommandSender s, String[] a) throws IOException {
+        String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
+        Player p = s instanceof Player pl ? pl : null;
+        switch (what) {
+            case "check", "build" -> {
+                World w;
+                int x, y, z;
+                org.bukkit.block.BlockFace f = org.bukkit.block.BlockFace.WEST;
+                int faceArg;
+                if (a.length >= 5) {
+                    x = Integer.parseInt(a[2]);
+                    y = Integer.parseInt(a[3]);
+                    z = Integer.parseInt(a[4]);
+                    w = p != null ? p.getWorld() : t.world();
+                    faceArg = 5;
+                } else if (p != null) {
+                    w = p.getWorld();
+                    x = p.getLocation().getBlockX();
+                    y = p.getLocation().getBlockY() - 1;
+                    z = p.getLocation().getBlockZ();
+                    faceArg = 2;
+                } else {
+                    say(s, "<yellow>/mrtown market " + what + " <x> <floorY> <z> [north|south|east|west]");
+                    return;
+                }
+                if (a.length > faceArg) f = org.bukkit.block.BlockFace.valueOf(a[faceArg].toUpperCase(Locale.ROOT));
+                if (w == null) throw new IOException("World not found.");
+                if (what.equals("check")) say(s, "<gold>" + t.marketHall().check(w, x, y, z, f));
+                else {
+                    String built = t.marketHall().build(w, x, y, z, f);
+                    t.protection().reload(); // so the passes below (and explosion protection) know the new hall
+                    say(s, "<green>" + built + " <gray>" + t.medieval("market") + " " + t.repair("market"));
+                }
+            }
+            case "undo" -> say(s, "<green>" + t.marketHall().undo());
+            case "restock" -> say(s, t.market().restock());
+            case "shock" -> {
+                if (a.length < 4) {
+                    say(s, "<yellow>/mrtown market shock <item> <factor> <gray>(0.5 halves the stock: dearer; 3 triples it: cheaper)");
+                    return;
+                }
+                say(s, t.market().shock(a[2], Double.parseDouble(a[3])));
+            }
+            default -> say(s, "<gold>" + t.marketHall().info());
+        }
+    }
+
     private void bank(CommandSender s, String[] a) throws IOException {
         String what = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "info";
         Player p = s instanceof Player pl ? pl : null;
@@ -501,7 +558,7 @@ public final class TownCommand implements TabExecutor {
             return out;
         }
         if (args.length == 1) {
-            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "casino", "meadowbrook", "railway", "raid",
+            for (String x : List.of("status", "toggle", "clear", "spawn", "wanted", "pardon", "release", "arrest", "rep", "jail", "bank", "market", "casino", "meadowbrook", "railway", "raid",
                     "npcgang", "heists", "case", "service", "reload")) {
                 if (x.startsWith(args[0].toLowerCase())) out.add(x);
             }

@@ -387,8 +387,34 @@ town:
     staff-share: 0.75            # staff take this share of the margin on what they make
     staff-flat-wage: 5           # plus this each per cycle
     afk-clockout-seconds: 180    # idle this long on shift and you're clocked out
+    dining:                      # table service at cookhouses and taverns
+      max-diners: 2              # diners one worker looks after at once
+      seat-seconds: 45           # a diner waits this long to be seated
+      order-seconds: 90          # ...and this long for their food once they've ordered
+      cook-seconds: 4            # time at the stove per dish
+      ambient-per-place: 3       # NPC diners eating at town-run eateries when players are near
 
   # ---- Bank loans (/loan, from Banker Oakes or the Old Town banker).
+  market:                        # the market hall exchange (/market) and stalls (/stall)
+    elasticity: 0.7              # how hard prices react to stock: price = base * (normal/stock)^elasticity
+    spread: 0.07                 # buy price this much over the middle, sell price this much under
+    floor: 0.15                  # prices never go under 15% of base...
+    ceiling: 4.0                 # ...or over 4x base
+    flood-factor: 12             # the market stops buying a ware at 12x its normal stock
+    drift-minutes: 5             # stock drifts back towards normal every 5 minutes...
+    drift-rate: 0.05             # ...by 5% of the gap...
+    drift-cap: 0.04              # ...but never more than 4% of normal stock a step
+    event-hours: 6               # a shortage or glut every 6 hours (Herald news)
+    news-units: 256              # a single sale this big makes the news
+    news-value: 5000
+    shoppers: 8                  # NPC shoppers in the hall when players are there
+    stall-rent: 400              # per day, paid in advance
+    keeper-fee: 100              # per day for a stall keeper (townsfolk then buy from the stall)
+    stall-fee: 0.05              # the market's cut of stall sales
+    max-stalls: 2                # stalls one player may rent
+    max-rent-days: 14
+    stall-sales-minutes: 5       # how often townsfolk buy from staffed stalls
+    npc-units-per-stall: 12      # the most they buy from one stall each time
   loans:
     base-limit: 10000
     per-reputation: 100          # extra limit per reputation point

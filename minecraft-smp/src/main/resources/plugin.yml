@@ -78,6 +78,16 @@ commands:
     aliases: [biz]
     usage: /business <start|market|list|deposit|withdraw|hire|fire|accept>
     permission: mrsmp.quests
+  market:
+    description: The market exchange - prices for everything, trade at the market hall.
+    aliases: [exchange]
+    usage: /market [price <item>]
+    permission: mrsmp.quests
+  stall:
+    description: Rent and run a market stall.
+    aliases: [stalls]
+    usage: /stall [rent|extend|name|leave|claim]
+    permission: mrsmp.quests
   jobs:
     description: Who is hiring.
     permission: mrsmp.quests
