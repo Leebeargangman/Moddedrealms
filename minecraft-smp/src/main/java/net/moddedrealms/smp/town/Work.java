@@ -72,6 +72,12 @@ public final class Work implements Listener {
         return s != null && s.target != null && s.target.getBlock().equals(b);
     }
 
+    /** What the worker's current station task is ("composter"), or null. */
+    String targetName(UUID u) {
+        Shift s = shifts.get(u);
+        return s == null || s.target == null ? null : s.target.getBlock().getType().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+    }
+
     /** The business this player is clocked in at, or null. */
     Biz shiftBiz(UUID u) {
         Shift s = shifts.get(u);
@@ -248,7 +254,11 @@ public final class Work implements Listener {
         World w = c.getWorld();
         for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) for (int y = y0; y <= y1; y++) {
             Block bl = w.getBlockAt(x, y, z);
-            if (STATIONS.contains(bl.getType()) || bl.getType() == b.kind.station) out.add(bl);
+            // only what counts as this business's ground: a worker standing there is "at work", and isn't told it's not theirs
+            if (!(STATIONS.contains(bl.getType()) || bl.getType() == b.kind.station) || bz.at(bl.getLocation()) != b) continue;
+            // a business without a plot is a circle round its anchor: keep stations well inside, so the worker standing at one is still there
+            if (p == null && bl.getLocation().add(0.5, 0.5, 0.5).distance(c) > 9.5) continue;
+            out.add(bl);
         }
         return out;
     }
@@ -361,7 +371,7 @@ public final class Work implements Listener {
             Block pick = st.get(r.nextInt(st.size()));
             s.target = pick.getLocation();
             s.deadline = now + 20_000;
-            p.sendActionBar(SmpPlugin.mm("<green>Task: work the glowing " + pick.getType().name().toLowerCase().replace('_', ' ') + "!"));
+            p.sendActionBar(SmpPlugin.mm("<green>Task: work the glowing " + pick.getType().name().toLowerCase().replace('_', ' ') + "! <gray>(right-click or hit it)"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
         }
         if (tick % 4 == 0) activity();
@@ -462,6 +472,30 @@ public final class Work implements Listener {
         e.setCancelled(true);
         Biz b = bz.get(s.biz);
         if (b != null) complete(e.getPlayer(), s, b, 1);
+    }
+
+    /**
+     * Hitting or breaking the glowing station does the task too: a farmhand harvests by breaking the wheat, a
+     * sawyer swings at the log. The block itself stays (it's the business's fitting), and the town's plot rules,
+     * which forbid breaking what isn't yours, never get to say no to the task.
+     */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onHitStation(PlayerInteractEvent e) {
+        if (e.getAction() != Action.LEFT_CLICK_BLOCK || e.getClickedBlock() == null) return;
+        if (doTarget(e.getPlayer(), e.getClickedBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onBreakStation(org.bukkit.event.block.BlockBreakEvent e) {
+        if (doTarget(e.getPlayer(), e.getBlock())) e.setCancelled(true);
+    }
+
+    private boolean doTarget(Player p, Block bl) {
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null || s.target == null || !bl.getLocation().equals(s.target)) return false;
+        Biz b = bz.get(s.biz);
+        if (b != null) complete(p, s, b, 1);
+        return true;
     }
 
     @EventHandler

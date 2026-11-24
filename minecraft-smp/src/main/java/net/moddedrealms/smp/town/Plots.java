@@ -326,11 +326,28 @@ public final class Plots implements Listener, TabExecutor {
         return pl != null && !pl.npc && (p.getUniqueId().equals(pl.owner) || pl.trusted.contains(p.getUniqueId()));
     }
 
+    /**
+     * Someone who works here, but can't build: say how the job works instead of "not yours". Null when the player
+     * doesn't work at the business on this spot.
+     */
+    private String jobHint(Player p, Location l) {
+        Businesses.Biz here = t.businesses().at(l);
+        if (here == null) return null;
+        if (here == t.businesses().work().shiftBiz(p.getUniqueId())) {
+            String target = t.businesses().work().targetName(p.getUniqueId());
+            return target == null ? "<yellow>You're on shift here: <white>wait for the next task</white>, then work the glowing block."
+                    : "<yellow>You're on shift: <white>right-click or hit the glowing " + target + "</white> to do the task.";
+        }
+        if (here.workers.contains(p.getUniqueId())) return "<yellow>You work at " + here.name + ": <white>/job clockin</white> to start your shift.";
+        return null;
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
         if (!canBuild(e.getPlayer(), e.getBlock().getLocation())) {
             e.setCancelled(true);
-            e.getPlayer().sendActionBar(SmpPlugin.mm("<red>You can only build on your own plot here. <gray>/plot"));
+            String hint = jobHint(e.getPlayer(), e.getBlock().getLocation());
+            e.getPlayer().sendActionBar(SmpPlugin.mm(hint != null ? hint : "<red>You can only build on your own plot here. <gray>/plot"));
         }
     }
 
@@ -357,9 +374,11 @@ public final class Plots implements Listener, TabExecutor {
         if (!canBuild(e.getPlayer(), b.getLocation())) {
             e.setCancelled(true);
             // a worker on shift here is cooking or doing a station task, not raiding the stores: no telling-off
+            if (t.businesses().work().isTarget(e.getPlayer().getUniqueId(), b)) return;
             Businesses.Biz here = t.businesses().at(b.getLocation());
-            if (here != null && here == t.businesses().work().shiftBiz(e.getPlayer().getUniqueId())) return;
-            e.getPlayer().sendActionBar(SmpPlugin.mm("<red>That isn't yours."));
+            if (here != null && here == t.businesses().work().shiftBiz(e.getPlayer().getUniqueId()) && Dining.handles(here)) return;
+            String hint = jobHint(e.getPlayer(), b.getLocation());
+            e.getPlayer().sendActionBar(SmpPlugin.mm(hint != null ? hint : "<red>That isn't yours."));
         }
     }
 
