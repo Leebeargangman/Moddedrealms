@@ -46,7 +46,7 @@ welcome:
   open-guide-on-first-join: true
   guide-delay-ticks: 80
   # Given once, on a first join.
-  starter-kit: ["STONE_SWORD:1", "STONE_PICKAXE:1", "STONE_AXE:1", "STONE_SHOVEL:1", "BREAD:16", "TORCH:16", "WHITE_BED:1"]
+  starter-kit: ["STONE_SWORD:1", "STONE_PICKAXE:1", "STONE_AXE:1", "STONE_SHOVEL:1", "BREAD:16", "TORCH:16", "WHITE_BED:1", "GOLD_INGOT:5"]
 
 # ---- Daily login rewards (/daily): claim once a day (UTC); come back the next day to keep the streak. Day 7 is the
 # big one, then the week repeats. Reward lines as in quests: money:N, item:MATERIAL:N, key:<crate>:N, xp:N.
@@ -556,6 +556,62 @@ town:
     meadowbrook-radius: 200
     herald: true
     herald-per-hour: 6
+
+  # ---- Jobs: ranks pay more; three live strikes (they wear off after strike-days) and you're fired.
+  # business:
+  #   strikes-to-fire: 3
+  #   strike-days: 7
+  #   rehire-hours: 24
+  #   clean-shift-tasks: 10       # a shift this busy with no strikes wipes one strike
+  #   harvest-piece-rate: 0.25    # a farmhand's pay per ripe crop, as a share of the task wage
+
+  # ---- The stock exchange (/stocks): a share in every business, traded from the bank account.
+  stocks:
+    enabled: true
+    update-minutes: 10
+    volatility: 0.02
+    fee: 0.01
+    dividend: 0.01               # of the share price, once a day
+    max-shares-per-business: 500
+
+  # ---- Disasters: they wreck part of a town, then every block is put back rebuild-after-minutes later.
+  # Never near the spawn (avoid-spawn-radius), the jail, bank, casino, railway, market or colony land.
+  disasters:
+    enabled: true
+    every-hours: 8
+    first-after-hours: 2
+    min-players: 2
+    warning-seconds: 30
+    rebuild-after-minutes: 4
+    avoid-spawn-radius: 80
+    tornado-seconds: 40
+    flood-radius: 22
+    stock-shock: 0.88            # the town's shares drop this much
+
+# ---- Money is metal. Cash in hand is coins (these worths are when the economy is balanced; each metal's worth
+# falls as more of it is spent and recovers over recover-hours). The Vault balance is your bank account (/bank),
+# which pays rent and loans, takes auction and stall takings and buys shares.
+currency:
+  physical: true
+  bank-anywhere: false           # false: deposit and withdraw only inside the Old Town bank
+  worth:
+    copper: 2
+    gold: 10
+    iron: 30
+    emerald: 60
+    diamond: 250
+    netherite: 2500
+  normal:                        # how many ingots spent make a metal worth about half
+    copper: 4000
+    gold: 3000
+    iron: 3000
+    emerald: 1500
+    diamond: 400
+    netherite: 40
+  elasticity: 1.0
+  floor: 0.3                     # never below 30% of its balanced worth
+  ceiling: 2.5
+  recover-hours: 24
 
 # ---- The server resource pack (NPC skins, the train, item art). Turn models off if the server doesn't send it.
 resource-pack:

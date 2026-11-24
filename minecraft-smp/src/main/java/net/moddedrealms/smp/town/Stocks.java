@@ -129,7 +129,7 @@ final class Stocks implements TabExecutor, Listener {
     // ------------------------------------------------------------------ prices
 
     private double fundamental(Biz b) {
-        double v = 15 + Math.max(0, b.revenue) * 0.4 + b.rating * 4 + b.level * 5 + Math.max(0, Math.min(40, b.cash / 300)) - Math.max(0, b.damage) * 0.2;
+        double v = 10 + Math.sqrt(Math.max(0, b.revenue)) * 1.5 + b.rating * 3 + b.level * 3 + Math.max(0, Math.min(20, b.cash / 1000)) - Math.max(0, b.damage) * 0.1;
         if (!b.open()) v *= 0.7;
         return Math.max(1, v);
     }

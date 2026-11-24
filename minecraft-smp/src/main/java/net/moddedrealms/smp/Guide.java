@@ -87,7 +87,8 @@ public final class Guide implements Listener, CommandExecutor {
         m.inv.setItem(DUEL, item(Material.IRON_SWORD, "<red><bold>Duels", List.of("<gray>1v1 anyone nearby: <white>/duel <name> [wager]", "<gray>Nobody dies, nothing drops.", "", "<yellow>Click</yellow> <gray>for how it works.")));
         m.inv.setItem(TOP, item(Material.GOLD_BLOCK, "<gold><bold>Leaderboards", List.of("<gray>Richest, most played, duel wins,", "<gray>best streaks, biggest colonies.", "", "<yellow>Click</yellow> <gray>to see them (/top).")));
         m.inv.setItem(HOME, item(Material.RED_BED, "<white>Handy commands", List.of("<white>/spawn <gray>back to the plaza", "<white>/sethome <gray>· <white>/home", "<white>/tpa <name> <gray>visit a friend",
-                "<white>/quests <gray>· <white>/market <gray>· <white>/jobs", "<white>/daily <gray>· <white>/ah <gray>· <white>/duel <gray>· <white>/top", "<white>/drop <gray>where the supply drop is",
+                "<white>/quests <gray>· <white>/market <gray>· <white>/jobs", "<white>/daily <gray>· <white>/ah <gray>· <white>/duel <gray>· <white>/top", "<white>/drop <gray>where the supply drop is", "<white>/bank <gray>· <white>/purse <gray>· <white>/stocks <gray>money and shares",
+                "<white>/report <gray>tell the staff about a problem",
                 "<white>/start <gray>this menu")));
         p.openInventory(m.inv);
     }

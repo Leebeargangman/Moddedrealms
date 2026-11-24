@@ -30,6 +30,7 @@ public final class SmpPlugin extends JavaPlugin {
     private Insights insights;
     private Guide guide;
     private net.moddedrealms.smp.play.DailyStreak streaks;
+    private Reports reports;
     private net.moddedrealms.smp.play.Duels duels;
     private net.moddedrealms.smp.play.SupplyDrops drops;
     private net.moddedrealms.smp.play.AuctionHouse auctions;
@@ -66,6 +67,9 @@ public final class SmpPlugin extends JavaPlugin {
         getCommand("start").setExecutor(guide);
         getCommand("poll").setExecutor(feedback);
         getCommand("suggest").setExecutor(feedback);
+        reports = new Reports(this);
+        pm.registerEvents(reports, this);
+        getCommand("report").setExecutor(reports);
         streaks = new net.moddedrealms.smp.play.DailyStreak(this);
         pm.registerEvents(streaks, this);
         getCommand("daily").setExecutor(streaks);
@@ -174,6 +178,7 @@ public final class SmpPlugin extends JavaPlugin {
     public CrateManager crates() { return crates; }
     public TownManager town() { return town; }
     public Feedback feedback() { return feedback; }
+    public Reports reports() { return reports; }
     public Insights insights() { return insights; }
     public Guide guide() { return guide; }
     public net.moddedrealms.smp.play.DailyStreak streaks() { return streaks; }

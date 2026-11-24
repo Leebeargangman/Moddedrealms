@@ -138,6 +138,23 @@ final class SmpCommand implements TabExecutor {
                 if (!admin) return no(sender);
                 sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.auctions().status()));
             }
+            case "disaster", "disasters" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.town().disasterAdmin(sender, args)));
+            }
+            case "mint", "currency" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.town().mintStatus()));
+            }
+            case "reports" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.reports().list(args.length > 1 && args[1].equalsIgnoreCase("all"))) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "report" -> {
+                if (!admin) return no(sender);
+                if (args.length < 3) return say(sender, "/mrsmp report <id> <note to the reporter>", NamedTextColor.YELLOW);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.reports().close(args[1], String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)))));
+            }
             case "colonies" -> {
                 if (!admin) return no(sender);
                 for (String l : plugin.town().colonyStatus()) sender.sendMessage(SmpPlugin.mm(l));

@@ -118,6 +118,7 @@ public final class TownManager implements Listener {
     private ColonyLink colonyLink;
     private Mint mint;
     private BankDesk bankDesk;
+    private Disasters disasters;
     private Stocks stocks;
     private Stalls stalls;
     private Counter counter;
@@ -183,6 +184,7 @@ public final class TownManager implements Listener {
         market = new Market(this);
         bankDesk = new BankDesk(this);
         stocks = new Stocks(this);
+        disasters = new Disasters(this);
         marketHall = new MarketHall(this);
         stalls = new Stalls(this);
         counter = new Counter(this, businesses);
@@ -232,6 +234,8 @@ public final class TownManager implements Listener {
         pm.registerEvents(counter, plugin);
         pm.registerEvents(bankDesk, plugin);
         pm.registerEvents(stocks, plugin);
+        pm.registerEvents(disasters, plugin);
+        disasters.start();
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         counter.wireShopkeepers();
@@ -250,6 +254,7 @@ public final class TownManager implements Listener {
     }
 
     public void stop() {
+        if (disasters != null) disasters.shutdown();
         if (residents != null) residents.stop();
         for (Walker w : new ArrayList<>(walkers)) w.remove(false);
         walkers.clear();
@@ -385,6 +390,10 @@ public final class TownManager implements Listener {
     public org.bukkit.command.TabExecutor stocks() { return stocks; }
     /** Disaster or scandal: a town's shares take a knock. */
     public void stockShock(String town, double factor) { stocks.shock(town, factor); }
+    /** /mrsmp disaster ... */
+    public String disasterAdmin(org.bukkit.command.CommandSender s, String[] a) { return disasters.admin(s, a); }
+    /** /mrsmp mint */
+    public String mintStatus() { return mint.status(); }
     /** The ColonySMP bridge, or null when ColonySMP isn't installed. */
     ColonyLink colonyLink() { return colonyLink; }
 

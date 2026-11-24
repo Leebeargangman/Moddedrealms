@@ -176,6 +176,11 @@ commands:
     usage: /stocks [buy|sell <ticker> <n>|portfolio]
     aliases: [stock, shares]
     permission: mrsmp.quests
+  report:
+    description: Report a bug or a player to the staff.
+    usage: /report <what happened>
+    aliases: [bug, bugreport]
+    permission: mrsmp.quests
 permissions:
   mrsmp.quests:
     default: true
