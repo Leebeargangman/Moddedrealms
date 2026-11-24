@@ -48,8 +48,10 @@ public final class Work implements Listener {
         Location target;
         Biz deliverTo;
         Walker customer;
-        long deadline, nextTask;
-        int done;
+        long deadline, nextTask, lastHarvest;
+        int done, missed, harvested;
+        double earned;
+        boolean struck;
     }
 
     private final TownManager t;
@@ -59,11 +61,27 @@ public final class Work implements Listener {
     private final Random r = new Random();
     private int tick;
     final Dining dining;
+    final Careers careers;
 
     Work(TownManager t, Businesses bz) {
         this.t = t;
         this.bz = bz;
         this.dining = new Dining(t, bz, this);
+        this.careers = new Careers(t);
+    }
+
+    /** A strike for the worker on this shift (and remember the shift wasn't clean). */
+    private void strike(Player p, Shift s, Biz b, String why) {
+        s.struck = true;
+        careers.strike(p.getUniqueId(), b, why);
+    }
+
+    /** Two slips in a row (a task left to go cold, a customer left waiting) make a strike. */
+    private void slip(Player p, Shift s, Biz b, String why) {
+        if (++s.missed >= 2) {
+            s.missed = 0;
+            strike(p, s, b, why);
+        }
     }
 
     /** Is this block the worker's current station task? */
@@ -130,6 +148,8 @@ public final class Work implements Listener {
                 Biz b = a.length > 1 ? bz.get(a[1]) : null;
                 if (b == null || b.rival) return say(p, "<yellow>/job apply <business> <gray>(see /jobs)");
                 if (p.getUniqueId().equals(b.owner)) return say(p, "<gray>That's your own business. Owners work it too: /job clockin works for you there.");
+                String barred = careers.barred(p.getUniqueId(), b);
+                if (barred != null) return say(p, "<red>" + barred);
                 if (!b.playerOwned()) {
                     hire(b, p);
                     return true;
@@ -161,6 +181,7 @@ public final class Work implements Listener {
                 if (b == null) return say(p, "<gray>You need a job first. <white>/jobs");
                 if (!b.open()) return say(p, "<red>" + b.name + " is closed (" + b.closedWhy + ").");
                 if (here != b) return say(p, "<gray>Go to " + b.name + " to clock in.");
+                if (t.data(p).stars >= 2 && !p.getUniqueId().equals(b.owner)) return say(p, "<red>Nobody will put you on shift while the Watch is after you.");
                 Shift s = new Shift();
                 s.biz = b.id;
                 s.nextTask = System.currentTimeMillis() + 3000;
@@ -171,19 +192,28 @@ public final class Work implements Listener {
                 Shift s = shifts.get(p.getUniqueId());
                 if (s == null) return say(p, "<gray>You're not clocked in.");
                 clockOut(p.getUniqueId());
-                say(p, "<gray>Clocked out after " + s.done + " task" + (s.done == 1 ? "" : "s") + ". Good work.");
+                say(p, "<gray>Clocked out after " + s.done + " task" + (s.done == 1 ? "" : "s") + (s.harvested > 0 ? " and " + s.harvested + " crops harvested" : "")
+                        + ". <green>Earned " + Money.fmt(s.earned) + "</green> this shift." + (s.struck ? "" : " Good work."));
+                Biz sb = bz.get(s.biz);
+                if (sb != null && !s.struck) careers.cleanShift(p, sb, s.done);
             }
             default -> {
                 if (mine == null) return say(p, "<gray>You don't have a job. <white>/jobs</white> lists who's hiring.");
                 Shift s = shifts.get(p.getUniqueId());
-                say(p, "<gold>You work at " + mine.name + " <gray>(" + mine.kind.label + ") for " + Money.fmt(wage(mine)) + " a task. "
+                say(p, "<gold>You work at " + mine.name + " <gray>(" + mine.kind.label + ") for " + Money.fmt(wage(mine) * careers.payFactor(p.getUniqueId(), mine)) + " a task. "
                         + (s == null ? "<white>/job clockin</white> there to start." : "<green>Clocked in, " + s.done + " tasks done."));
+                for (String l : careers.card(p.getUniqueId(), mine)) say(p, " " + l);
             }
         }
         return true;
     }
 
     void hire(Biz b, Player p) {
+        String barred = careers.barred(p.getUniqueId(), b);
+        if (barred != null) {
+            say(p, "<red>" + barred);
+            return;
+        }
         Biz old = bz.employerOf(p.getUniqueId());
         if (old != null && old != b) {
             old.workers.remove(p.getUniqueId());
@@ -263,8 +293,38 @@ public final class Work implements Listener {
         return out;
     }
 
+    /** What the job at this station is, in words. */
+    static String verb(Material m) {
+        String n = m.name();
+        if (n.endsWith("_BED")) return "Make up the room";
+        return switch (m) {
+            case COMPOSTER -> "Compost the scraps";
+            case LOOM -> "Weave a bolt of cloth";
+            case STONECUTTER -> "Saw planks";
+            case SMOKER -> "Mind the oven";
+            case BARREL -> "Stock the barrels";
+            case CRAFTING_TABLE -> "Make up an order";
+            case FURNACE, BLAST_FURNACE -> "Stoke the furnace";
+            case BREWING_STAND -> "Brew a batch";
+            case CARTOGRAPHY_TABLE -> "Draw up a map";
+            case LECTERN -> "Do the books";
+            case FLETCHING_TABLE -> "Fletch arrows";
+            case SMITHING_TABLE -> "Smith a fitting";
+            case GRINDSTONE -> "Sharpen the tools";
+            case CAULDRON -> "Fetch water";
+            case ANVIL -> "Hammer out repairs";
+            case HAY_BLOCK -> "Bale the hay";
+            case CHEST -> "Sort the stores";
+            case BOOKSHELF, CHISELED_BOOKSHELF -> "Tidy the shelves";
+            case WHEAT -> "Tend the wheat";
+            case OAK_LOG -> "Split logs";
+            default -> "Work";
+        };
+    }
+
     void second() {
         tick++;
+        if (tick % 60 == 0) careers.save();
         long now = System.currentTimeMillis();
         for (UUID u : new ArrayList<>(shifts.keySet())) {
             Player p = Bukkit.getPlayer(u);
@@ -275,14 +335,20 @@ public final class Work implements Listener {
                 continue;
             }
             if (p.getIdleDuration().toSeconds() > cfg().getLong("town.business.afk-clockout-seconds", 180)) {
+                strike(p, s, b, "dozed off on shift");
                 clockOut(u);
                 p.sendMessage(SmpPlugin.mm("<gray>You dozed off on the job, so you've been clocked out of " + b.name + ". <white>/job clockin</white> when you're back."));
+                continue;
+            }
+            if (t.data(p).stars >= 3 && !u.equals(b.owner)) {
+                careers.fire(u, b, "wanted by the Watch");
                 continue;
             }
             if (s.deliverTo != null) {
                 Location dest = bz.anchor(s.deliverTo);
                 if (dest == null || now > s.deadline) {
                     p.sendMessage(SmpPlugin.mm("<red>The delivery to " + (s.deliverTo == null ? "?" : s.deliverTo.name) + " ran out of time."));
+                    strike(p, s, b, "a delivery never arrived");
                     s.deliverTo = null;
                     s.nextTask = now + 5000;
                     continue;
@@ -316,6 +382,7 @@ public final class Work implements Listener {
                     s.customer = null;
                     b.rating = Math.max(0, b.rating - 0.05);
                     p.sendActionBar(SmpPlugin.mm("<red>The customer gave up waiting. <gray>(-rating)"));
+                    slip(p, s, b, "customers left waiting");
                     s.nextTask = now + 4000;
                     continue;
                 }
@@ -326,6 +393,7 @@ public final class Work implements Listener {
             if (s.target != null) {
                 if (now > s.deadline) {
                     p.sendActionBar(SmpPlugin.mm("<gray>Too slow, that one's done by someone else."));
+                    slip(p, s, b, "tasks left undone");
                     s.target = null;
                     s.nextTask = now + 4000;
                     continue;
@@ -371,7 +439,7 @@ public final class Work implements Listener {
             Block pick = st.get(r.nextInt(st.size()));
             s.target = pick.getLocation();
             s.deadline = now + 20_000;
-            p.sendActionBar(SmpPlugin.mm("<green>Task: work the glowing " + pick.getType().name().toLowerCase().replace('_', ' ') + "! <gray>(right-click or hit it)"));
+            p.sendActionBar(SmpPlugin.mm("<green>Task: " + verb(pick.getType()) + " at the glowing " + pick.getType().name().toLowerCase().replace('_', ' ') + "! <gray>(right-click or hit it)"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
         }
         if (tick % 4 == 0) activity();
@@ -445,7 +513,9 @@ public final class Work implements Listener {
 
     /** The wage for a job and the business's productivity for it. Returns what the worker was paid. */
     private double earn(Player p, Shift s, Biz b, int mult) {
-        double pay = wage(b) * mult;
+        double pay = Math.round(wage(b) * mult * careers.payFactor(p.getUniqueId(), b));
+        s.missed = 0;
+        if (!p.getUniqueId().equals(b.owner)) careers.taskDone(p, b);
         if (b.playerOwned() && !p.getUniqueId().equals(b.owner)) {
             if (b.cash < pay) {
                 p.sendMessage(SmpPlugin.mm("<red>" + b.name + " can't afford to pay you right now. Talk to the owner."));
@@ -457,6 +527,7 @@ public final class Work implements Listener {
             pay = 0; // owners don't pay themselves
         }
         if (pay > 0) t.money.give(p, pay);
+        s.earned += Math.max(0, pay);
         b.tasks += mult;
         s.done++;
         if (s.done % 10 == 0) t.addRep(p, 1);
@@ -489,6 +560,52 @@ public final class Work implements Listener {
     public void onBreakStation(org.bukkit.event.block.BlockBreakEvent e) {
         if (doTarget(e.getPlayer(), e.getBlock())) e.setCancelled(true);
     }
+
+    /**
+     * Real farm work: a farmhand on shift breaks a ripe crop on the farm's ground; it's harvested into the business's
+     * stock and replanted (the plant goes back to a seedling), and the hand is paid by the piece. Unripe crops stay.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onHarvest(org.bukkit.event.block.BlockBreakEvent e) {
+        Player p = e.getPlayer();
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null) return;
+        Block bl = e.getBlock();
+        if (!(bl.getBlockData() instanceof org.bukkit.block.data.Ageable ag) || !CROPS.contains(bl.getType())) return;
+        Biz b = bz.get(s.biz);
+        if (b == null || b.kind.output != Econ.Good.WHEAT && b.kind != Econ.Kind.FARM || bz.at(bl.getLocation()) != b) return;
+        e.setCancelled(true);
+        if (ag.getAge() < ag.getMaximumAge()) {
+            p.sendActionBar(SmpPlugin.mm("<gray>Not ripe yet. <white>Harvest the golden, fully grown crops</white>, or work the glowing station."));
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - s.lastHarvest < 400) return; // one plant at a time
+        s.lastHarvest = now;
+        ag.setAge(0);
+        bl.setBlockData(ag, false);
+        b.stock.merge(Econ.Good.WHEAT, 1.0, Double::sum);
+        b.made += 1;
+        s.harvested++;
+        double piece = Math.round(wage(b) * careers.payFactor(p.getUniqueId(), b) * cfg().getDouble("town.business.harvest-piece-rate", 0.25) * 100) / 100.0;
+        boolean paid = piece > 0 && !p.getUniqueId().equals(b.owner) && (!b.playerOwned() || b.cash >= piece);
+        if (paid) {
+            b.cash -= piece;
+            t.money.give(p, piece);
+            s.earned += piece;
+        }
+        bl.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, bl.getLocation().add(0.5, 0.5, 0.5), 4, 0.3, 0.2, 0.3);
+        p.playSound(bl.getLocation(), Sound.BLOCK_CROP_BREAK, 0.8f, 1.1f);
+        if (s.harvested % 4 == 0) {
+            b.tasks += 1;
+            s.done++;
+            s.missed = 0;
+            if (!p.getUniqueId().equals(b.owner)) careers.taskDone(p, b);
+        }
+        p.sendActionBar(SmpPlugin.mm("<green>Harvested and replanted" + (paid ? " <yellow>+" + Money.fmt(piece).replace("$0", "$" + piece) : "") + " <gray>(" + s.harvested + " this shift)"));
+    }
+
+    private static final Set<Material> CROPS = EnumSet.of(Material.WHEAT, Material.CARROTS, Material.POTATOES, Material.BEETROOTS);
 
     private boolean doTarget(Player p, Block bl) {
         Shift s = shifts.get(p.getUniqueId());

@@ -290,7 +290,7 @@ public final class Plots implements Listener, TabExecutor {
         for (Plot p : plots.values()) {
             if (p.owner == null || !p.rented || now < p.paidUntil) continue;
             OfflinePlayer o = Bukkit.getOfflinePlayer(p.owner);
-            if (t.money.pay(o, p.rent)) {
+            if (t.money.bankPay(o, p.rent)) {
                 p.paidUntil += 86_400_000L;
                 if (o.getPlayer() != null) o.getPlayer().sendMessage(SmpPlugin.mm("<gray>Rent for plot " + p.id + ": <white>-" + Money.fmt(p.rent)));
                 t.townTreasury(p.town, p.rent);

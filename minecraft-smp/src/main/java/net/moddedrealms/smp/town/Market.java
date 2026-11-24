@@ -147,7 +147,9 @@ public final class Market implements Listener {
         this.t = t;
         this.file = new File(t.plugin().getDataFolder(), "market.yml");
         for (Cat c : Cat.values()) byCat.put(c, new ArrayList<>());
+        boolean coin = t.money.physical();
         for (Object[] w : WARES) {
+            if (coin && Mint.isCurrency((Material) w[0])) continue; // metal coins are money, not wares
             Ware x = new Ware((Material) w[0], (Cat) w[1], (double) w[2]);
             wares.put(x.mat, x);
             byCat.get(x.cat).add(x);

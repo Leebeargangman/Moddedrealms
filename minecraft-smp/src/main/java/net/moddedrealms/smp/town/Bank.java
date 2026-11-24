@@ -341,6 +341,11 @@ public final class Bank implements Listener {
         return new File(t.plugin().getDataFolder(), "bank-undo.yml");
     }
 
+    /** True when the spot is inside the bank building (anyone may do their banking there). */
+    public boolean inside(org.bukkit.Location l) {
+        return box != null && l.getWorld() != null && l.getWorld().getName().equals(boxWorld) && box.clone().expand(2).contains(l.toVector());
+    }
+
     public boolean built() {
         return structureFile().exists();
     }

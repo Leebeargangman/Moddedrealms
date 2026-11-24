@@ -286,7 +286,7 @@ public final class Businesses implements Listener, TabExecutor {
         Biz b = atPlot(p);
         if (b == null || !b.playerOwned()) return;
         OfflinePlayer o = Bukkit.getOfflinePlayer(b.owner);
-        t.money.give(o, Math.max(0, b.cash));
+        t.money.bankGive(o, Math.max(0, b.cash));
         for (UUID w : b.workers) {
             Player pl = Bukkit.getPlayer(w);
             if (pl != null) pl.sendMessage(SmpPlugin.mm("<gray>" + b.name + " has closed down. You're out of a job."));
@@ -966,11 +966,29 @@ public final class Businesses implements Listener, TabExecutor {
                     return say(p, "<gray>" + a[1] + " no longer works at " + b.name + ".");
                 }
                 OfflinePlayer o = a.length > 1 ? Bukkit.getOfflinePlayer(a[1]) : null;
-                if (b == null || o == null || !b.workers.remove(o.getUniqueId())) return say(p, "<yellow>/business fire <employee>");
-                work.clockOut(o.getUniqueId());
-                save();
+                if (b == null || o == null || !b.workers.contains(o.getUniqueId())) return say(p, "<yellow>/business fire <employee> [reason]");
+                String why = a.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(a, 2, a.length)) : "let go by the owner";
+                work.careers.fire(o.getUniqueId(), b, why.length() > 60 ? why.substring(0, 60) : why);
                 say(p, "<gray>" + o.getName() + " no longer works at " + b.name + ".");
-                if (o.getPlayer() != null) o.getPlayer().sendMessage(SmpPlugin.mm("<red>You were let go from " + b.name + "."));
+            }
+            case "warn" -> {
+                Biz b = mine(p);
+                OfflinePlayer o = a.length > 1 ? Bukkit.getOfflinePlayer(a[1]) : null;
+                if (b == null || o == null || !b.workers.contains(o.getUniqueId())) return say(p, "<yellow>/business warn <employee> <reason> <gray>(a strike; three and they're fired)");
+                String why = a.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(a, 2, a.length)) : "a warning from the owner";
+                work.careers.strike(o.getUniqueId(), b, why.length() > 60 ? why.substring(0, 60) : why);
+                say(p, "<gray>Warned " + o.getName() + ".");
+            }
+            case "staff", "employees" -> {
+                Biz b = mine(p);
+                if (b == null) return say(p, "<gray>Stand in your business.");
+                say(p, "<gold>Staff of " + b.name + ":");
+                if (b.workers.isEmpty()) say(p, "<gray> nobody yet. <white>/business hire <player>");
+                for (UUID u : b.workers) {
+                    OfflinePlayer o = Bukkit.getOfflinePlayer(u);
+                    var c = work.careers.card(u, b);
+                    say(p, " <white>" + o.getName() + " <gray>" + work.careers.rank(u, b).label + " · " + c.get(1).replace("<gray>", ""));
+                }
             }
             case "premises", "check" -> {
                 Biz b = mine(p);

@@ -312,7 +312,7 @@ public final class Stalls implements Listener {
                 if (now < s.paidUntil) continue;
                 double due = rent() + (s.keeper ? keeperFee() : 0);
                 OfflinePlayer o = Bukkit.getOfflinePlayer(s.owner);
-                if (s.autorenew && t.money.pay(o, due)) {
+                if (s.autorenew && t.money.bankPay(o, due)) {
                     s.paidUntil += 86_400_000L;
                     s.warned = false;
                     Player op = o.getPlayer();
@@ -358,7 +358,7 @@ public final class Stalls implements Listener {
         if (e.count <= 0) s.stock.remove(e);
         s.earned += net;
         s.sales += n;
-        t.money.give(Bukkit.getOfflinePlayer(s.owner), net);
+        t.money.bankGive(Bukkit.getOfflinePlayer(s.owner), net);
         Player o = Bukkit.getPlayer(s.owner);
         if (o != null) o.sendMessage(SmpPlugin.mm("<gold>[Stall " + s.n + "] <white>" + (buyer == null ? "A townsperson" : buyer.getName()) + " <gray>bought " + n + " "
                 + label(e.item).toLowerCase(Locale.ROOT) + ": <green>+" + Money.fmt(net)));

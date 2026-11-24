@@ -154,7 +154,7 @@ public final class Loans {
             Player p = o.getPlayer();
             double inst = Math.min(d.loanInstalment, d.loanOwed);
             d.loanNextDue += 86_400_000L;
-            if (t.money.pay(o, inst)) {
+            if (t.money.bankPay(o, inst)) {
                 d.loanOwed -= inst;
                 d.loanMissed = 0;
                 if (p != null) p.sendMessage(SmpPlugin.mm("<gray>Loan payment: <white>-" + Money.fmt(inst) + "</white>, " + Money.fmt(Math.max(0, d.loanOwed)) + " left."));

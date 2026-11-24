@@ -109,6 +109,12 @@ public final class SmpPlugin extends JavaPlugin {
             getCommand(c).setExecutor(town.businesses());
             getCommand(c).setTabCompleter(town.businesses());
         }
+        for (String c : new String[]{"bank", "purse"}) {
+            getCommand(c).setExecutor(town.bankDesk());
+            getCommand(c).setTabCompleter(town.bankDesk());
+        }
+        getCommand("stocks").setExecutor(town.stocks());
+        getCommand("stocks").setTabCompleter(town.stocks());
         getCommand("plot").setExecutor(town.plots());
         getCommand("plot").setTabCompleter(town.plots());
         for (String c : new String[]{"gang", "gc"}) {

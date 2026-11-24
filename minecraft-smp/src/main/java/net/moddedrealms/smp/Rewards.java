@@ -24,7 +24,10 @@ public final class Rewards {
             String kind = a[0].toLowerCase(Locale.ROOT);
             try {
                 switch (kind) {
-                    case "money" -> console(cfg.getString("rewards.money-command", "eco give {player} {amount}"), p, a[1], "");
+                    case "money" -> {
+                        if (plugin.town() != null && plugin.town().money.physical()) plugin.town().money.give(p, Double.parseDouble(a[1]));
+                        else console(cfg.getString("rewards.money-command", "eco give {player} {amount}"), p, a[1], "");
+                    }
                     case "key" -> {
                         int n = a.length > 2 ? Integer.parseInt(a[2]) : 1;
                         plugin.crates().giveKeys(p.getUniqueId(), a[1], n);

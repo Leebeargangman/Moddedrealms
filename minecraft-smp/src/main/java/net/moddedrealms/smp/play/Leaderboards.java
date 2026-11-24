@@ -31,7 +31,7 @@ import org.bukkit.persistence.PersistentDataType;
  */
 public final class Leaderboards implements TabExecutor, org.bukkit.event.Listener {
     public enum Board {
-        MONEY("Richest", "money"), PLAYTIME("Most played", "playtime"), DUELS("Duel wins", "duels"), STREAK("Best daily streak", "streak"), COLONIES("Biggest colonies", "colonies");
+        MONEY("Richest (bank)", "money"), PLAYTIME("Most played", "playtime"), DUELS("Duel wins", "duels"), STREAK("Best daily streak", "streak"), COLONIES("Biggest colonies", "colonies");
 
         final String title, key;
 
@@ -83,7 +83,7 @@ public final class Leaderboards implements TabExecutor, org.bukkit.event.Listene
             String n = op.getName();
             if (n == null || hide.contains(n.toLowerCase(Locale.ROOT))) continue;
             try {
-                if (plugin.town() != null && plugin.town().money.ready()) money.add(new Object[]{n, plugin.town().money.balance(op)});
+                if (plugin.town() != null && plugin.town().money.ready()) money.add(new Object[]{n, plugin.town().money.bankBalance(op)});
             } catch (RuntimeException ignored) {
             }
             try {

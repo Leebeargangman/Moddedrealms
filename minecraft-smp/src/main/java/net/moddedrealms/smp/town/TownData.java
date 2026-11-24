@@ -74,6 +74,8 @@ public final class TownData {
     public int rides;
     public long dayPassUntil;
     public boolean firstTicketBought;
+    /** Told that money turned into metal coins. */
+    public boolean seenCoinNotice;
     public long lastGangHome;
     public int pickpocketsThisHour;
     public long pickpocketHour;
@@ -113,13 +115,14 @@ public final class TownData {
         d.rides = s.getInt("rail.rides");
         d.dayPassUntil = s.getLong("rail.day-pass-until");
         d.firstTicketBought = s.getBoolean("rail.first-ticket");
+        d.seenCoinNotice = s.getBoolean("coin-notice");
         var ng = s.getConfigurationSection("npc-gangs");
         if (ng != null) for (String k : ng.getKeys(false)) d.npcGangRep.put(k, ng.getInt(k));
         return d;
     }
 
     boolean worthSaving() {
-        return loanOwed > 0 || loanDefaults > 0 || rides > 0 || firstTicketBought || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
+        return loanOwed > 0 || loanDefaults > 0 || rides > 0 || firstTicketBought || seenCoinNotice || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
     }
 
     void save(ConfigurationSection s) {
@@ -154,6 +157,7 @@ public final class TownData {
         }
         if (dayPassUntil > System.currentTimeMillis()) s.set("rail.day-pass-until", dayPassUntil);
         if (firstTicketBought) s.set("rail.first-ticket", true);
+        if (seenCoinNotice) s.set("coin-notice", true);
         if (serviceLeft > 0) {
             s.set("service.left", serviceLeft);
             s.set("service.fallback", serviceFallback);

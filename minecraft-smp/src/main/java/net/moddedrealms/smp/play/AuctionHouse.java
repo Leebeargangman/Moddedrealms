@@ -485,13 +485,13 @@ public final class AuctionHouse implements Listener, TabExecutor {
         p.getInventory().addItem(l.item.clone()).values().forEach(left -> p.getWorld().dropItem(p.getLocation(), left));
         double tax = Math.floor(l.price * cfg().getDouble("auction.tax", 0.05));
         OfflinePlayer seller = Bukkit.getOfflinePlayer(l.seller);
-        plugin.town().money.give(seller, l.price - tax);
+        plugin.town().money.bankGive(seller, l.price - tax);
         p.sendMessage(SmpPlugin.mm("<green>Bought " + label(l.item) + " for " + money(l.price) + "."));
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.2f);
         Player s = seller.getPlayer();
         if (s != null) {
             s.sendMessage(SmpPlugin.mm("<gold>[AH] <white>" + p.getName() + "</white> <gray>bought your " + label(l.item) + ": <green>+" + money(l.price - tax)
-                    + "</green>" + (tax > 0 ? " <dark_gray>(" + money(tax) + " tax)" : "")));
+                    + "</green> to your bank account" + (tax > 0 ? " <dark_gray>(" + money(tax) + " tax)" : "")));
             s.playSound(s.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 1.4f);
         }
         plugin.getLogger().info("[AH] " + p.getName() + " bought " + l.item.getType() + " x" + l.item.getAmount() + " from " + l.sellerName + " for " + l.price);

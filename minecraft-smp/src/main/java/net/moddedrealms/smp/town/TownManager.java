@@ -116,12 +116,15 @@ public final class TownManager implements Listener {
     private Market market;
     private MarketHall marketHall;
     private ColonyLink colonyLink;
+    private Mint mint;
+    private BankDesk bankDesk;
+    private Stocks stocks;
     private Stalls stalls;
     private Counter counter;
     private int marketTick;
     private boolean warnedPeaceful;
     private boolean dirty;
-    private int tick;
+    private int tick, mintSecs;
 
     // settings
     public boolean enabled;
@@ -175,7 +178,11 @@ public final class TownManager implements Listener {
         meadowbrook = new Meadowbrook(this);
         railway = new Railway(this);
         businesses = new Businesses(this);
+        mint = new Mint(this);
+        money.attach(mint);
         market = new Market(this);
+        bankDesk = new BankDesk(this);
+        stocks = new Stocks(this);
         marketHall = new MarketHall(this);
         stalls = new Stalls(this);
         counter = new Counter(this, businesses);
@@ -223,6 +230,8 @@ public final class TownManager implements Listener {
         pm.registerEvents(market, plugin);
         pm.registerEvents(stalls, plugin);
         pm.registerEvents(counter, plugin);
+        pm.registerEvents(bankDesk, plugin);
+        pm.registerEvents(stocks, plugin);
         // Leftovers from a crash (walkers are never meant to be saved).
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isOurs(e)) e.remove();
         counter.wireShopkeepers();
@@ -257,6 +266,9 @@ public final class TownManager implements Listener {
         businesses.save();
         market.save();
         stalls.save();
+        mint.save();
+        stocks.save();
+        businesses.work().careers.save();
         save();
     }
 
@@ -368,6 +380,11 @@ public final class TownManager implements Listener {
     public Railway railway() { return railway; }
     public Businesses businesses() { return businesses; }
     public Market market() { return market; }
+    Mint mint() { return mint; }
+    public org.bukkit.command.TabExecutor bankDesk() { return bankDesk; }
+    public org.bukkit.command.TabExecutor stocks() { return stocks; }
+    /** Disaster or scandal: a town's shares take a knock. */
+    public void stockShock(String town, double factor) { stocks.shock(town, factor); }
     /** The ColonySMP bridge, or null when ColonySMP isn't installed. */
     ColonyLink colonyLink() { return colonyLink; }
 
@@ -704,6 +721,8 @@ public final class TownManager implements Listener {
         plots.second();
         businesses.second();
         market.second();
+        stocks.second();
+        if (++mintSecs % 120 == 0) mint.save();
         marketHall.second(++marketTick);
         stalls.second();
         residents.second();

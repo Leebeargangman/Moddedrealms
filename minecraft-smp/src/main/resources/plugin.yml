@@ -162,6 +162,20 @@ commands:
     usage: /leaderboard [money|playtime|duels|streak|colonies]
     aliases: [leaderboards, lb, ranks]
     permission: mrsmp.quests
+  bank:
+    description: Your bank account; deposit and withdraw coin at the Old Town bank.
+    usage: /bank [deposit|withdraw|send|rates]
+    aliases: [account, atm]
+    permission: mrsmp.quests
+  purse:
+    description: The coin you carry.
+    aliases: [wallet, cash, coins]
+    permission: mrsmp.quests
+  stocks:
+    description: The stock exchange.
+    usage: /stocks [buy|sell <ticker> <n>|portfolio]
+    aliases: [stock, shares]
+    permission: mrsmp.quests
 permissions:
   mrsmp.quests:
     default: true
