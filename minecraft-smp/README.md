@@ -98,6 +98,13 @@ trinkets for the Fence) and rob other players (same move: 5% of their money, max
 - Up to ★★ officers walk up and order you to surrender (crouch, or click [Surrender]); from ★★★, or if you resist,
   they draw swords. The hit that would kill you arrests you instead ("busted", +1 min).
 - Not crimes: hitting back within 10s (self-defence), fighting someone who is wanted, anything WorldGuard blocked.
+- **Newcomers get warnings** (`town.newcomer-grace`): with under 2 hours of play time, a player's first 3 minor
+  offences (hitting a guard, a townsperson or a player, arson, killing a pet) are a warning from the nearest guard
+  instead of wanted stars. In the 30s after a warning their hits do no harm. Since 1.12.1: on 2026-11-25 every new
+  player who stayed more than a few minutes was jailed 2-9 times, mostly for "assaulting a guard".
+- **Stray hits** (`town.accidents`): sweep attacks never hurt guards, townsfolk or villagers, and a swing that lands on
+  a guard or townsperson within 4s of fighting a monster is ignored with a "Careful!" note (guards come to help
+  players who are attacked, so they stand in the way). Thieves, bandits, gangsters and couriers still count.
 - Stars fade one per minute when no officer can see you. Leaving the 500-block zone stops the chase.
 - Arrest: fine ($100 per star, never below $0), 1 min per star in a cell (max 5, only counts down while online),
   `/bail` to pay $4 per second left. Prisoners can't use other commands, teleport, fight or be hurt. Every arrest saves a

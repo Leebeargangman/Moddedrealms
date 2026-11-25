@@ -570,6 +570,8 @@ public final class Officers {
         o.hurt();
         TownData d = t.data(p);
         if (t.exempt(p)) return;
+        boolean warned = System.currentTimeMillis() - d.lastGraceAt < 30_000;
+        if (warned) o.health += damage; // just warned: no harm done
         if (o.health <= 0) {
             o.shout("<red>Guard down! Guard down!", 32);
             t.news(p.getName() + " killed " + o.name.replaceAll("<[^>]+>", "") + " of the Town Watch!");
@@ -577,7 +579,10 @@ public final class Officers {
             t.commit(p, Crime.COP_KILLING, p.getLocation(), "cop" + o.legs.getUniqueId(), null, true);
             return;
         }
-        t.commit(p, Crime.ASSAULT_OFFICER, p.getLocation(), "cop" + o.legs.getUniqueId(), null, true);
+        if (t.commit(p, Crime.ASSAULT_OFFICER, p.getLocation(), "cop" + o.legs.getUniqueId(), null, true)) { // a newcomer's warning
+            if (!warned) o.health += damage;
+            return;
+        }
         d.hostile = true;
         d.orderedAt = 0;
         pursue(o, p);

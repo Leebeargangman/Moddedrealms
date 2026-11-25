@@ -364,6 +364,7 @@ public final class Townsfolk implements Listener {
     private void assault(Walker w, Player p, double damage) {
         w.health -= damage;
         w.hurt();
+        if (System.currentTimeMillis() - t.data(p).lastGraceAt < 30_000) w.health = Math.max(w.health, 1); // just warned
         if (w.health <= 0) {
             String plain = w.name.replaceAll("<[^>]+>", "");
             t.unregister(w, true);

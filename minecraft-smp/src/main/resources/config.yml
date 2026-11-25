@@ -154,6 +154,18 @@ town:
   hostile-at-stars: 3           # from this many stars officers use force straight away
   wanted-decay-seconds: 60      # lose a star every N seconds no officer can see you
   self-defence-seconds: 10      # hitting back within this long is not assault
+  # A newcomer's first minor offences only get a warning from the Watch (most new players hit a guard or a
+  # townsperson before they know the town has laws). Crime keys as in crimes: below.
+  newcomer-grace:
+    enabled: true
+    play-minutes: 120           # total play time under this counts as a newcomer
+    warnings: 3
+    crimes: [assault-officer, assault-npc, assault, arson, pet-killing]
+  # Stray hits on guards and townsfolk are no crime and do no harm: sweep attacks, and any swing within
+  # mob-fight-seconds of fighting a monster (guards come running to help players who are attacked).
+  accidents:
+    enabled: true
+    mob-fight-seconds: 4
   bodycam: true                 # save a ModdedrealmsGuard replay of every arrest
 
   arrest:

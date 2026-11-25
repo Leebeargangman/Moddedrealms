@@ -754,42 +754,79 @@ public final class TownManager implements Listener {
      * @param selfWitness a townsperson who was the victim and can report it
      * @param certainWitness the crime was against the police themselves
      */
-    public void commit(Player p, Crime c, Location where, String victimKey, Walker selfWitness, boolean certainWitness) {
-        commit(p, c, where, victimKey, selfWitness, certainWitness, null);
+    public boolean commit(Player p, Crime c, Location where, String victimKey, Walker selfWitness, boolean certainWitness) {
+        return commit(p, c, where, victimKey, selfWitness, certainWitness, null);
     }
 
-    /** @param unaware a victim who didn't notice (a successful pickpocket) and so can't be the one who reports it */
-    public void commit(Player p, Crime c, Location where, String victimKey, Walker selfWitness, boolean certainWitness, Walker unaware) {
-        if (!enabled || exempt(p) && c != Crime.RESISTING || !inPoliceZone(where)) return;
+    /**
+     * @param unaware a victim who didn't notice (a successful pickpocket) and so can't be the one who reports it
+     * @return true when the Watch let a newcomer off with a warning (so callers skip any follow-up like a chase)
+     */
+    public boolean commit(Player p, Crime c, Location where, String victimKey, Walker selfWitness, boolean certainWitness, Walker unaware) {
+        if (!enabled || exempt(p) && c != Crime.RESISTING || !inPoliceZone(where)) return false;
         TownData d = data(p);
         long now = System.currentTimeMillis();
         String k = c.name() + ":" + victimKey;
         Long last = d.recentCrimes.get(k);
-        if (last != null && now - last < 30_000) return;
+        if (last != null && now - last < 30_000) return now - d.lastGraceAt < 30_000;
         d.recentCrimes.put(k, now);
         d.recentCrimes.values().removeIf(t -> now - t > 120_000);
+        if (graced(p, d, c, where)) return true;
         addRep(p, -c.rep);
         police.fire(p, d);
-        if (c.stars <= 0) return;
+        if (c.stars <= 0) return false;
         if (certainWitness) {
             wanted(p, c, officers.nearest(where, 8));
-            return;
+            return false;
         }
         Walker cop = officers.witness(p, where);
         if (cop != null) {
             wanted(p, c, cop);
-            return;
+            return false;
         }
         Object civ = selfWitness != null && selfWitness.valid() ? selfWitness : townsfolk.witness(p, where, unaware);
         if (civ == null) {
             p.sendMessage(SmpPlugin.mm("<dark_gray><italic>Nobody seems to have noticed..."));
-            return;
+            return false;
         }
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!p.isOnline() || data(p).jailed()) return;
             townsfolk.report(civ, p, c);
             wanted(p, c, null);
         }, 30L);
+        return false;
+    }
+
+    /**
+     * A newcomer's first few minor offences are a warning, not wanted stars: most new players hit a guard or a
+     * townsperson before they know the town has laws, and a jail cell in their first minutes sends them away.
+     */
+    private boolean graced(Player p, TownData d, Crime c, Location where) {
+        var cfg = plugin.getConfig();
+        if (!cfg.getBoolean("town.newcomer-grace.enabled") || d.stars > 0) return false;
+        if (d.graceWarnings >= cfg.getInt("town.newcomer-grace.warnings")) return false;
+        if (!cfg.getStringList("town.newcomer-grace.crimes").contains(c.key())) return false;
+        long minutes = p.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE) / 1200L;
+        if (minutes >= cfg.getInt("town.newcomer-grace.play-minutes")) return false;
+        d.graceWarnings++;
+        d.lastGraceAt = System.currentTimeMillis();
+        dirty = true;
+        int left = cfg.getInt("town.newcomer-grace.warnings") - d.graceWarnings;
+        Walker guard = officers.nearest(where, 24);
+        String line = "Easy there! " + c.label.substring(0, 1).toUpperCase() + c.label.substring(1)
+                + " is against the law in town. You're new, so this is a warning.";
+        if (guard != null) {
+            guard.stop();
+            guard.lookAt(p.getEyeLocation());
+            guard.say(p, line);
+        } else {
+            p.sendMessage(SmpPlugin.mm("<blue>[Watch] <white>" + line));
+        }
+        p.sendMessage(SmpPlugin.mm("<gray>" + (left > 0 ? "Warnings left: <yellow>" + left + "</yellow>. After that the Watch arrests you."
+                : "That was your last warning: next time the Watch arrests you.")
+                + " No fighting, fires or explosives within " + (int) policeRadius + " blocks of the fountain. <yellow>/rep</yellow> shows your record."));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1f, 0.7f);
+        return true;
     }
 
     /** Raise the wanted level and send the police. */
@@ -1056,8 +1093,41 @@ public final class TownManager implements Listener {
         if (!(e.getEntity() instanceof Player p)) return;
         Entity d = e.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Entity sh ? sh : e.getDamager();
         if (!(d instanceof org.bukkit.entity.Enemy) || !(d instanceof LivingEntity mob) || isOurs(d)) return;
+        data(p).lastMobFight = System.currentTimeMillis();
         if (!inPoliceZone(p.getLocation()) || data(p).jailed()) return;
         officers.defend(mob, p.getLocation());
+    }
+
+    /** Remembers who is fighting a monster, so a swing that lands on a guard who came to help isn't a crime. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerHitsMob(EntityDamageByEntityEvent e) {
+        if (!(e.getEntity() instanceof org.bukkit.entity.Enemy) || isOurs(e.getEntity())) return;
+        Player p = attacker(e.getDamager());
+        if (p != null) data(p).lastMobFight = System.currentTimeMillis();
+    }
+
+    /** Walkers who are on the player's side: a stray hit on them while fighting a monster is an accident. */
+    private static boolean lawful(Walker w) {
+        return switch (w.role) {
+            case THIEF, BANDIT, GANGSTER, COURIER, PATRON, FENCE -> false;
+            default -> true;
+        };
+    }
+
+    /** A sweep or a swing in the middle of a monster fight that hit a guard or a townsperson: no harm, no crime. */
+    private boolean accident(Walker w, Player p, EntityDamageByEntityEvent by) {
+        var cfg = plugin.getConfig();
+        if (!cfg.getBoolean("town.accidents.enabled")) return false;
+        boolean sweep = by.getCause() == EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK;
+        long now = System.currentTimeMillis();
+        TownData d = data(p);
+        boolean melee = now - d.lastMobFight <= cfg.getLong("town.accidents.mob-fight-seconds") * 1000L;
+        if (!sweep && !(melee && lawful(w))) return false;
+        if (!sweep && now - d.lastAccidentNote > 4000) {
+            d.lastAccidentNote = now;
+            p.sendActionBar(SmpPlugin.mm("<yellow>Careful! <white>You nearly hit " + w.name + "<white>. Mind where you swing."));
+        }
+        return true;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -1074,6 +1144,7 @@ public final class TownManager implements Listener {
         Player p = attacker(by.getDamager());
         if (p == null || p.getGameMode() == GameMode.SPECTATOR) return;
         if (data(p).jailed()) return;
+        if (accident(w, p, by)) return;
         switch (w.role) {
             case OFFICER -> officers.hit(w, p, by.getDamage());
             case AGENT -> bureau.hit(w, p, by.getDamage());

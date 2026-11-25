@@ -91,6 +91,8 @@ public final class Crimes implements Listener {
             if (theyHitFirst != null && now - theyHitFirst <= selfDefenceMs()) return;
             t.commit(a, Crime.ASSAULT, v.getLocation(), v.getUniqueId().toString(), null, false);
         } else if (e.getEntity() instanceof AbstractVillager vil && t.walker(vil) == null) {
+            if (t.plugin().getConfig().getBoolean("town.accidents.enabled") && (e.getCause() == EntityDamageByEntityEvent.DamageCause.ENTITY_SWEEP_ATTACK
+                    || now - t.data(a).lastMobFight <= t.plugin().getConfig().getLong("town.accidents.mob-fight-seconds") * 1000L)) return;
             t.commit(a, Crime.ASSAULT_NPC, vil.getLocation(), vil.getUniqueId().toString(), null, false);
         }
     }
