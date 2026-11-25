@@ -155,6 +155,11 @@ final class SmpCommand implements TabExecutor {
                 if (args.length < 3) return say(sender, "/mrsmp report <id> <note to the reporter>", NamedTextColor.YELLOW);
                 sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.reports().close(args[1], String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)))));
             }
+            case "season" -> {
+                if (!admin) return no(sender);
+                String err = plugin.season().reload();
+                return say(sender, err == null ? "season.yml reloaded." : "season.yml not reloaded, nothing changed: " + err, err == null ? NamedTextColor.GREEN : NamedTextColor.RED);
+            }
             case "colonies" -> {
                 if (!admin) return no(sender);
                 for (String l : plugin.town().colonyStatus()) sender.sendMessage(SmpPlugin.mm(l));

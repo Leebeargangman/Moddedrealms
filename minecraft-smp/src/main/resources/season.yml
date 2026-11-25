@@ -1,0 +1,81 @@
+# Season 1: "The Frozen Crown"
+#
+# Text is MiniMessage (<gold>, <bold>, <gradient:#a:#b>...). Dates and times are UK time (the timezone below).
+# Change something, then /mrsmp season reload (or restart).
+#
+# Rewards are lines like:
+#   "money:50"            coins (real money, the same as the town pays)
+#   "key:rare:1"          crate keys: common, rare, mythic, colony
+#   "xp:200"              experience points
+#   "item:COOKIE:16"      any item (dropped at the player's feet if their inventory is full)
+#   "cosmetic:snowflake"  unlocks a cosmetic from the list at the bottom; cosmetics are never wiped by a season reset
+#   "cmd:..."             a console command; {player} is the player's name
+
+season:
+  name: "The Frozen Crown"
+  timezone: Europe/London
+
+# ───────────── Advent calendar ─────────────
+# /advent opens a Christmas tree of 24 doors. Door n opens on n December and can only be claimed that day:
+# a missed door stays shut. Each player claims each door once.
+advent:
+  enabled: true
+  year: 2026
+  # Remind players on join when today's door is still shut.
+  remind-on-join: true
+  # Tell everyone online when a new door opens at midnight.
+  announce-new-door: true
+  # For testing only: pretend today is this date (yyyy-mm-dd). Leave empty on the live server.
+  test-date: ""
+  doors:
+    1:  {name: "<white>A warm welcome",        icon: COOKIE,           rewards: ["item:COOKIE:16", "money:40", "cosmetic:snowflake"]}
+    2:  {name: "<white>Something to open",     icon: TRIPWIRE_HOOK,    rewards: ["key:common:1"]}
+    3:  {name: "<white>A hearty supper",       icon: COOKED_BEEF,      rewards: ["item:COOKED_BEEF:12", "item:BAKED_POTATO:12"]}
+    4:  {name: "<white>Pocket money",          icon: GOLD_NUGGET,      rewards: ["money:75"]}
+    5:  {name: "<white>Lanterns for the road", icon: LANTERN,          rewards: ["item:LANTERN:8", "item:TORCH:32"]}
+    6:  {name: "<white>Saint Nicholas' Day",   icon: CHEST,            rewards: ["key:rare:1", "xp:150"]}
+    7:  {name: "<white>Firewood",              icon: SPRUCE_LOG,       rewards: ["item:SPRUCE_LOG:48", "item:CAMPFIRE:2"]}
+    8:  {name: "<white>Frost-forged",          icon: IRON_PICKAXE,     rewards: ["item:IRON_PICKAXE:1", "item:IRON_AXE:1"]}
+    9:  {name: "<white>A merchant's purse",    icon: EMERALD,          rewards: ["money:100"]}
+    10: {name: "<white>Wool for winter",       icon: WHITE_WOOL,       rewards: ["item:WHITE_WOOL:32", "item:RED_WOOL:16", "cosmetic:frostbitten"]}
+    11: {name: "<white>Another key",           icon: TRIPWIRE_HOOK,    rewards: ["key:common:2"]}
+    12: {name: "<green>A tree for your colony", icon: SPRUCE_SAPLING, rewards: ["cmd:colonyadmin give {player} christmas_sapling", "item:GLOWSTONE:8"]}
+    13: {name: "<white>Sweet treats",          icon: PUMPKIN_PIE,      rewards: ["item:PUMPKIN_PIE:12", "item:CAKE:1"]}
+    14: {name: "<white>Builder's bundle",      icon: BRICKS,           rewards: ["item:BRICKS:64", "item:SPRUCE_PLANKS:64"]}
+    15: {name: "<white>Wisdom of the elders",  icon: EXPERIENCE_BOTTLE, rewards: ["xp:400"]}
+    16: {name: "<white>Colony crate",          icon: BARREL,           rewards: ["key:colony:1"]}
+    17: {name: "<white>Eve of the season",     icon: FIREWORK_ROCKET,  rewards: ["item:FIREWORK_ROCKET:16", "money:100"]}
+    18: {name: "<aqua><bold>The Frozen Crown begins", icon: NETHER_STAR, rewards: ["key:rare:2", "cosmetic:crownbearer"]}
+    19: {name: "<white>Snow day",              icon: SNOWBALL,         rewards: ["item:SNOWBALL:64", "item:SNOW_BLOCK:32"]}
+    20: {name: "<white>Iron rations",          icon: BREAD,            rewards: ["item:BREAD:32", "item:GOLDEN_CARROT:8"]}
+    21: {name: "<white>The longest night",     icon: CLOCK,            rewards: ["money:150", "cosmetic:longest-night"]}
+    22: {name: "<white>Deep pockets",          icon: BUNDLE,           rewards: ["key:rare:1", "key:common:1"]}
+    23: {name: "<white>Winterfest eve",        icon: CANDLE,           rewards: ["item:RED_CANDLE:8", "item:GREEN_CANDLE:8", "money:100"]}
+    24: {name: "<gold><bold>Christmas Eve",    icon: TOTEM_OF_UNDYING, rewards: ["key:mythic:1", "money:250", "cosmetic:winterfest-hero"]}
+
+# ───────────── Countdown ─────────────
+# A floating sign at spawn counting down to the launch, and the placeholder %mrsmp_season_countdown% for TAB,
+# scoreboards and other plugins. (Discord and the server list can't read in-game placeholders.)
+countdown:
+  enabled: true
+  # Launch time, UK time.
+  target: "2026-12-18T18:00"
+  # Where the sign floats: world,x,y,z. If that spot is inside a block it moves up until it's in the open.
+  location: "world,-393.5,75.0,457.5"
+  title: "<gradient:#bfe9ff:#ffffff><bold>❄ THE FROZEN CROWN ❄</bold></gradient>"
+  line: "<gray>Season 1 begins in</gray>\n<white><bold>{time}</bold></white>"
+  # Shown once the time has come, for this many hours, then the sign goes away.
+  after: "<aqua><bold>Season 1 has begun!</bold></aqua>\n<gray>Talk to Elder Rowan to found your colony"
+  after-hours: 72
+  advent-line: "<gold>Today's advent door is open: <white>/advent"
+
+# ───────────── Cosmetics ─────────────
+# Titles players unlock (advent, events) and wear with /titles. They show through the placeholder %mrsmp_title%
+# (TAB, chat, nametags). Unlocked cosmetics are kept for good: a season reset never takes them away.
+cosmetics:
+  snowflake:        {type: title, display: "<aqua>❄ Snowflake"}
+  frostbitten:      {type: title, display: "<#9fd8ff>Frostbitten"}
+  crownbearer:      {type: title, display: "<gradient:#bfe9ff:#ffffff>Crownbearer</gradient>"}
+  longest-night:    {type: title, display: "<dark_aqua>Watcher of the Longest Night"}
+  winterfest-hero:  {type: title, display: "<gold>Hero of Winterfest"}
+  founder:          {type: title, display: "<yellow>✦ Founder"}

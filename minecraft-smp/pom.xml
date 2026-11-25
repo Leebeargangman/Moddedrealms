@@ -6,7 +6,7 @@
 
   <groupId>net.moddedrealms</groupId>
   <artifactId>moddedrealms-smp</artifactId>
-  <version>1.12.1</version>
+  <version>1.13.0</version>
   <packaging>jar</packaging>
   <name>ModdedrealmsSMP</name>
 
@@ -20,6 +20,10 @@
       <id>papermc</id>
       <url>https://repo.papermc.io/repository/maven-public/</url>
     </repository>
+    <repository>
+      <id>placeholderapi</id>
+      <url>https://repo.extendedclip.com/releases/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -29,14 +33,21 @@
       <version>1.21.11-R0.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
+    <!-- PlaceholderAPI (soft dependency): %mrsmp_...% placeholders for TAB, chat and holograms -->
+    <dependency>
+      <groupId>me.clip</groupId>
+      <artifactId>placeholderapi</artifactId>
+      <version>2.11.6</version>
+      <scope>provided</scope>
+    </dependency>
     <!-- ColonySMP's public API (com.colonysmp.api). Build ../colony-smp first (./gradlew build in colony-smp).
          Only town/ColonyLink touches it, and only when ColonySMP is installed. -->
     <dependency>
       <groupId>com.colonysmp</groupId>
       <artifactId>colonysmp</artifactId>
-      <version>2.5.0</version>
+      <version>2.6.0</version>
       <scope>system</scope>
-      <systemPath>${project.basedir}/../colony-smp/build/libs/ColonySMP-2.5.0.jar</systemPath>
+      <systemPath>${project.basedir}/../colony-smp/build/libs/ColonySMP-2.6.0.jar</systemPath>
     </dependency>
   </dependencies>
 

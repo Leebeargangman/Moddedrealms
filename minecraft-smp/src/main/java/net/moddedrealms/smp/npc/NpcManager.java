@@ -290,6 +290,12 @@ public final class NpcManager implements Listener {
         if (e instanceof EntityDamageByEntityEvent by && by.getDamager() instanceof Player p) clicked(p, e.getEntity());
     }
 
+    /** An NPC body that isn't the one being tracked for its id (a duplicate or a leftover): for /colonyadmin cleanup. */
+    public boolean isStray(Entity en) {
+        String id = idOf(en);
+        return id != null && (!defs.containsKey(id) || !en.getUniqueId().equals(entities.get(id)));
+    }
+
     @EventHandler
     public void onLoad(EntitiesLoadEvent e) {
         // Leftovers from a crash (they are not meant to be saved): remove so they don't double up.

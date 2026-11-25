@@ -633,6 +633,18 @@ public final class TownManager implements Listener {
         return e == null ? null : byEntity.get(e.getUniqueId());
     }
 
+    /** One of the town's walker bodies that no walker owns any more (for /colonyadmin cleanup). */
+    public boolean isStray(Entity e) {
+        if (!isOurs(e) || walker(e) != null) return false;
+        String role = e.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+        try {
+            Walker.Role.valueOf(role); // walker legs and bodies only: seats and train passengers have other tags
+            return true;
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            return false;
+        }
+    }
+
     public boolean isOurs(Entity e) {
         return e.getPersistentDataContainer().has(key, PersistentDataType.STRING);
     }

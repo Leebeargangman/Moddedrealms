@@ -25,6 +25,7 @@ public final class SmpPlugin extends JavaPlugin {
     private PlazaBuilder plaza;
     private CrateManager crates;
     private TownManager town;
+    private net.moddedrealms.smp.season.SeasonManager season;
     private PackSender packSender;
     private Feedback feedback;
     private Insights insights;
@@ -50,6 +51,7 @@ public final class SmpPlugin extends JavaPlugin {
         crates = new CrateManager(this);
         plaza = new PlazaBuilder(this);
         town = new TownManager(this);
+        season = new net.moddedrealms.smp.season.SeasonManager(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(npcs, this);
@@ -88,6 +90,11 @@ public final class SmpPlugin extends JavaPlugin {
         pm.registerEvents(boards, this);
         getCommand("leaderboard").setExecutor(boards);
         getCommand("leaderboard").setTabCompleter(boards);
+
+        getCommand("advent").setExecutor(season.advent());
+        getCommand("advent").setTabCompleter(season.advent());
+        getCommand("titles").setExecutor(season.cosmetics());
+        getCommand("titles").setTabCompleter(season.cosmetics());
 
         var smp = new SmpCommand(this);
         getCommand("mrsmp").setExecutor(smp);
@@ -144,6 +151,7 @@ public final class SmpPlugin extends JavaPlugin {
         if (boards != null) boards.shutdown();
         if (feedback != null) feedback.save();
         if (insights != null) insights.save();
+        if (season != null) season.shutdown();
         if (town != null) town.stop();
         if (crates != null) crates.finishAll();
         if (quests != null) quests.saveAll();
@@ -177,6 +185,8 @@ public final class SmpPlugin extends JavaPlugin {
     public PlazaBuilder plaza() { return plaza; }
     public CrateManager crates() { return crates; }
     public TownManager town() { return town; }
+    /** Season 1: advent calendar, countdown, cosmetics (season.yml). */
+    public net.moddedrealms.smp.season.SeasonManager season() { return season; }
     public Feedback feedback() { return feedback; }
     public Reports reports() { return reports; }
     public Insights insights() { return insights; }

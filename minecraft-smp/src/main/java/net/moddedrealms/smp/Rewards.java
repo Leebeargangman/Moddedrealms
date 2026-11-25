@@ -45,6 +45,9 @@ public final class Rewards {
                         }
                     }
                     case "cmd" -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), r.substring(4).replace("{player}", p.getName()));
+                    case "cosmetic" -> {
+                        if (plugin.season() != null) plugin.season().cosmetics().unlock(p, a[1]);
+                    }
                     default -> plugin.getLogger().warning("Unknown reward: " + r);
                 }
             } catch (RuntimeException ex) {

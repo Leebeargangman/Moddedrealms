@@ -4,8 +4,18 @@ main: net.moddedrealms.smp.SmpPlugin
 api-version: '1.21'
 author: Moddedrealms
 description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, and a town with a Watch, townsfolk and a jail.
-softdepend: [Essentials, MythicDepths, ColonySMP]
+softdepend: [Essentials, MythicDepths, ColonySMP, PlaceholderAPI]
 commands:
+  advent:
+    description: The advent calendar (one door a day, 1 to 24 December)
+    usage: /advent
+    aliases: [calendar]
+    permission: mrsmp.quests
+  titles:
+    description: Pick the title you wear
+    usage: /titles
+    aliases: [cosmetics, title]
+    permission: mrsmp.quests
   quests:
     description: Open your quests.
     aliases: [quest, q, dailies]
