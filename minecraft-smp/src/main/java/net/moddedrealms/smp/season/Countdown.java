@@ -31,7 +31,7 @@ public final class Countdown implements Listener {
     }
 
     private boolean enabled() {
-        return s.cfg().getBoolean("countdown.enabled", true);
+        return s.on() && s.cfg().getBoolean("countdown.enabled", true);
     }
 
     /** The launch moment in UK time, or null when it isn't set. */

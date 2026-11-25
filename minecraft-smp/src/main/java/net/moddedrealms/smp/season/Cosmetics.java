@@ -182,8 +182,10 @@ public final class Cosmetics implements Listener, TabExecutor {
             sender.sendMessage(SmpPlugin.mm(unlock(t, a[2]) ? "<green>Unlocked " + a[2] + " for " + t.getName() + "." : "<gray>They have it already."));
             return true;
         }
-        if (sender instanceof Player p) open(p);
-        else sender.sendMessage("Staff: /titles give <player> <cosmetic>");
+        if (sender instanceof Player p) {
+            if (s.on() || p.hasPermission("mrsmp.admin")) open(p);
+            else p.sendMessage(SmpPlugin.mm("<gray>Titles aren't here yet. Check back in December!"));
+        } else sender.sendMessage("Staff: /titles give <player> <cosmetic>");
         return true;
     }
 

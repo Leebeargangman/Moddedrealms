@@ -43,8 +43,8 @@ public final class Placeholders extends PlaceholderExpansion {
             case "season_name" -> s.cfg().getString("season.name", "");
             case "advent_day" -> String.valueOf(s.advent().today());
             case "advent_open" -> p instanceof org.bukkit.entity.Player pl && s.advent().today() > 0 && !s.advent().claimedToday(pl) ? "yes" : "no";
-            case "title" -> p == null ? "" : s.cosmetics().legacyTitle(p.getUniqueId());
-            case "title_plain" -> p == null ? "" : net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            case "title" -> p == null || !s.on() ? "" : s.cosmetics().legacyTitle(p.getUniqueId());
+            case "title_plain" -> p == null || !s.on() ? "" : net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                     .serialize(net.moddedrealms.smp.SmpPlugin.mm(s.cosmetics().title(p.getUniqueId())));
             default -> null;
         };

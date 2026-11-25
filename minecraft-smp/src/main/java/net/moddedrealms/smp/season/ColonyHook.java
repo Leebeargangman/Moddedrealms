@@ -30,12 +30,13 @@ final class ColonyHook implements ColonyApi.ServerHook {
 
     @Override
     public List<String> seasonEvents() {
-        return List.of("advent", "countdown");
+        return List.of("season", "advent", "countdown");
     }
 
     @Override
     public String seasonEvent(String name, boolean start) {
         switch (name) {
+            case "season" -> s.cfg().set("season.enabled", start);
             case "advent" -> s.cfg().set("advent.enabled", start);
             case "countdown" -> s.cfg().set("countdown.enabled", start);
             default -> {

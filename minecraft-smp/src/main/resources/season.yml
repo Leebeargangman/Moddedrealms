@@ -12,6 +12,9 @@
 #   "cmd:..."             a console command; {player} is the player's name
 
 season:
+  # The switch for everything in this file: the advent calendar, the countdown sign and /titles.
+  # Off, players see "not open yet" and nothing else changes. Turn it on, then /mrsmp season reload.
+  enabled: false
   name: "The Frozen Crown"
   timezone: Europe/London
 

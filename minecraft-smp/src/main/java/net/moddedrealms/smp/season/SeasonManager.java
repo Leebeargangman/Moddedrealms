@@ -108,6 +108,11 @@ public final class SeasonManager {
         saveData();
     }
 
+    /** The season's master switch (season.enabled): off, the advent calendar, the countdown and /titles are all closed. */
+    public boolean on() {
+        return cfg.getBoolean("season.enabled", false);
+    }
+
     // ------------------------------------------------------------------ time
 
     public ZoneId zone() {

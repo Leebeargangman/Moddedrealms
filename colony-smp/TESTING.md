@@ -40,6 +40,9 @@ Results of the last run are at the end of each section.
 - `/colonyadmin give <player> oak_log 64` ✔ 64 oak logs in that player's colony storage.
 
 ### 5. Advent calendar
+0. With `season.enabled: false` in `season.yml` (the default): as a player, `/advent` ✔ "The advent calendar isn't open
+   yet. Check back in December!", `/titles` ✔ "Titles aren't here yet…", and there's no countdown sign. Then console
+   `colonyadmin event season start` (until restart) or set `season.enabled: true` and `mrsmp season reload`.
 1. Console: `advent date 2026-12-05` (pretend it's 5 December; it resets on restart).
 2. As a player: `/advent`. ✔ A Christmas tree of 24 doors under a star. Door 5 is a glowing chest; doors 1–4 are grey
    ("missed"); 6–24 are green with their number.
@@ -60,5 +63,7 @@ Results of the last run are at the end of each section.
 
 ### Last run: 25 Nov 2026, local Paper 1.21.11 with copies of the live plugins and data
 All of 1, 2, 3, 5 and 6 passed with test bots. In 4, everything except `raid`, `tier` and `give` was run.
+Season switch (`season.enabled`) checked 25 Nov at 22:22: off, `/advent` and `/titles` refuse and there's no sign;
+`colonyadmin event season start` brings the sign up.
 **Not yet tried in game:** dispensers outside a colony can't pour lava in, and how the sign and calendar look on a
 Bedrock client.

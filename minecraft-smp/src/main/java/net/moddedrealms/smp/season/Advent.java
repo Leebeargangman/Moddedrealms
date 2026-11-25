@@ -56,7 +56,7 @@ public final class Advent implements Listener, TabExecutor {
     }
 
     private boolean enabled() {
-        return s.cfg().getBoolean("advent.enabled", true);
+        return s.on() && s.cfg().getBoolean("advent.enabled", true);
     }
 
     private int year() {
@@ -301,7 +301,7 @@ public final class Advent implements Listener, TabExecutor {
             return true;
         }
         if (!enabled()) {
-            p.sendMessage(SmpPlugin.mm("<gray>The advent calendar is closed."));
+            p.sendMessage(SmpPlugin.mm(s.on() ? "<gray>The advent calendar is closed." : "<gray>The advent calendar isn't open yet. Check back in December!"));
             return true;
         }
         open(p);
