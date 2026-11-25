@@ -27,6 +27,12 @@ Status: **waiting for approval**. Written 25 Nov 2026. Nothing has been changed 
 4. **Daily SMP task paused** until launch. The 20-minute busy-watch stays on for player reports and serious bugs.
 5. **Done already:** `/pl`, `/plugins` and `/version` are denied to the `default` group on the shared LuckPerms (SMP, Lobby, Arena, Bedwars). Staff groups have them allowed explicitly. Town01 has its own LuckPerms and was not changed.
 6. **Most features release early**: empires, armies and siege weapons come out by 13 Dec, before the launch (see section 3).
+7. **Empires and siege weapons are on hold** (owner, 25 Nov, later the same evening): they wait until they're perfected, with no
+   date. Phases 4 and 5 and the siege models (which were to start 26 Nov) don't start for now and stay behind their flags.
+8. **Release 1 went live early, without the Christmas features** (owner, 25 Nov): the Phase 1 fixes and admin tools went
+   live on 25 Nov at 23:24 CET. The advent calendar, countdown sign and `/titles` are in the jar but switched off by
+   `season.enabled: false` in `season.yml` until the owner wants them (the doors open from 1 Dec, so a door that passes
+   while the season is off is missed).
 
 ## 3. Timeline
 
@@ -38,7 +44,7 @@ Today is Wed 25 Nov. Each **deploy** is one planned restart, early morning UK ti
 |---|---|---|
 | 25–30 Nov | **Phase 1** bug hunt, fixes and admin tools · **Advent calendar + countdown** · siege models begin (Blockbench files, textures, pack) | **Mon 30 Nov** (advent opens 1 Dec) |
 | 1–6 Dec | **Phase 2** the first 5 minutes + funnel · **Phase 3** colony menu, 8 jobs, winter needs, **all 6 tiers**, guards, help/Codex | Sun 6 Dec |
-| 7–13 Dec | **Phase 4** empires (vassals, outposts, empire menu, borders, titles, diplomacy, leaderboards) · **Phase 5** armies (squads, banner orders, marching) and **siege weapons** (ballista, catapult, cannon with models, block damage with rollback) | **Sun 13 Dec** |
+| 7–13 Dec | **On hold (decision 7):** **Phase 4** empires (vassals, outposts, empire menu, borders, titles, diplomacy, leaderboards) · **Phase 5** armies (squads, banner orders, marching) and **siege weapons** (ballista, catapult, cannon with models, block damage with rollback) | **Sun 13 Dec** |
 | 14–17 Dec | Season events up to Christmas Day, frost bandits, balance across everything, `TESTING.md`, `PLAYER_GUIDE.md`. **Code freeze Wed 16 Dec** | Thu 17 Dec |
 | **Fri 18 Dec** | **Season 1 launch** (flags flipped, no new code) | — |
 | 19–31 Dec | Frost raids (26–31 Dec), Krampus boss, NYE fireworks + "The Betrayal" | ~24 Dec, ~30 Dec |
