@@ -26,22 +26,27 @@ Status: **waiting for approval**. Written 25 Nov 2026. Nothing has been changed 
 3. **Deploys:** Claude tests on a local test server, shows you, and stages a jar on Bedwars201 only after your OK (backup first, live at the next restart).
 4. **Daily SMP task paused** until launch. The 20-minute busy-watch stays on for player reports and serious bugs.
 5. **Done already:** `/pl`, `/plugins` and `/version` are denied to the `default` group on the shared LuckPerms (SMP, Lobby, Arena, Bedwars). Staff groups have them allowed explicitly. Town01 has its own LuckPerms and was not changed.
+6. **Most features release early**: empires, armies and siege weapons come out by 13 Dec, before the launch (see section 3).
 
 ## 3. Timeline
 
 Today is Wed 25 Nov. Each **deploy** is one planned restart, early morning UK time, after your OK.
 
+**Changed 25 Nov: most features release early.** Empires, armies and siege weapons come out in mid December, before the launch, not in January. The siege weapon models start on 26 Nov alongside the code, because they're the slowest part and don't depend on it.
+
 | When | Work | Deploy |
 |---|---|---|
-| 25–30 Nov | **Phase 1** bug hunt, fixes and admin tools · **Advent calendar + countdown** | **Mon 30 Nov** (advent opens 1 Dec) |
-| 1–6 Dec | **Phase 2** the first 5 minutes + funnel tracking | Sun 6 Dec |
-| 7–13 Dec | **Phase 3** colony menu, 8 jobs, winter needs, tiers 1–3, guards, help/Codex | Sun 13 Dec |
-| 14–17 Dec | Season events up to Christmas Day, frost bandits, balance, `TESTING.md`, `PLAYER_GUIDE.md`. **Code freeze Wed 16 Dec** | Thu 17 Dec |
+| 25–30 Nov | **Phase 1** bug hunt, fixes and admin tools · **Advent calendar + countdown** · siege models begin (Blockbench files, textures, pack) | **Mon 30 Nov** (advent opens 1 Dec) |
+| 1–6 Dec | **Phase 2** the first 5 minutes + funnel · **Phase 3** colony menu, 8 jobs, winter needs, **all 6 tiers**, guards, help/Codex | Sun 6 Dec |
+| 7–13 Dec | **Phase 4** empires (vassals, outposts, empire menu, borders, titles, diplomacy, leaderboards) · **Phase 5** armies (squads, banner orders, marching) and **siege weapons** (ballista, catapult, cannon with models, block damage with rollback) | **Sun 13 Dec** |
+| 14–17 Dec | Season events up to Christmas Day, frost bandits, balance across everything, `TESTING.md`, `PLAYER_GUIDE.md`. **Code freeze Wed 16 Dec** | Thu 17 Dec |
 | **Fri 18 Dec** | **Season 1 launch** (flags flipped, no new code) | — |
-| 19–31 Dec | Frost raids (26–31 Dec), Krampus boss, NYE fireworks + "The Betrayal", tiers 4–6 | ~24 Dec, ~30 Dec |
-| January | **Phase 4** empires, **Phase 5** armies and siege weapons with models, war phase, The Crowning, season end | as ready |
+| 19–31 Dec | Frost raids (26–31 Dec), Krampus boss, NYE fireworks + "The Betrayal" | ~24 Dec, ~30 Dec |
+| January | The assault on Hale's ice fortress, The Crowning, hall of fame, season end | as ready |
 
-If something slips, it is turned off by its flag rather than shipped half-done. The priority order from the brief holds.
+Late November was too soon for empires and siege weapons. Phase 1 and the advent calendar fill the days until the 30 Nov deploy, and empires and siege weapons need tiers 4–6 (Phase 3) first.
+
+The safety net stays: anything not solid by the 16 Dec freeze stays off behind its flag at launch and goes live in a later deploy. The order of the priority list from the brief still decides what gives way if time runs short: bug fixes, the first 5 minutes, colony core and the advent calendar come first.
 
 ## 4. Phase 1: bug hunt and stability (25–30 Nov)
 
@@ -97,9 +102,9 @@ Flags: `features.onboarding`, `features.starter-camp`, `features.funnel`.
 ## 7. Phase 3: colony core (7–13 Dec)
 
 - **`/colony` menu**: one chest GUI with overview (name, tier, population, happiness), resources, settlers and jobs, buildings, tasks/goals, military, diplomacy, upgrades and settings. Every button has a one-line lore. The existing deeper menus stay one click further in.
-- **8 headline jobs**: Farmer, Woodcutter (today's Forester), Miner, Builder, Guard, Blacksmith, **Engineer** (new; crews siege weapons from January), Soldier. The other jobs unlock by tier under "More jobs". Assign by clicking a settler or from the menu. Today only fighting, guarding and a few specialist jobs swing a tool. The 8 headline jobs get visible work: the tool in hand, swings while working, and the goods carried shown in the off-hand.
+- **8 headline jobs**: Farmer, Woodcutter (today's Forester), Miner, Builder, Guard, Blacksmith, **Engineer** (new; crews siege weapons from 13 Dec), Soldier. The other jobs unlock by tier under "More jobs". Assign by clicking a settler or from the menu. Today only fighting, guarding and a few specialist jobs swing a tool. The 8 headline jobs get visible work: the tool in hand, swings while working, and the goods carried shown in the off-hand.
 - **Winter needs** (new): settlers need food and **warmth**. Heat comes from campfires, hearths and houses within range, and firewood is used up. A shortage lowers happiness, then slows work, then settlers leave (one at a time, never all at once). No colony is destroyed. `season.needs` in config switches it per season. Flag `features.winter-needs`.
-- **Tiers**: Camp, Village, Town, City, Kingdom, Empire map onto Town Hall levels 1–5, and Empire = level 5 + vassals. Requirements and costs are all in config. A tier-up is a button press once the requirements are met, with title, sound, firework and a server-wide line. Tiers 1–3 must be ready for launch; 4–6 follow in late December. Flag `features.tiers`.
+- **Tiers**: Camp, Village, Town, City, Kingdom, Empire map onto Town Hall levels 1–5, and Empire = level 5 + vassals. Requirements and costs are all in config. A tier-up is a button press once the requirements are met, with title, sound, firework and a server-wide line. All 6 tiers come in this phase, because empires and siege weapons need tiers 4–6. Flag `features.tiers`.
 - **Buildings**: the existing blueprint and builder system stays. Starter blueprints (house, farm, storehouse, hearth, barracks, wall/gate, watchtower, workshop, market, castle keep) are loaded from `plugins/ColonySMP/blueprints/` so you can add your own.
 - **Land**: claims grow with tier (config). The existing protection stays and its rules get shown in the menu. It already respects the SMP's no-colony zones (fountain, Meadowbrook) through `ColonyApi`, but it **ignores WorldGuard** today. Added: no founding or claiming over a WorldGuard region (soft-depend, checked only if WorldGuard is installed).
 - **Guards** defend automatically (already there; checked against frost bandits).
@@ -116,12 +121,15 @@ Flags: `features.onboarding`, `features.starter-camp`, `features.funnel`.
 | 25 Dec | One gift per player who logs in + an exclusive cosmetic | yes |
 | 26–31 Dec | **Frost raids** at night + a Krampus-style boss | by 26 Dec |
 | 31 Dec | Fireworks at midnight, then **"The Betrayal"**: Captain Hale turns traitor (his `/warp` job moves to another NPC) | by 31 Dec |
-| January | War phase: armies and siege weapons on, attack on Hale's ice fortress | January |
+| from 13 Dec | Empires, armies and siege weapons are out. Player wars use the existing warm-up and battle windows, and siege block damage is always rolled back | 13 Dec |
+| January | War phase story: the assault on Hale's ice fortress | January |
 | End | **The Crowning**: hall of fame file, statue/banner at spawn, permanent title. `/colonyadmin season end` archives, then wipes colonies, economy and the resource world; titles, cosmetics and Founder badges stay | January |
 
 `/colonyadmin event <name> start|stop` and `/colonyadmin season end` live in ColonySMP and call the SMP season code through a small hook in `ColonyApi`, because ColonySMP can't depend on SMP. **Founder badge**: the first 50 players to found a colony get a permanent "Founder" title (placeholder for chat and TAB).
 
-## 9. January: empires, armies, siege weapons
+## 9. Empires, armies, siege weapons (by 13 Dec)
+
+The models and textures start on 26 Nov. I write the `.bbmodel` files and textures from scripts, so you can open and polish them in Blockbench. The code follows in 7–13 Dec.
 
 - **Empires**: a Kingdom can take vassals (sworn or won in war, tribute % in config) and found outposts. Empire menu, laws, particle borders, titles (Emperor/Empress, King/Queen, Lord/Lady, Knight) as placeholders, diplomacy needing acceptance (war excepted), and leaderboards as placeholders. ColonySMP's existing diplomacy and war are the base. No web map is installed; I'll add BlueMap markers only if you install BlueMap.
 - **Armies**: squads already exist in ColonySMP (`military/`). Added: a command-banner item, march orders across the map (war only), and army caps per tier.
@@ -139,7 +147,7 @@ Flags: `features.onboarding`, `features.starter-camp`, `features.funnel`.
 
 - **Test server**: a local Paper 1.21.11 on this PC (port 25698) with copies of the live plugins, their data and the spawn region. Mineflayer bots play the first 5 minutes on a script and each step is checked. Real-client checks happen when needed (your 26.2 client through Via). The live server is never used for testing.
 - **Git**: branch `claude/colony-overhaul`, stacked on PR #25 (`claude/bedwars2-upgrade`), one commit per step, always compiling, `./gradlew --offline build` and `mvn package` with tests green. One PR per phase. Versions: ColonySMP **3.0.0**, ModdedrealmsSMP **1.13.0**.
-- **Deliverables**: `OVERHAUL_PLAN.md` (this), `BUG_REPORT.md`, the jars, the commented `config.yml` / `messages.yml` / `season.yml`, the `.bbmodel` files and pack zip with SHA-1 (January), `TESTING.md` and `PLAYER_GUIDE.md`.
+- **Deliverables**: `OVERHAUL_PLAN.md` (this), `BUG_REPORT.md`, the jars, the commented `config.yml` / `messages.yml` / `season.yml`, the `.bbmodel` files and pack zip with SHA-1 (13 Dec), `TESTING.md` and `PLAYER_GUIDE.md`.
 - At the end of each phase I report what changed, how to test it in-game and what's missing.
 
 ## 12. New dependencies
@@ -148,14 +156,15 @@ Flags: `features.onboarding`, `features.starter-camp`, `features.funnel`.
 |---|---|---|
 | **none required** for launch | Both plugins stay Paper-only, plus the PlaceholderAPI that's already installed (soft-depend) | — |
 | Spark (recommended) | profiling | test server now; live if you agree |
-| Blockbench (on this PC) | authoring the models | January |
-| BetterModel (optional) | only if we choose it over item_display | January |
+| Blockbench (on this PC, optional) | opening and polishing the models | from 26 Nov |
+| BetterModel (optional) | only if we choose it over item_display | decide by 27 Nov |
 
 ## 13. Risks
 
 | Risk | What I'll do |
 |---|---|
-| Scope is months of work and there are 23 days to launch | Strict priority order, flags, a code freeze on 16 Dec. Tiers 4–6, empires and siege weapons are planned for after launch. |
+| Scope is months of work and there are 23 days to launch, now with empires and siege weapons in it too | Strict priority order, flags, a code freeze on 16 Dec. Models are made in parallel from 26 Nov. Empires and siege weapons get the least testing time, so they're the first to stay behind their flag at launch if they aren't solid. |
+| Siege block damage on a live server | Only during declared wars and raids. Every change is recorded and rolled back, the rollback is tested on the local server before the 13 Dec deploy, and there's a global off switch (`features.siege-block-damage`). |
 | Advent must work on 1 Dec, 5 days away | It's built first, small and on its own, and tested with a fake clock for all 24 days. Deployed 30 Nov. |
 | Restarts drive players away (about 15 a day on 23 Nov) | 4 planned deploys before launch, early mornings, with a 2-minute warning. |
 | PR #25 is open and the busy-watch may push fixes to it | This branch rebases onto it. Once you merge #25, the PRs re-target `main`. |
@@ -170,6 +179,6 @@ Flags: `features.onboarding`, `features.starter-camp`, `features.funnel`.
 1. **Founder badge**: do the first 50 count from launch day (18 Dec) or from now?
 2. **Season end**: which parts of the SMP economy are wiped (coins, bank, businesses, stocks, plots)? Needed by early January.
 3. **Spark** on the live SMP: yes or no?
-4. **Siege weapon models**: item_display (recommended) or BetterModel? Needed by about 20 Dec.
+4. **Siege weapon models**: item_display (recommended) or BetterModel? Needed by 27 Nov, since the models start now. I'll go with item_display unless you say otherwise.
 5. **Other spawn NPCs** for new players: unlock after the choice with Rowan (suggested) or after founding a colony?
 6. **Advent rewards**: should I fill in the defaults, or do you have a list?
