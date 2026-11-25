@@ -160,7 +160,7 @@ final class Disasters implements Listener {
         for (var e : original.entrySet()) rows.add(ux(e.getKey()) + "," + uy(e.getKey()) + "," + uz(e.getKey()) + "," + e.getValue().getAsString());
         y.set("blocks", rows);
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException ex) {
             t.plugin().getLogger().warning("Couldn't save disaster damage: " + ex.getMessage());
         }

@@ -97,8 +97,7 @@ public final class Townsfolk implements Listener {
     }
 
     public Walker spawn(Location at, Walker.Role role) {
-        List<String> names = cfg().getStringList("town.names.townsfolk");
-        String first = names.isEmpty() ? "Pip" : names.get(r.nextInt(names.size()));
+        String first = t.freshName("town.names.townsfolk", "Pip", "", "town.names.officers", false);
         String[] colors = {"#8B3A3A", "#3A5F8B", "#6B8B3A", "#8B6B3A", "#5A3A8B", "#2F6F6F", "#9C7A4A", "#7A7A7A", "#B5651D", "#4F4F2F"};
         Map<EquipmentSlot, ItemStack> gear = new EnumMap<>(EquipmentSlot.class);
         gear.put(EquipmentSlot.CHEST, Walker.dyed(Material.LEATHER_CHESTPLATE, colors[r.nextInt(colors.length)]));

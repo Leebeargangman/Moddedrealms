@@ -68,7 +68,7 @@ public final class PlayerQuests {
         y.set("met-today", new ArrayList<>(metToday));
         for (var e : keys.entrySet()) y.set("keys." + e.getKey(), e.getValue());
         file.getParentFile().mkdirs();
-        y.save(file);
+        net.moddedrealms.smp.SafeYaml.save(y, file);
         dirty = false;
     }
 }

@@ -177,7 +177,7 @@ public final class Businesses implements Listener, TabExecutor {
             s.set("last.sold", b.sold);
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Could not save businesses.yml: " + e.getMessage());
         }

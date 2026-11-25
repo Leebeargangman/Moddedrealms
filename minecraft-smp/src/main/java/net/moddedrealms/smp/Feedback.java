@@ -66,8 +66,8 @@ public final class Feedback implements Listener, CommandExecutor {
         if (!dirty) return;
         dirty = false;
         try {
-            polls.save(pollFile);
-            ideas.save(ideaFile);
+            net.moddedrealms.smp.SafeYaml.save(polls, pollFile);
+            net.moddedrealms.smp.SafeYaml.save(ideas, ideaFile);
         } catch (IOException e) {
             plugin.getLogger().warning("Couldn't save the poll answers: " + e.getMessage());
         }

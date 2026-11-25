@@ -173,7 +173,7 @@ final class Ai {
         y.set("day-usd", day);
         y.set("calls", calls);
         try {
-            y.save(usageFile);
+            net.moddedrealms.smp.SafeYaml.save(y, usageFile);
         } catch (IOException ignored) {
         }
     }

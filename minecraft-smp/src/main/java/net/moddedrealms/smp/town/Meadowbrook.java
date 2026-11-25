@@ -310,7 +310,7 @@ public final class Meadowbrook {
         meta.set("area", List.of(a[0], a[1], a[2], a[3], a[4], a[5]));
         meta.set("centre", List.of(x, y, z));
         meta.set("created", System.currentTimeMillis());
-        meta.save(metaFile());
+        net.moddedrealms.smp.SafeYaml.save(meta, metaFile());
         BoundingBox box = new BoundingBox(a[0], a[1], a[2], a[3] + 1, a[4] + 1, a[5] + 1);
         for (Entity e : w.getNearbyEntities(box)) if (!(e instanceof Player) && (!(e instanceof LivingEntity) || e instanceof ArmorStand)) e.remove();
 
@@ -351,7 +351,7 @@ public final class Meadowbrook {
         t.plots().registerTown(ID, w, new BoundingBox(cx - R - 1, cy - DOWN, cz - R - 1, cx + R + 2, cy + UP, cz + R + 2));
         for (Plots.Plot p : plots) t.plots().addPlot(p);
         d.set("clock", clock == null ? null : clock.toString());
-        d.save(file);
+        net.moddedrealms.smp.SafeYaml.save(d, file);
         return "Meadowbrook built around " + x + " " + y + " " + z + " in " + (System.currentTimeMillis() - t0) + "ms: " + plots.size() + " plots, "
                 + cells.size() + " cells. Undo with /mrtown meadowbrook undo.";
     }

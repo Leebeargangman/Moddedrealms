@@ -518,7 +518,10 @@ town:
 
   names:
     townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
-    officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]
+    # No two walkers out at once share a name. When a list runs out, a townsfolk first name is added ("Guard Ned
+    # Finch"), so keep at least as many officer names as town.max-officers if you want plain "Guard <name>".
+    officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan,
+               Aldridge, Becket, Calloway, Dunmore, Everard, Fairfax, Gresham, Hadley, Ingram, Jessop, Kingsley, Langford, Mortimer, Norwood, Oakley, Pemberton]
     bandits: [Grim, Scar, Rook, Vex, Jack, Crow, Mags, Snake, Red, Ash, Dutch, Viper, Slim, Patch]
     agents: [Cole, Hart, Mercer, Lang, Shaw, Black, Price, Reed, Kade, Voss]
 

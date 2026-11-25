@@ -81,7 +81,7 @@ public final class NpcGangs implements Listener {
             for (var e : kills.get(id).entrySet()) y.set(id + ".kills." + e.getKey(), e.getValue());
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Could not save npc-gangs.yml: " + e.getMessage());
         }

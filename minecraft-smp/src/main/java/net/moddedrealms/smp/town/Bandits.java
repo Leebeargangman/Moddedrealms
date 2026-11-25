@@ -73,8 +73,7 @@ public final class Bandits {
     }
 
     public Walker spawn(Location at, int stars) {
-        List<String> names = cfg().getStringList("town.names.bandits");
-        String nick = names.isEmpty() ? "Grim" : names.get(r.nextInt(names.size()));
+        String nick = t.freshName("town.names.bandits", "Grim", "Bandit ", "town.names.townsfolk", true);
         Map<EquipmentSlot, ItemStack> gear = new EnumMap<>(EquipmentSlot.class);
         gear.put(EquipmentSlot.HEAD, Walker.dyed(Material.LEATHER_HELMET, "#1A1A1A"));
         gear.put(EquipmentSlot.CHEST, Walker.dyed(Material.LEATHER_CHESTPLATE, stars >= 3 ? "#5A1414" : "#6B4A2B"));

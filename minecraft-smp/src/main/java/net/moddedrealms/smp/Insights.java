@@ -53,7 +53,7 @@ public final class Insights implements Listener {
         if (!dirty) return;
         dirty = false;
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             plugin.getLogger().warning("Couldn't save insights.yml: " + e.getMessage());
         }

@@ -69,7 +69,7 @@ public final class NpcManager implements Listener {
         YamlConfiguration y = new YamlConfiguration();
         for (NpcDef d : defs.values()) d.save(y.createSection(d.id));
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             plugin.getLogger().warning("Could not save npcs.yml: " + e.getMessage());
         }

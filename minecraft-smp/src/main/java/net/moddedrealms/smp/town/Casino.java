@@ -134,7 +134,7 @@ public final class Casino implements Listener {
             y.set("roulette-board", rouletteBoard == null ? null : rouletteBoard.toString());
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Could not save casino.yml: " + e.getMessage());
         }
@@ -477,7 +477,7 @@ public final class Casino implements Listener {
         meta.set("world", w.getName());
         meta.set("area", List.of(a[0], a[1], a[2], a[3], a[4], a[5]));
         meta.set("created", System.currentTimeMillis());
-        meta.save(metaFile());
+        net.moddedrealms.smp.SafeYaml.save(meta, metaFile());
         for (Entity e : w.getNearbyEntities(boxOf(a))) if (loose(e)) e.remove();
         slots.clear();
         slotPrice.clear();

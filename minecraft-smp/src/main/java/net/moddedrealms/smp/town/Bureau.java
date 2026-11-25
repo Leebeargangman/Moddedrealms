@@ -190,8 +190,7 @@ public final class Bureau {
     }
 
     public Walker spawn(Location at) {
-        List<String> names = cfg().getStringList("town.names.agents");
-        String sur = names.isEmpty() ? "Cole" : names.get(r.nextInt(names.size()));
+        String sur = t.freshName("town.names.agents", "Cole", "Inquisitor ", "town.names.townsfolk", true);
         Map<EquipmentSlot, ItemStack> gear = new EnumMap<>(EquipmentSlot.class);
         gear.put(EquipmentSlot.CHEST, Walker.dyed(Material.LEATHER_CHESTPLATE, "#151515"));
         gear.put(EquipmentSlot.LEGS, Walker.dyed(Material.LEATHER_LEGGINGS, "#151515"));

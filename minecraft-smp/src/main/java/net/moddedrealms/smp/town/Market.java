@@ -769,7 +769,7 @@ public final class Market implements Listener {
         y.set("next-event", nextEvent);
         y.set("day", dayOfYear);
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
             dirty = false;
         } catch (IOException ignored) {
         }
