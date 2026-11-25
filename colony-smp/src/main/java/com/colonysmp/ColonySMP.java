@@ -82,6 +82,7 @@ public final class ColonySMP extends JavaPlugin {
     private Happenings happenings;
     private Milestones milestones;
     private Christmas christmas;
+    private com.colonysmp.colony.Founders founders;
     private com.colonysmp.world.CivManager civs;
     private com.colonysmp.command.CivCommand civCommand;
 
@@ -94,6 +95,7 @@ public final class ColonySMP extends JavaPlugin {
         saveDefaultConfig();
         settings = new Settings(getConfig(), getLogger());
         Keys.init(this);
+        founders = new com.colonysmp.colony.Founders(this);
         int goods = ItemGoods.registerAll(settings.prices);
         items = new Items(this);
         items.registerRecipes();
@@ -421,6 +423,11 @@ public final class ColonySMP extends JavaPlugin {
 
     public Christmas christmas() {
         return christmas;
+    }
+
+    /** Who has had a founding grant this season. */
+    public com.colonysmp.colony.Founders founders() {
+        return founders;
     }
 
     /** The living world: NPC civilisations, their settlements, and the transaction journal. */

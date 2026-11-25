@@ -414,6 +414,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             Text.send(p, "<red>" + err);
             return;
         }
+        boolean grant = plugin.founders().mayGrant(p.getUniqueId());
         Colony c = plugin.colonies().create(p, name);
         give(p, plugin.items().core(c.id, c.name));
         give(p, plugin.items().book());
@@ -421,6 +422,9 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         Text.send(p, "<green>The colony of <white>" + Text.esc(c.name) + "</white> is created.</green> Place the <aqua>Town Hall Core</aqua> (in your inventory) where it should stand: "
                 + "the land around it becomes yours and your first settlers arrive. Place the <aqua>Building Marker</aqua> inside a building you've built to register it "
                 + "(it works out what the building is); the <white>Blueprint Book</white> orders new ones.");
+        if (!grant && plugin.settings().startingTreasury > 0) {
+            Text.send(p, "<gray>You've already had a founding grant this season, so this colony's treasury starts empty.");
+        }
         plugin.quests().refresh(c);
     }
 

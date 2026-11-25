@@ -82,6 +82,10 @@ public final class Population {
             if (good != null) col.storage.force(good, it.getAmount());
             else col.equipment.force(it);
         }
+        // and their own tools, so the farmer and the forester can start at once
+        for (ItemStack it : plugin.settings().startingTools) {
+            for (int i = 0; i < it.getAmount(); i++) col.equipment.force(new ItemStack(it.getType()));
+        }
         plugin.sim().housing().assign(col);
         plugin.sim().jobs().refreshWorkplaces(col);
         col.lastSettlersDay = plugin.sim().day(col);
@@ -89,8 +93,10 @@ public final class Population {
         col.log(ColonyEvent.Type.POPULATION, plugin.sim().day(col), col.citizens.size() + " settlers arrived to found the colony.");
         for (Player p : col.onlineMembers()) {
             Text.send(p, "<green>Your first <white>" + col.citizens.size() + "</white> settlers have arrived. Right-click one to see them, or use the Town Hall. "
-                    + "Register a house so they have beds, and workplaces so they can work. <yellow>They bring no tools:</yellow> put a hoe and an axe in storage "
-                    + "(or sneak + right-click a settler with one) before they can farm or fell.");
+                    + "Register a house so they have beds, and workplaces so they can work. "
+                    + (plugin.settings().startingTools.isEmpty()
+                    ? "<yellow>They bring no tools:</yellow> put a hoe and an axe in storage (or sneak + right-click a settler with one) before they can farm or fell."
+                    : "They brought a few tools (in the armoury); better ones make them faster."));
             if (col.inGrace()) {
                 Text.send(p, "<aqua>Founding grace:</aqua> <gray>for the first <white>" + graceDays(col) + "</white> days you play, nobody in "
                         + Text.esc(col.name) + " can die. Use them to give everyone a bed and get a farm going. Leave the bread in storage: it's their food.");

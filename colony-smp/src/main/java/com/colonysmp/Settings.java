@@ -144,7 +144,7 @@ public final class Settings {
 
     public final List<ItemStack> questReward;
     /** Provisions the first settlers bring. */
-    public final List<ItemStack> startingGoods;
+    public final List<ItemStack> startingGoods, startingTools;
 
     /** The living world (config: civilisations) and the transaction journal (config: transactions). */
     public static final class Civs {
@@ -435,6 +435,7 @@ public final class Settings {
 
         questReward = items(c, "quests.reward", log);
         startingGoods = items(c, "citizens.starting-goods", log);
+        startingTools = items(c, "citizens.starting-tools", log);
     }
 
     /** A list of "MATERIAL:amount" entries. */

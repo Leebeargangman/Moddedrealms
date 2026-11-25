@@ -122,9 +122,21 @@ public final class ColonyManager {
     }
 
     public void addCitizen(Colony col, Citizen c) {
+        // every way into a colony comes through here (birth, settlers, travellers, prisoners, transfers): no two
+        // people in one colony share a name
+        c.name = com.colonysmp.util.Names.unique(c.name, n -> nameTaken(col, n, c.id));
         c.colonyId = col.id;
         col.citizens.put(c.id, c);
         citizenIndex.put(c.id, c);
+    }
+
+    /** Another citizen of the colony already goes by this name (ignoring case). */
+    public boolean nameTaken(Colony col, String name, java.util.UUID except) {
+        if (name == null) return false;
+        for (Citizen o : col.citizens.values()) {
+            if (!o.id.equals(except) && name.equalsIgnoreCase(o.name)) return true;
+        }
+        return false;
     }
 
     public void removeCitizen(Citizen c) {
@@ -197,7 +209,11 @@ public final class ColonyManager {
         c.shieldUntil = c.createdAt + (long) (plugin.settings().shieldNewHours * 3600_000L);
         c.reputation = plugin.settings().reputationStart;
         long day = plugin.sim().day(c);
-        c.treasury.credit(plugin.settings().startingTreasury, TxnType.ADMIN, "Founding grant", System.currentTimeMillis(), day);
+        // the grant is real metal and gems: once per player per season, or found-withdraw-disband prints money
+        if (plugin.settings().startingTreasury > 0 && plugin.founders().mayGrant(owner)) {
+            c.treasury.credit(plugin.settings().startingTreasury, TxnType.ADMIN, "Founding grant", System.currentTimeMillis(), day);
+            plugin.founders().granted(owner);
+        }
         colonies.put(c.id, c);
         plugin.requestSave();
         return c;
