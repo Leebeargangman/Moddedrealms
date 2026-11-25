@@ -94,6 +94,8 @@ public final class ColonySMP extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
         settings = new Settings(getConfig(), getLogger());
+        String msgErr = com.colonysmp.util.Messages.load(this);
+        if (msgErr != null) getLogger().severe("Using the built-in messages: " + msgErr);
         Keys.init(this);
         founders = new com.colonysmp.colony.Founders(this);
         int goods = ItemGoods.registerAll(settings.prices);
@@ -166,6 +168,12 @@ public final class ColonySMP extends JavaPlugin {
         if (cmd != null) {
             cmd.setExecutor(commands);
             cmd.setTabCompleter(commands);
+        }
+        PluginCommand adminCmd = getCommand("colonyadmin");
+        if (adminCmd != null) {
+            var ca = new com.colonysmp.command.ColonyAdminCommand(this, commands);
+            adminCmd.setExecutor(ca);
+            adminCmd.setTabCompleter(ca);
         }
         PluginCommand civ = getCommand("civ");
         if (civ != null) {
@@ -278,6 +286,28 @@ public final class ColonySMP extends JavaPlugin {
                 getLogger().warning("Saving failed (" + db.lastError() + "); retrying shortly.");
             }
         }));
+    }
+
+    /**
+     * /colonyadmin reload: config.yml and messages.yml are read first and a broken one is refused, so a typo can't
+     * leave the server running on half a config. Null when it worked, else what was wrong.
+     */
+    public String reloadSafely() {
+        java.io.File f = new java.io.File(getDataFolder(), "config.yml");
+        try {
+            new org.bukkit.configuration.file.YamlConfiguration().load(f);
+        } catch (java.io.IOException | org.bukkit.configuration.InvalidConfigurationException e) {
+            return "config.yml: " + String.valueOf(e.getMessage()).lines().findFirst().orElse("can't be read");
+        }
+        String err = com.colonysmp.util.Messages.load(this);
+        if (err != null) return err;
+        reload();
+        return null;
+    }
+
+    /** A line in the log when debug.logging is on for this system. */
+    public void debug(String system, String message) {
+        if (settings.debug(system)) getLogger().info("[debug " + system + "] " + message);
     }
 
     public void reload() {

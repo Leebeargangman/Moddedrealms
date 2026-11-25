@@ -71,6 +71,11 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
     private final Info info;
     private final AdminCommand admin;
 
+    /** The /colony admin tools, which /colonyadmin also runs. */
+    AdminCommand admin() {
+        return admin;
+    }
+
     public ColonyCommand(ColonySMP plugin) {
         this.plugin = plugin;
         this.info = new Info(plugin);
@@ -423,7 +428,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
                 + "the land around it becomes yours and your first settlers arrive. Place the <aqua>Building Marker</aqua> inside a building you've built to register it "
                 + "(it works out what the building is); the <white>Blueprint Book</white> orders new ones.");
         if (!grant && plugin.settings().startingTreasury > 0) {
-            Text.send(p, "<gray>You've already had a founding grant this season, so this colony's treasury starts empty.");
+            com.colonysmp.util.Messages.send(p, "founding.no-grant");
         }
         plugin.quests().refresh(c);
     }

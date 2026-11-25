@@ -1,6 +1,30 @@
 # ColonySMP 2 configuration.
 # Times are real minutes/seconds unless they say "days" or "hours", which are Minecraft days (20 real minutes)
-# and Minecraft hours (50 real seconds). Reload with /colony admin reload.
+# and Minecraft hours (50 real seconds). Reload with /colonyadmin reload.
+
+# ───────────── Feature switches ─────────────
+# Every big system can be switched off here, so anything that isn't ready (or misbehaves) can be turned off without
+# a new jar. false = off: nothing of it runs, and its commands and menu buttons say it's coming.
+# Change, then /colonyadmin reload.
+features:
+  raids: true              # barbarian and undead raids on colonies (also needs raids.enabled)
+  onboarding: false        # the guided first five minutes for new players
+  starter-camp: false      # "Found a Colony" places a ready camp with three settlers
+  funnel: false            # records where new players drop off (/colonyadmin funnel)
+  winter-needs: false      # Season 1: settlers need warmth as well as food
+  tiers: false             # Camp, Village, Town, City, Kingdom, Empire
+  empires: false           # vassals, outposts, the empire menu
+  armies: false            # squads with orders, marching across the map
+  siege-weapons: false     # ballista, catapult, cannon
+  siege-block-damage: false # siege weapons break blocks (only in wars and raids, always rolled back)
+  season-events: false     # advent, Winterfest, frost raids and the rest of the season
+
+# ───────────── Debugging ─────────────
+debug:
+  # Extra lines in the server log for chasing a problem. Chatty: leave it off normally.
+  logging: false
+  # Only these systems (empty = all of them): bodies, simulation, saving, raids, onboarding, protection, admin
+  systems: []
 
 general:
   autosave-minutes: 5

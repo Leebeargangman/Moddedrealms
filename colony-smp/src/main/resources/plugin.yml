@@ -10,6 +10,11 @@ commands:
     description: Everything about colonies
     usage: /colony help
     aliases: [col, colonies]
+  colonyadmin:
+    description: Server tools for colonies (cleanup, debug, reload, funnel, raid, event, give, tier, season)
+    usage: /colonyadmin help
+    permission: colonysmp.admin
+    aliases: [cadmin, coladmin]
   civ:
     description: The living world - NPC civilisations, their settlements, trade and wars
     usage: /civ help
@@ -23,6 +28,15 @@ permissions:
     description: Admin tools, the protection bypass and item spawning (includes every permission below)
     default: op
     children:
+      colonysmp.admin.cleanup: true
+      colonysmp.admin.debug: true
+      colonysmp.admin.reload: true
+      colonysmp.admin.funnel: true
+      colonysmp.admin.raid: true
+      colonysmp.admin.event: true
+      colonysmp.admin.give: true
+      colonysmp.admin.tier: true
+      colonysmp.admin.season: true
       colonysmp.admin.audit: true
       colonysmp.admin.audit.resolve: true
       colonysmp.admin.civ.list: true
@@ -39,6 +53,33 @@ permissions:
       colonysmp.admin.civ.event: true
       colonysmp.admin.civ.step: true
       colonysmp.admin.civ.generate: true
+  colonysmp.admin.cleanup:
+    description: Find and remove duplicate or orphaned NPCs (/colonyadmin cleanup)
+    default: op
+  colonysmp.admin.debug:
+    description: See a colony's internal state (/colonyadmin debug)
+    default: op
+  colonysmp.admin.reload:
+    description: Reload config.yml and messages.yml (/colonyadmin reload)
+    default: op
+  colonysmp.admin.funnel:
+    description: See where new players drop off (/colonyadmin funnel)
+    default: op
+  colonysmp.admin.raid:
+    description: Start raids (/colonyadmin raid)
+    default: op
+  colonysmp.admin.event:
+    description: Start and stop season events (/colonyadmin event)
+    default: op
+  colonysmp.admin.give:
+    description: Put goods in a player's colony storage (/colonyadmin give)
+    default: op
+  colonysmp.admin.tier:
+    description: Set a colony's tier for testing (/colonyadmin tier)
+    default: op
+  colonysmp.admin.season:
+    description: End the season, archive and reset (/colonyadmin season end)
+    default: op
   colonysmp.admin.audit:
     description: Read the transaction journal and audit notes (/colony audit, /colony admin investigate)
     default: op

@@ -1,0 +1,62 @@
+# ColonySMP messages
+#
+# Everything here is MiniMessage: <gold>, <bold>, <gradient:#a:#b>, <click:run_command:'/colony'>...
+# See https://docs.advntr.dev/minimessage/format
+# Words in {curly brackets} are filled in by the plugin. You can move them around or leave them out.
+# Change a line, then /colonyadmin reload. A broken file is refused and the old text stays in use.
+# A line you delete here comes back from the copy inside the plugin.
+#
+# New and changed text goes here. Older text still lives in the code and moves here as it is reworked.
+
+founding:
+  no-grant: "<gray>You've already had a founding grant this season, so this colony's treasury starts empty."
+
+admin:
+  no-permission: "<red>You need <white>{permission}</white> for that."
+  unknown-colony: "<red>No colony called <white>{name}</white>."
+  unknown-player: "<red>{name} isn't online."
+  help:
+    - "<aqua><bold>/colonyadmin</bold></aqua> <gray>(also everything from /colony admin)"
+    - " <white>cleanup [confirm]</white> <gray>find and remove duplicate or orphaned NPCs"
+    - " <white>debug <colony></white> <gray>internal state: NPCs, jobs, stores, tasks, chunks"
+    - " <white>reload</white> <gray>reload config.yml and messages.yml"
+    - " <white>funnel [24h|7d|all]</white> <gray>where new players drop off"
+    - " <white>raid <colony|all> [strength]</white> <gray>start a raid"
+    - " <white>event <name> start|stop</white> <gray>season events"
+    - " <white>give <player> <resource> <amount></white> <gray>goods into a player's colony storage"
+    - " <white>tier <colony> <tier></white> <gray>set a colony's tier (testing)"
+    - " <white>season end [confirm]</white> <gray>archive and reset the season"
+  reload:
+    ok: "<green>Reloaded config.yml and messages.yml."
+    refused: "<red>Not reloaded, nothing changed: <white>{error}"
+  cleanup:
+    none: "<green>No duplicate or orphaned NPCs found."
+    found: "<yellow>Found {count} stray NPC(s):"
+    line: " <gray>- <white>{what}</white> at {where}"
+    more: " <gray>... and {count} more"
+    confirm: "<gray>Run <white>/colonyadmin cleanup confirm</white> to remove them."
+    done: "<green>Removed {count} stray NPC(s)."
+  give:
+    usage: "<gray>Usage: <white>/colonyadmin give <player> <resource> <amount></white> (a good such as oak_log, or an item: wand, book, marker, core...)"
+    no-colony: "<red>{player} isn't in a colony."
+    unknown: "<red>No colony resource or item called <white>{resource}</white>."
+    done: "<green>Put {amount} {resource} in {colony}'s storage."
+    partly: "<yellow>Storage was full: only {amount} {resource} went into {colony}'s storage."
+    item: "<green>Gave {player} a {resource}."
+  tier:
+    usage: "<gray>Usage: <white>/colonyadmin tier <colony> <1-{max}></white>"
+    no-hall: "<red>{colony} has no Town Hall yet."
+    done: "<green>{colony} is now tier {tier} (Town Hall level {tier})."
+  raid:
+    usage: "<gray>Usage: <white>/colonyadmin raid <colony|all> [strength]</white>"
+    started: "<green>A raid of {size} is attacking {colony}."
+    failed: "<red>{colony}: {error}"
+    off: "<red>Raids are switched off (features.raids / raids.enabled)."
+  funnel:
+    off: "<gray>Funnel tracking is switched off (<white>features.funnel</white>). It comes with the new-player update."
+  season:
+    missing: "<red>Season events are run by ModdedrealmsSMP, which isn't installed or is too old."
+    usage: "<gray>Usage: <white>/colonyadmin season end [confirm]</white>"
+  event:
+    usage: "<gray>Usage: <white>/colonyadmin event <name> start|stop</white>. Events: <white>{events}"
+  feature-off: "<red>That's switched off for now (<white>features.{feature}</white> in config.yml)."

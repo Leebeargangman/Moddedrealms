@@ -298,6 +298,23 @@ public final class ClaimListener implements Listener {
         if (plugin.colonies().at(e.getBlock()) != to) e.setCancelled(true);
     }
 
+    /**
+     * A dispenser can't empty a bucket, light a fire or place a block into colony land from outside it (a lava
+     * dispenser just over the border was a way to grief). Dispensers inside the same colony work as normal.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onDispense(org.bukkit.event.block.BlockDispenseEvent e) {
+        if (!(e.getBlock().getBlockData() instanceof org.bukkit.block.data.Directional d)) return;
+        Block front = e.getBlock().getRelative(d.getFacing());
+        Colony to = plugin.colonies().at(front);
+        if (to == null || plugin.colonies().at(e.getBlock()) == to) return;
+        Material m = e.getItem().getType();
+        if (m.name().endsWith("_BUCKET") || m == Material.FLINT_AND_STEEL || m == Material.FIRE_CHARGE || m.isBlock()
+                || m == Material.BONE_MEAL || m == Material.ARMOR_STAND || m.name().endsWith("MINECART") || m.name().endsWith("_BOAT")) {
+            e.setCancelled(true);
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent e) {
         Colony pc = plugin.colonies().at(e.getBlock());

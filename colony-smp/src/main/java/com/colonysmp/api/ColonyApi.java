@@ -207,4 +207,35 @@ public final class ColonyApi {
         for (Settings.Zone z : zones.values()) if (z.covers(world, cx, cz)) return z.label();
         return null;
     }
+
+    // ───────────── the server's own plugin ─────────────
+
+    /**
+     * What ModdedrealmsSMP does for /colonyadmin: the season's events and reset (season.yml lives there), and
+     * its own NPCs for cleanup. ColonySMP never depends on that plugin; it registers itself here instead.
+     */
+    public interface ServerHook {
+        /** Season event names for /colonyadmin event. */
+        List<String> seasonEvents();
+
+        /** Starts or stops one; null when it worked, else why not. */
+        String seasonEvent(String name, boolean start);
+
+        /** Archives the season and resets what the SMP owns (confirm=false only describes what would happen). */
+        List<String> seasonEnd(boolean confirm);
+
+        /** Its NPCs that are duplicated or orphaned, one line each (removed when remove=true). */
+        List<String> strayNpcs(boolean remove);
+    }
+
+    private static volatile ServerHook hook;
+
+    public static void hook(ServerHook h) {
+        hook = h;
+    }
+
+    /** The registered hook, or null. */
+    public static ServerHook hook() {
+        return hook;
+    }
 }

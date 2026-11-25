@@ -148,6 +148,45 @@ public final class NpcManager implements Listener {
         return e != null && e.getPersistentDataContainer().has(Keys.CITIZEN, PersistentDataType.STRING);
     }
 
+    /**
+     * Citizen bodies and mounts in loaded chunks that shouldn't be there: a body nobody is tracking (a second body
+     * of someone who already has one, or left over from a crash), a body whose citizen no longer exists, and
+     * horses with no rider. Used by /colonyadmin cleanup.
+     */
+    public List<Entity> strays() {
+        List<Entity> out = new ArrayList<>();
+        for (World w : Bukkit.getWorlds()) {
+            for (Entity e : w.getEntities()) {
+                if (isBody(e)) {
+                    Npc n = byEntity.get(e.getUniqueId());
+                    UUID cid;
+                    try {
+                        cid = UUID.fromString(e.getPersistentDataContainer().get(Keys.CITIZEN, PersistentDataType.STRING));
+                    } catch (IllegalArgumentException | NullPointerException ex) {
+                        cid = null;
+                    }
+                    if (n == null || cid == null || plugin.colonies().citizen(cid) == null || !n.c.id.equals(cid)) out.add(e);
+                } else if (e.getPersistentDataContainer().has(Keys.MOUNT, PersistentDataType.STRING) && e.getPassengers().isEmpty()) {
+                    out.add(e);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Removes what {@link #strays()} found; the activity loop gives anyone who should have a body a fresh one. */
+    public int removeStrays(List<Entity> strays) {
+        int n = 0;
+        for (Entity e : strays) {
+            if (!e.isValid()) continue;
+            Npc tracked = byEntity.get(e.getUniqueId());
+            if (tracked != null) despawn(tracked);
+            else e.remove();
+            n++;
+        }
+        return n;
+    }
+
     /** Has this citizen a body right now (then the background simulation leaves them alone)? */
     public boolean embodied(Citizen c) {
         return npc(c) != null;
