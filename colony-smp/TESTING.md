@@ -67,3 +67,69 @@ Season switch (`season.enabled`) checked 25 Nov at 22:22: off, `/advent` and `/t
 `colonyadmin event season start` brings the sign up.
 **Not yet tried in game:** dispensers outside a colony can't pour lava in, and how the sign and calendar look on a
 Bedrock client.
+
+## Release 2: the first five minutes (onboarding)
+
+### Setup
+- ColonySMP `config.yml`: `features.onboarding`, `features.starter-camp`, `features.funnel` = true, and
+  `onboarding.sites.centre: "-394, 463"` (the plaza). ModdedrealmsSMP `config.yml`: `onboarding.enabled: true`.
+- Give the site finder a minute after start: `/colonyadmin funnel` ends with "sites: N ready".
+- Use a player name that has never joined (a new account, or delete its playerdata and its line in
+  `plugins/ModdedrealmsSMP/onboarding.yml`).
+
+### 1. Arriving (0:00–0:30)
+1. Join for the first time. You stand a few blocks in front of Elder Rowan, facing him.
+2. Title "Welcome to ModdedRealms" / "Build your kingdom. Rule an empire."
+3. Rowan glows gold, sparks circle him and "⚔ START HERE ⚔" floats over his head.
+4. Task bar: "Talk to Elder Rowan · he's glowing gold by the fountain". You still get the starter kit.
+5. Right-click any other plaza NPC: "Talk to Elder Rowan first...", and gold sparks point to Rowan.
+6. Stand still for a minute: Rowan calls you by name (at most 3 times).
+
+### 2. The choice (0:30–1:30)
+1. Right-click Rowan: four short lines, then the menu: Found a Colony (glowing, recommended), Join the Battles,
+   Talk with Rowan.
+2. Join the Battles (on the live network): you are sent to `arena`. The task bar goes away.
+3. Talk with Rowan: his usual story and quests.
+
+### 3. Owning something (1:30–3:00)
+1. Found a Colony: within a second or two you are taken to a levelled camp out in the wild, facing north at the
+   campfire. Title "Your colony, <name>, has been founded!", totem particles, a sound.
+2. The camp: Town Hall core with the storage chest east of it, a white and red tent with three beds (west, door
+   facing the core), a spruce woodcutter's hut (east), a lit campfire with two log benches, paths and lantern posts.
+3. Three settlers walk in from the north and greet you by name; the one without a job asks for one.
+4. Inventory: Colony Charter, Starter Farm, Blueprint Book, Building Marker, bread and torches.
+5. Task bar: "Step 1/5: Your Colony Menu".
+
+### 4. The first win (3:00–5:00)
+1. Right-click the Colony Charter: the Town Hall menu opens. Step 1 completes ($10). A "Start here ▶" arrow points
+   at the glowing Citizens button.
+2. Right-click the jobless settler → Change job (glowing) → Woodcutter (glowing, "Pick this one"). Step 2 completes
+   ($15 and 8 bread to storage); within a minute they walk to the trees and start felling.
+3. Right-click flat grass near the campfire with the Starter Farm: a 5x5 field with water and sprouting wheat, plus a
+   scarecrow. If the spot doesn't fit, the nearest one within 5 blocks that does is used. Step 3 completes ($40,
+   a Common Key and the Banner of <colony>); the farmer starts tending it.
+4. Task bar: "Step 4/5: A Growing Camp · 3/5 settlers".
+
+### 5. Always-on helpers
+- One-time action-bar tips the first time you hold the Charter or the Starter Farm, and look at a settler, the
+  core or the storage chest.
+- Stuck on a step for a minute near the camp: a settler tells you what to do (at most 3 times per step).
+- `/colony` opens the colony menu; `/colony help` opens the guide (7 pages); `/colony tasks off|on` hides or
+  shows the task bar; `/colony start` gives a ready camp to someone without a colony (once per player).
+- Log off for 10+ minutes and back: "While you were away (…): +28 oak log, +5 oak sapling…" and the colony's news.
+- Night: a new camp's settlers keep working for its first 30 minutes; monsters ignore them, and ignore the founder
+  on their own land during the founding grace. Dying without a bed respawns you at your colony.
+- A new camp sends no requests, travellers or daily reports until step 3 is done.
+
+### 6. Funnel and admin
+- `/colonyadmin funnel [24h|7d|all]`: each step with count and %; the last line shows the camp-site pool.
+- `/mrsmp onboarding`: arrived / talked to Rowan / chose a colony / chose the Battles.
+- Placeholder `%mrsmp_funnel_step%`: the furthest step a player reached.
+
+### Last run: 27 Nov 2026, local Paper 1.21.11 with copies of the live plugins, data and spawn region
+Six bot players: arrival, title, task bar, Pip's "talk to Rowan first", Rowan's intro and menu, a camp 450–1240
+blocks out, greetings by name, steps 1–3 in about 25 seconds, the woodcutter felling and the farmer tending at night,
+respawn 13 blocks from the camp, Rowan's nudges at 62 s and 122 s, the away summary, `/colony help`, the Battles
+choice, the funnel and the once-per-player camp. The 2 live colonies loaded and moved onto the new steps.
+Not covered by the bots: the Battles hand-off through the real proxy, Bedrock players, and how it all looks in a real
+client.

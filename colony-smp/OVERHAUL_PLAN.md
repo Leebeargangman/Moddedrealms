@@ -1,6 +1,7 @@
 # ColonySMP Overhaul + Season 1 "The Frozen Crown": plan
 
-Status: **waiting for approval**. Written 25 Nov 2026. Nothing has been changed in either plugin yet.
+Status: **in progress**. Written 25 Nov 2026. Release 1 (Phase 1 + season code, season off) live 25 Nov. Season switched on 27 Nov.
+Release 2 (Phase 2 onboarding) built and tested locally 27 Nov, waiting for the OK to deploy.
 
 ## 1. What is there today
 
@@ -33,6 +34,13 @@ Status: **waiting for approval**. Written 25 Nov 2026. Nothing has been changed 
    live on 25 Nov at 23:24 CET. The advent calendar, countdown sign and `/titles` are in the jar but switched off by
    `season.enabled: false` in `season.yml` until the owner wants them (the doors open from 1 Dec, so a door that passes
    while the season is off is missed).
+
+9. **Season on (owner, 27 Nov):** `season.enabled: true` on the live SMP since 27 Nov 13:52 CET, so the advent calendar
+   opens on 1 December (doors stay shut until their day) and the countdown and `/titles` are live.
+10. **Onboarding goes out on its own (owner, 27 Nov):** as Release 2 as soon as it's tested (one restart), not bundled
+    with the 6 Dec colony core.
+11. **Other spawn NPCs unlock after the choice with Rowan (owner, 27 Nov)**, so players who pick the Battles aren't
+    locked out (open question 5).
 
 ## 3. Timeline
 
@@ -104,6 +112,25 @@ Built in both plugins: SMP for spawn, Rowan, bossbar and kit; ColonySMP for the 
 **Funnel** (ColonySMP owns it; SMP reports its steps through `ColonyApi`): `first_join`, `talked_to_rowan`, `chose_colony`, `chose_battles`, `colony_founded`, `opened_menu`, `first_job_assigned`, `first_building`, `reached_5_minutes`, `left_server`, `returned_next_day`. These go to a new `funnel` table (numbered migration, backup first). `/colonyadmin funnel [24h|7d|all]` shows a step-by-step count with % kept, and a placeholder `%colonysmp_funnel_step%`. The existing `/mrsmp insights` stays.
 
 Flags: `features.onboarding`, `features.starter-camp`, `features.funnel`.
+
+### Phase 2 as built (27 Nov, Release 2)
+Everything in the table above, with these choices made while building and testing it:
+- **Camps** go to a ring 450–1400 blocks from the plaza (config), on flat, dry, wooded ground with nothing built within
+  24 blocks. A background search keeps 3 ready (checking one chunk first, then the 5x5 around it) and saves them in
+  `camp-sites.yml`. The camp: core and chest, a three-bed tent (registered House), a woodcutter's hut (registered
+  Woodcutter's Hut, so the Woodcutter step works at once), campfire, paths and lantern posts. The settlers are a
+  farmer, a builder and one without a job. **One ready camp per player**; after that it's `/colony create`.
+- **The first steps** are now: open the menu, give a job, first farm (the Starter Farm finds the nearest 5x5 that
+  fits), grow to 5 settlers, stock 64 food, each paid at once and once per player (`onboarding.rewards`). Colonies
+  from before are moved onto them (`quest-version`).
+- **A new camp is quiet and busy:** no requests, travellers or daily reports until its farm step; its settlers work
+  through the night for its first 30 minutes and monsters ignore them; monsters ignore the founder on their own land
+  during the founding grace; colony members without a bed respawn at their colony, not at spawn.
+- **Job picker** shows Farmer, Woodcutter, Miner, Builder, Guard, Blacksmith first, the rest under "More jobs".
+  Forester is now called Woodcutter (same job inside).
+- **Funnel** lives in its own `funnel.db` (no change to `colonies.db`), which also keeps the one-time tips and the
+  logoff snapshots for "while you were away".
+- Not done yet: the Colony Codex book (moves to Phase 3), arrows in the menu beyond the job step.
 
 ## 7. Phase 3: colony core (7–13 Dec)
 
@@ -186,5 +213,5 @@ The models and textures start on 26 Nov. I write the `.bbmodel` files and textur
 2. **Season end**: which parts of the SMP economy are wiped (coins, bank, businesses, stocks, plots)? Needed by early January.
 3. **Spark** on the live SMP: yes or no?
 4. **Siege weapon models**: item_display (recommended) or BetterModel? Needed by 27 Nov, since the models start now. I'll go with item_display unless you say otherwise.
-5. **Other spawn NPCs** for new players: unlock after the choice with Rowan (suggested) or after founding a colony?
+5. ~~Other spawn NPCs~~: after the choice with Rowan (decided 27 Nov).
 6. **Advent rewards**: should I fill in the defaults, or do you have a list?

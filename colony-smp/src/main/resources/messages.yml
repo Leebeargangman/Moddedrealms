@@ -66,6 +66,7 @@ admin:
 camp:
   off: "Ready-made camps aren't open right now. Found a colony the classic way: <white>/colony create <name></white>."
   busy: "Your camp is already being set up: one moment."
+  used: "You've had your ready-made camp. Found a new colony the classic way: walk into the wilds and use <white>/colony create <name></white>."
   has-colony: "You already belong to a colony. <white>/colony</white> opens its menu."
   searching: "<gray>Scouts are looking for good land for you. This takes a few seconds..."
   no-site: "No free land was found just now. Try again in a minute, or walk out into the wilds and use <white>/colony create <name></white>."
@@ -128,6 +129,8 @@ quests:
     title: "Put Them to Work"
     task: "click a settler and make them a Woodcutter"
     hint: "I've no work yet! Right-click me and choose Change job, then Woodcutter."
+    hint-other: "{name} has no work yet. Right-click them, choose Change job, then Woodcutter."
+    someone: "One of us"
   farm:
     title: "Break Ground"
     task: "right-click flat grass with the Starter Farm"

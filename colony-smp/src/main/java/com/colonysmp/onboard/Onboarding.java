@@ -161,10 +161,18 @@ public final class Onboarding implements Listener {
         else if (id.equals(Items.CHARTER)) hint(p, "charter");
     }
 
-    /** Monsters leave a founder alone on their own land while the colony is on its first steps. */
+    /** Monsters leave a founder alone on their own land during the founding grace, and a new camp's settlers in its first half hour. */
     @EventHandler(ignoreCancelled = true)
     public void onTarget(org.bukkit.event.entity.EntityTargetLivingEntityEvent e) {
-        if (!(e.getTarget() instanceof Player p) || !(e.getEntity() instanceof org.bukkit.entity.Monster)) return;
+        if (!(e.getEntity() instanceof org.bukkit.entity.Monster) || e.getTarget() == null) return;
+        // a brand-new camp's settlers are left alone too, so the first night isn't spent hurt in bed
+        Npc settler = plugin.npcs().npc(e.getTarget());
+        if (settler != null) {
+            Colony home = plugin.colonies().colonyOf(settler.c);
+            if (home != null && plugin.quests().busy(home)) e.setCancelled(true);
+            return;
+        }
+        if (!(e.getTarget() instanceof Player p)) return;
         Colony c = plugin.colonies().of(p);
         if (c == null || !(plugin.quests().settling(c) || c.inGrace() && c.questStage < QuestManager.DONE)) return;
         Location l = p.getLocation();
@@ -243,14 +251,27 @@ public final class Onboarding implements Listener {
 
     private void nudge(Player p, Colony c) {
         String hint = plugin.quests().hint(c.questStage);
-        Npc best = null;
-        double bd = 32 * 32;
+        Npc best = null, jobless = null;
+        double bd = 32 * 32, jd = 32 * 32;
         for (Npc n : plugin.npcs().of(c)) {
             if (!n.valid() || n.sleeping || n.c.downed() || n.body.getWorld() != p.getWorld()) continue;
             double d = n.body.getLocation().distanceSquared(p.getLocation());
             if (d < bd) {
                 bd = d;
                 best = n;
+            }
+            if (n.c.job == com.colonysmp.model.Job.UNEMPLOYED && d < jd) {
+                jd = d;
+                jobless = n;
+            }
+        }
+        // "give a job": the one without work asks for it, or whoever is near points them out
+        if (c.questStage == QuestManager.JOB) {
+            if (jobless != null) best = jobless;
+            else if (best != null) {
+                String who = null;
+                for (Citizen ct : c.citizens.values()) if (ct.job == com.colonysmp.model.Job.UNEMPLOYED) who = ct.name;
+                hint = Messages.get("quests.job.hint-other", "name", who == null ? Messages.get("quests.job.someone") : who);
             }
         }
         if (best != null) {

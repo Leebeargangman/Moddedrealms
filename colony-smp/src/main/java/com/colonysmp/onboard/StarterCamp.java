@@ -61,6 +61,8 @@ public final class StarterCamp {
         Long since = busy.get(p.getUniqueId());
         if (since != null && System.currentTimeMillis() - since < 60_000) return Messages.get("camp.busy");
         if (plugin.colonies().of(p) != null) return Messages.get("camp.has-colony");
+        // one ready camp per player: its wool, beds and planks would otherwise be free for the taking, again and again
+        if (plugin.funnel().seen(p.getUniqueId(), "camp:used") && !plugin.isBypassing(p)) return Messages.get("camp.used");
         if (plugin.colonies().coloniesOf(p.getUniqueId()).size() >= plugin.settings().maxColoniesPerPlayer && !plugin.isBypassing(p)) {
             return Messages.get("camp.has-colony");
         }
@@ -146,6 +148,7 @@ public final class StarterCamp {
         for (org.bukkit.entity.Entity e : w.getNearbyEntities(base, 40, 24, 40)) if (e instanceof org.bukkit.entity.Monster) e.remove();
         p.teleportAsync(stand).thenAccept(ok -> Bukkit.getScheduler().runTask(plugin, () -> celebrate(p, c, base)));
         plugin.funnel().record(p.getUniqueId(), "colony_founded");
+        plugin.funnel().firstTime(p.getUniqueId(), "camp:used");
         plugin.quests().refresh(c);
         plugin.requestSave();
         plugin.getLogger().info(p.getName() + " founded " + c.name + " with a starter camp at " + SitePool.describe(site) + ".");
