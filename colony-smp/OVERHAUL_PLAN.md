@@ -4,7 +4,8 @@ Status: **in progress**. Written 25 Nov 2026. Release 1 (Phase 1 + season code, 
 Release 2 (Phase 2 onboarding: ColonySMP 2.7.0, SMP 1.15.0) live 27 Nov 17:33 CET, with onboarding, starter camps and
 the funnel switched on. Release 3 (Phase 3 colony core: ColonySMP 2.8.0) live 27 Nov 18:02 CET with `features.tiers: true` and
 `features.winter-needs: false` (to be switched on at the 18 Dec launch). Release 4 (friends: ColonySMP 2.9.0 + SMP 1.16.0)
-live 27 Nov 18:26 CET with `features.friends` and `referrals.enabled` on. Next: the rest of section 15.
+live 27 Nov 18:26 CET with `features.friends` and `referrals.enabled` on. Release 5 (daily challenges: ColonySMP
+2.10.0) live 27 Nov 18:41 CET with the board south-east of Elder Rowan. Next: the rest of section 15.
 
 ## 1. What is there today
 
@@ -299,7 +300,7 @@ daily challenges).
   other, at most 5 paid referrals a day per player, and nothing when both play from the same address (addresses are
   kept only as salted hashes). `/mrsmp onboarding` shows invited and paid.
 
-### Daily challenges (ColonySMP 2.10.0, tested locally, not deployed)
+### Daily challenges (Release 5, ColonySMP 2.10.0, live since 27 Nov 18:41 CET)
 
 - `features.daily-challenges`, `colony/Challenges.java`, `challenges:` in config, data in `challenges.yml`. At midnight
   (UK time) one challenge from `challenges.pool` is picked for every colony: more logs, wheat, cobblestone or bread
