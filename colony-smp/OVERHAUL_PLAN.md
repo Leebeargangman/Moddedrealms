@@ -2,7 +2,8 @@
 
 Status: **in progress**. Written 25 Nov 2026. Release 1 (Phase 1 + season code, season off) live 25 Nov. Season switched on 27 Nov.
 Release 2 (Phase 2 onboarding: ColonySMP 2.7.0, SMP 1.15.0) live 27 Nov 17:33 CET, with onboarding, starter camps and
-the funnel switched on. Next: Phase 3 (colony core), then the new features in section 15.
+the funnel switched on. Phase 3 (colony core: ColonySMP 2.8.0) built and bot-tested 27 Nov, not deployed.
+Next: deploying Phase 3 after the owner's OK, then the new features in section 15.
 
 ## 1. What is there today
 
@@ -145,6 +146,46 @@ Everything in the table above, with these choices made while building and testin
 - **Buildings**: the existing blueprint and builder system stays. Starter blueprints (house, farm, storehouse, hearth, barracks, wall/gate, watchtower, workshop, market, castle keep) are loaded from `plugins/ColonySMP/blueprints/` so you can add your own.
 - **Land**: claims grow with tier (config). The existing protection stays and its rules get shown in the menu. It already respects the SMP's no-colony zones (fountain, Meadowbrook) through `ColonyApi`, but it **ignores WorldGuard** today. Added: no founding or claiming over a WorldGuard region (soft-depend, checked only if WorldGuard is installed).
 - **Guards** defend automatically (already there; checked against frost bandits).
+
+### Phase 3 as built (27 Nov, ColonySMP 2.8.0, tested locally, not deployed)
+
+Started on 27 Nov, about ten days early. Everything new is behind a switch, and with the switches off a colony
+plays the way it did in 2.7.0, apart from the menu layout.
+
+- **Tiers** (`features.tiers`, `colony/Tiers.java`, `gui/TierMenu.java`): Camp, Village, Town, City and Kingdom are
+  Town Hall levels 1–5. `tiers.levels` in config sets what each tier needs (settlers, registered buildings, treasury,
+  goods), how many settlers it holds, and which jobs and building types it opens. Anything not listed is open from
+  Camp. Moving up is one click in the Tier screen: title, sounds, fireworks over the Town Hall and a server-wide
+  line ("The Camp of Oakmere has become a Village!"). Empire (tier 6) shows as "comes with empires". With tiers on,
+  the Town Hall's old upgrade button and `/colony upgrade` on the Town Hall go through the tiers. Jobs and
+  buildings a colony already has are never taken away; only new ones wait for their tier.
+- **Menu** (`gui/TownHallMenu.java`, `gui/MoreMenu.java`): one screen with the overview, then Citizens and jobs,
+  Buildings, Resources, Tier, Tasks and goals, Military, Diplomacy; a second row with Economy, Construction, Recruit,
+  Warmth (in winter), Research, Settings and More…; and Help. Members, jobs list, requests, raids, today, milestones,
+  history and statistics moved one click in, under More…. Citizens stays in slot 19 with the "Start here" arrow for
+  new camps.
+- **Jobs**: the picker shows the eight main jobs (Farmer, Woodcutter, Miner, Builder, Guard, Blacksmith, Engineer,
+  Soldier). Locked ones are greyed with the tier that opens them; Soldier goes through the class picker. More jobs
+  lists the open ones first. Visible work: woodcutters and miners knock chips off the block they're on between
+  breaks (crumbs, a hit sound, a swing), and a settler walking with goods holds them instead of the tool.
+- **Winter needs** (`features.winter-needs`, `sim/Winter.java`, `winter:` in config): months 12, 1 and 2 by default.
+  A house with a campfire, furnace or smoker inside warms its people, and the Town Hall hearth warms 5 more. Each
+  fire burns firewood from storage once a day (logs, charcoal, coal, or 4 planks). Without warmth a settler is cold
+  (mood −6, work ×0.85), then freezing after 2 days (mood −14, work ×0.7). Misery can still make settlers leave, but
+  at most one a day per colony in winter. Colonies in their founding grace or first steps are spared. Members are
+  told when settlers are cold or firewood runs low; the menu has a Warmth button.
+- **Blueprints** (`building/ServerBlueprints.java`): `plugins/ColonySMP/blueprints/` holds plans every colony can
+  order from the Blueprint Book: `.yml` copies and vanilla structure-block `.nbt` files. Two starter plans are
+  written there the first time: Hearth Cottage (a warm house for two) and Stone Wall and Gate. Staff tools:
+  `/colonyadmin blueprint list|reload|preview <name>|share <colony> <copy>`.
+- **Land**: claims already grow with the Town Hall level. New: no founding or claiming on land a WorldGuard region
+  covers (`colonies.respect-worldguard`, soft-depend, read at runtime). The live SMP has one region, `spawn`, around
+  the plaza.
+- **Help**: the Tiers page is rewritten and a Winter page replaces the empty Siege page.
+
+Not in this release: the other starter blueprints from the brief (storehouse, barracks, watchtower, workshop,
+market and castle keep already exist as built-in building plans; a castle keep plan and more server plans can be
+added as files later).
 
 ## 8. Season 1 content (`season.yml`, mostly SMP)
 

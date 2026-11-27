@@ -133,3 +133,53 @@ respawn 13 blocks from the camp, Rowan's nudges at 62 s and 122 s, the away summ
 choice, the funnel and the once-per-player camp. The 2 live colonies loaded and moved onto the new steps.
 Not covered by the bots: the Battles hand-off through the real proxy, Bedrock players, and how it all looks in a real
 client.
+
+## Release 3: the colony core (ColonySMP 2.8.0)
+
+Switches: `features.tiers` and `features.winter-needs` in ColonySMP's config.yml. To test winter outside December to
+February, set `winter.months: []` on the test server. `colonies.founding-grace-days: 0` and
+`onboarding.camp.busy-minutes: 0` let a new test camp feel the cold at once.
+
+### 1. The menu
+- `/colony`: overview at the top (with tiers on, "Camp · tier 1/5" first), then Citizens and jobs (slot 19, with the
+  "Start here" arrow on a new camp), Buildings, Resources, Tier, Tasks and goals, Military, Diplomacy; then Economy,
+  Construction, Recruit, Warmth (only in winter), Research, Settings, More…; Help in the corner.
+- More… has Members, Jobs, Requests, Raids, Today, Milestones, History, Statistics and Back.
+
+### 2. Tiers
+- Tier opens the road from Camp to Empire: each tier with what it needs and opens. "Become a Village" lists every
+  need with ✔ or ✘; clicking it before they're met says the first thing missing.
+- Meet the needs (`/colony admin addcitizen <colony>`, `/colony admin treasury <colony> add 500`,
+  `/colony admin setstock <colony> oak_planks 100`, and so on), then click: title "Village", fireworks over the Town
+  Hall, the unlock lines in chat, and for everyone "The Camp of X has become a Village!". The treasury and goods are
+  paid, land grows from 12 to 22 chunks.
+- With tiers off the Tier button is the old "Upgrade the Town Hall".
+
+### 3. Jobs
+- The job picker shows Farmer, Woodcutter, Miner, Builder, Guard, Blacksmith, Engineer and Soldier. At Camp:
+  Blacksmith and Soldier say "opens when the colony becomes a Village", Engineer "…a City". Soldier opens the
+  military class picker. More jobs lists open jobs first.
+- A settler who already has a job keeps it whatever the tier.
+- Woodcutters and miners knock chips off the block they're on between breaks; settlers carrying goods hold them.
+
+### 4. Winter
+- Take all firewood out of storage and let a day pass (`/colony admin simulate <colony> 24`): members are told
+  "N of X's settlers are cold", Warmth shows them cold and the hearth out. Their mood has a "Cold" line, later
+  "Freezing", and they work slower.
+- Put 40 logs in storage, another day: the hearth is lit and warms 5; a house with a campfire, furnace or smoker
+  inside warms its own people. Firewood shows how many days are left.
+- Colonies in their founding grace or first steps aren't affected.
+
+### 5. Blueprints and land
+- `plugins/ColonySMP/blueprints/` is created with Hearth Cottage and Stone Wall and Gate; the log lists them.
+  `/colonyadmin blueprint list`, `reload`, `preview <name>` (puts the plan down in front of you),
+  `share <colony> <copy>`. The plans show in the Blueprint Book as "a server plan" and can be ordered.
+- Claiming or founding on land a WorldGuard region covers is refused, naming the region (live: only `spawn`).
+
+### Last run: 27 Nov 2026, local Paper 1.21.11, one bot player
+New camp and steps 1–4 as in Release 2; the new menu and More…; the tier screen with the checklist and the "still
+need" message; the Blacksmith/Soldier/Engineer locks; the tier-up with title and server-wide line (land 12 → 22
+chunks); Soldier open after it; 5 cold settlers with no firewood, all warm with 40 logs; the cottage preview checked
+block by block (door at the front, beds, hearth with furnace, campfire and chimney). No errors in the server log.
+Not covered: builders putting up a server plan from the Blueprint Book, a WorldGuard region on the test server, the
+look in a real client, and the menu with tiers off.

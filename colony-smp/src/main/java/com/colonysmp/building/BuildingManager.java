@@ -389,6 +389,8 @@ public final class BuildingManager {
         if (s.error != null) return Result.fail(s.error);
         World w = at.getWorld();
         Building b = existing(c, type, s);
+        String locked = plugin.tiers().typeLocked(c, type);
+        if (locked != null && (b == null || b.type != type)) return Result.fail(locked);
         if (b != null && b.type != type) {
             return Result.fail("That's already registered as " + b.label() + ". Remove it first to use it as " + Text.a(type.display) + ".");
         }
@@ -633,6 +635,7 @@ public final class BuildingManager {
     /** Why a building can't be upgraded (null if it can), without doing it. */
     public String canUpgrade(Colony c, Building b) {
         int next = b.level + 1;
+        if (b.type == BuildingType.TOWN_HALL && plugin.tiers().on()) return plugin.tiers().canTierUp(c);
         if (next > b.type.maxLevel) return b.label() + " is already at its highest level.";
         if (b.type == BuildingType.TOWN_HALL) {
             int need = townHallPopulation(next);
@@ -667,6 +670,7 @@ public final class BuildingManager {
     }
 
     public String upgrade(Player p, Colony c, Building b) {
+        if (b.type == BuildingType.TOWN_HALL && plugin.tiers().on()) return plugin.tiers().tierUp(p, c);
         if (p != null && !plugin.access().can(p, c, Perm.MANAGE_BUILDINGS)) return "You may not upgrade buildings.";
         String why = canUpgrade(c, b);
         if (why != null) return why;
@@ -692,7 +696,7 @@ public final class BuildingManager {
     }
 
     /** Group goods ("#planks") resolved to what's actually in storage. */
-    private Map<String, Long> concreteGoods(Colony c, Map<String, Integer> wanted) {
+    public Map<String, Long> concreteGoods(Colony c, Map<String, Integer> wanted) {
         Map<String, Long> out = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> e : wanted.entrySet()) {
             long need = e.getValue();

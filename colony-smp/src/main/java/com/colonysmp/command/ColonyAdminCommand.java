@@ -35,7 +35,7 @@ import java.util.TreeMap;
  */
 public final class ColonyAdminCommand implements TabExecutor {
 
-    private static final List<String> OWN = List.of("help", "cleanup", "debug", "reload", "funnel", "raid", "event", "give", "tier", "season");
+    private static final List<String> OWN = List.of("help", "cleanup", "debug", "reload", "funnel", "raid", "event", "give", "tier", "season", "blueprint");
 
     private final ColonySMP plugin;
     private final AdminCommand older;
@@ -76,6 +76,7 @@ public final class ColonyAdminCommand implements TabExecutor {
             case "event" -> event(s, rest);
             case "give" -> give(s, rest);
             case "tier" -> tier(s, rest);
+            case "blueprint" -> blueprint(s, rest);
             case "season" -> season(s, rest);
             default -> {
                 for (String l : Messages.lines("admin.help")) Text.raw(s, l);
@@ -300,6 +301,58 @@ public final class ColonyAdminCommand implements TabExecutor {
         plugin.requestSave();
         plugin.getLogger().info(s.getName() + " gave " + added + " " + good + " to " + c.name + "'s storage (/colonyadmin give).");
         Messages.send(s, added >= amount ? "admin.give.done" : "admin.give.partly", "amount", added, "resource", good, "colony", c.name);
+    }
+
+    private void blueprint(CommandSender s, String[] a) {
+        var server = plugin.serverBlueprints();
+        String op = a.length == 0 ? "list" : a[0].toLowerCase(Locale.ROOT);
+        switch (op) {
+            case "list" -> {
+                var keys = com.colonysmp.building.ServerBlueprints.keys();
+                if (keys.isEmpty()) Messages.send(s, "admin.blueprint.none");
+                else Messages.send(s, "admin.blueprint.list", "n", keys.size(), "names", String.join(", ", keys));
+            }
+            case "preview" -> {
+                if (!(s instanceof org.bukkit.entity.Player p) || a.length < 2) {
+                    Messages.send(s, "admin.blueprint.usage");
+                    return;
+                }
+                String name = String.join(" ", Arrays.copyOfRange(a, 1, a.length));
+                var cb = com.colonysmp.building.ServerBlueprints.find(plugin.colonies().of(p), name);
+                if (cb == null) {
+                    Messages.send(s, "admin.blueprint.unknown", "name", name);
+                    return;
+                }
+                int n = server.preview(p, cb);
+                plugin.getLogger().info(s.getName() + " previewed the blueprint " + cb.name + " (" + n + " blocks) at " + p.getLocation().getBlockX() + " " + p.getLocation().getBlockY() + " " + p.getLocation().getBlockZ() + ".");
+                Messages.send(s, "admin.blueprint.previewed", "name", cb.name, "n", n);
+            }
+            case "reload" -> {
+                server.load();
+                Messages.send(s, "admin.blueprint.reloaded", "n", com.colonysmp.building.ServerBlueprints.keys().size());
+            }
+            case "share" -> {
+                if (a.length < 3) {
+                    Messages.send(s, "admin.blueprint.usage");
+                    return;
+                }
+                Colony c = colony(s, a[1]);
+                if (c == null) return;
+                String name = String.join(" ", Arrays.copyOfRange(a, 2, a.length));
+                var cb = c.blueprints.get(com.colonysmp.model.CustomBlueprint.key(name));
+                if (cb == null) {
+                    Messages.send(s, "admin.blueprint.no-copy", "colony", c.name, "name", name);
+                    return;
+                }
+                String err = server.save(cb);
+                if (err != null) Messages.send(s, "admin.blueprint.failed", "error", err);
+                else {
+                    plugin.getLogger().info(s.getName() + " shared " + c.name + "'s copy " + cb.name + " as a server blueprint.");
+                    Messages.send(s, "admin.blueprint.shared", "name", cb.name);
+                }
+            }
+            default -> Messages.send(s, "admin.blueprint.usage");
+        }
     }
 
     private void tier(CommandSender s, String[] a) {

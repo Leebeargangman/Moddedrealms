@@ -96,8 +96,15 @@ public final class CitizenMenu extends Menu {
         fill(Material.GRAY_STAINED_GLASS_PANE);
     }
 
-    /** The main jobs first (Woodcutter highlighted while that's the colony's next step); the rest one click further. */
-    private static final Job[] MAIN = {Job.FARMER, Job.FORESTER, Job.MINER, Job.BUILDER, Job.GUARD, Job.BLACKSMITH};
+    /**
+     * The eight main jobs first (Woodcutter highlighted while that's the colony's next step); the rest one click
+     * further. Jobs the colony's tier hasn't opened yet say which tier does.
+     */
+    private static final Job[] MAIN = {Job.FARMER, Job.FORESTER, Job.MINER, Job.BUILDER, Job.GUARD, Job.BLACKSMITH, Job.ENGINEER, Job.SOLDIER};
+
+    private boolean locked(Job j) {
+        return j != ct.job && plugin.tiers().jobLocked(c, j) != null;
+    }
 
     private List<String> jobLore(Job j) {
         List<String> lore = new ArrayList<>();
@@ -135,12 +142,16 @@ public final class CitizenMenu extends Menu {
                 List<String> lore = jobLore(j);
                 boolean star = step && j == Job.FORESTER;
                 if (star) lore.add(0, "<gold>◀ Pick this one: your next step");
-                var icon = com.colonysmp.util.Items.icon(j.icon, (j == ct.job ? "<gold>" : star ? "<gold><bold>" : "<white>") + j.display, lore);
-                set(10 + i, star ? com.colonysmp.util.Items.glow(icon) : icon, k -> pick(j));
+                var icon = com.colonysmp.util.Items.icon(j.icon, (j == ct.job ? "<gold>" : star ? "<gold><bold>" : locked(j) ? "<dark_gray>" : "<white>") + j.display, lore);
+                // a soldier needs a class (and its arms), so that goes through the recruiting screen
+                set(10 + i, star ? com.colonysmp.util.Items.glow(icon) : icon, j == Job.SOLDIER && ct.job != Job.SOLDIER ? k -> {
+                    if (locked(j)) Text.send(viewer, "<red>" + Text.esc(plugin.tiers().jobLocked(c, j)));
+                    else if (plugin.access().check(viewer, c, Perm.MILITARY)) new ClassPicker().open();
+                } : k -> pick(j));
             }
-            button(16, Material.BOOKSHELF, "<aqua>More jobs...", List.of("<gray>Fisher, cook, baker, doctor, teacher", "<gray>and the rest, as your colony grows"),
+            button(23, Material.BOOKSHELF, "<aqua>More jobs...", List.of("<gray>Fisher, cook, baker, doctor, teacher", "<gray>and the rest, as your colony grows"),
                     k -> new MoreJobs().open());
-            button(22, Job.UNEMPLOYED.icon, (ct.job == Job.UNEMPLOYED ? "<gold>" : "<white>") + Job.UNEMPLOYED.display, jobLore(Job.UNEMPLOYED), k -> pick(Job.UNEMPLOYED));
+            button(21, Job.UNEMPLOYED.icon, (ct.job == Job.UNEMPLOYED ? "<gold>" : "<white>") + Job.UNEMPLOYED.display, jobLore(Job.UNEMPLOYED), k -> pick(Job.UNEMPLOYED));
             button(31, Material.ARROW, "<white>Back", List.of(), k -> new CitizenMenu(plugin, viewer, c, ct).open());
             fill(Material.GRAY_STAINED_GLASS_PANE);
         }
@@ -154,11 +165,15 @@ public final class CitizenMenu extends Menu {
         @Override
         protected void draw() {
             int i = 0;
-            java.util.Set<Job> main = java.util.EnumSet.of(Job.SOLDIER, Job.UNEMPLOYED);
+            java.util.Set<Job> main = java.util.EnumSet.of(Job.UNEMPLOYED);
             main.addAll(java.util.Arrays.asList(MAIN));
-            for (Job j : Job.values()) {
-                if (main.contains(j) || i >= 36) continue;
-                button(i++, j.icon, (j == ct.job ? "<gold>" : "<white>") + j.display, jobLore(j), k -> pick(j));
+            // open ones first, then the ones a later tier opens
+            List<Job> rest = new ArrayList<>();
+            for (Job j : Job.values()) if (!main.contains(j)) rest.add(j);
+            rest.sort(java.util.Comparator.comparingInt(j -> locked(j) ? plugin.tiers().jobTier(j) : 0));
+            for (Job j : rest) {
+                if (i >= 36) break;
+                button(i++, j.icon, (j == ct.job ? "<gold>" : locked(j) ? "<dark_gray>" : "<white>") + j.display, jobLore(j), k -> pick(j));
             }
             button(40, Material.ARROW, "<white>Back", List.of(), k -> new JobPicker().open());
             fill(Material.GRAY_STAINED_GLASS_PANE);

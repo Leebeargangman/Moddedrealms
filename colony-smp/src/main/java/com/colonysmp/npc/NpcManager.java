@@ -25,6 +25,7 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -698,6 +699,31 @@ public final class NpcManager implements Listener {
         }
     }
 
+    /**
+     * A hit on the block being worked, between breaks: crumbs, a knock and a swing, so work can be seen and heard.
+     * At most every 8 ticks per worker.
+     */
+    public void workHit(Npc n, org.bukkit.block.Block b) {
+        if (b == null || b.getType().isAir()) return;
+        World w = b.getWorld();
+        long t = w.getGameTime();
+        if (t - n.lastHit < 8) return;
+        n.lastHit = t;
+        n.body.swingMainHand();
+        w.spawnParticle(org.bukkit.Particle.BLOCK, b.getLocation().add(0.5, 0.5, 0.5), 5, 0.25, 0.25, 0.25, 0, b.getBlockData());
+        w.playSound(b.getLocation(), b.getBlockData().getSoundGroup().getHitSound(), 0.45f, 0.8f);
+    }
+
+    /** What a walking worker is carrying, as the item to show in their hand (null when nothing to show). */
+    private static ItemStack carriedItem(Npc n) {
+        if (n.c.carried.isEmpty() || !n.mover.moving()) return null;
+        for (String good : n.c.carried.snapshot().keySet()) {
+            Material mat = Material.matchMaterial(good.toUpperCase(Locale.ROOT));
+            if (mat != null && mat.isItem() && !mat.isAir()) return new ItemStack(mat);
+        }
+        return null;
+    }
+
     public void showHand(Npc n) {
         Citizen c = n.c;
         ItemStack hand = null;
@@ -706,7 +732,9 @@ public final class NpcManager implements Listener {
                 hand = n.enemy != null && c.ranged != null && c.ammo > 0 && n.loc().distanceSquared(n.enemy.getLocation()) > 25 ? c.ranged
                         : c.weapon != null ? c.weapon : c.ranged;
             } else if (c.status == Status.CITIZEN) {
-                hand = c.tool;
+                // goods being hauled show in the hand while walking; the tool otherwise
+                ItemStack carry = carriedItem(n);
+                hand = carry != null ? carry : c.tool;
             }
         }
         if (same(hand, n.shownHand)) return;

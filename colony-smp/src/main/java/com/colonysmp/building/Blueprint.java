@@ -117,7 +117,7 @@ public final class Blueprint {
     /** The plan a build order follows (a standard plan or one of the colony's copies), or null. */
     public static Blueprint of(Colony c, BuildOrder j) {
         if (j.custom == null) return of(j.type);
-        CustomBlueprint cb = c.blueprints.get(CustomBlueprint.key(j.custom));
+        CustomBlueprint cb = ServerBlueprints.find(c, j.custom);
         return cb == null ? null : custom(cb);
     }
 

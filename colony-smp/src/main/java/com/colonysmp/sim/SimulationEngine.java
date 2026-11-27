@@ -35,6 +35,7 @@ public final class SimulationEngine {
     private final Jobs jobs;
     private final Academy academy;
     private final Trades trades;
+    private final Winter winter;
     private int cursor;
     /** While an admin fast-forwards a colony: the simulated day, so everything logged in the run agrees. */
     private Colony forwarding;
@@ -56,6 +57,11 @@ public final class SimulationEngine {
         this.jobs = new Jobs(plugin);
         this.academy = new Academy(plugin);
         this.trades = new Trades(plugin);
+        this.winter = new Winter(plugin);
+    }
+
+    public Winter winter() {
+        return winter;
     }
 
     public Academy academy() {
@@ -240,6 +246,7 @@ public final class SimulationEngine {
         jobs.daily(c, day);
         finances.daily(c, day);
         health.daily(c, day);
+        winter.daily(c, day);
         population.daily(c, day);
         order.daily(c, day);
         plugin.military().daily(c, day);

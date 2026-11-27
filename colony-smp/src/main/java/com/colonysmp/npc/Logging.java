@@ -99,7 +99,11 @@ public final class Logging {
             n.jobKey = null;
             return;
         }
-        if (now < n.actionAt) return;
+        if (now < n.actionAt) {
+            BlockPos next = n.work.get(n.workIdx);
+            if (next.loaded(w)) m.workHit(n, next.block(w));
+            return;
+        }
         BlockPos lp = n.work.get(n.workIdx++);
         if (!lp.loaded(w)) return;
         Block b = lp.block(w);

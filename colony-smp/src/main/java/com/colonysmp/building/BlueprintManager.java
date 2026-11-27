@@ -58,6 +58,8 @@ public final class BlueprintManager implements Listener {
         for (BuildingType t : BuildingType.values()) if (t != BuildingType.TOWN_HALL) out.add(t.name());
         Colony c = plugin.colonies().of(p);
         if (c != null) for (String k : c.blueprints.keySet()) out.add("copy:" + k);
+        // the server's plans, unless the colony has its own copy of that name
+        for (String k : ServerBlueprints.keys()) if (c == null || !c.blueprints.containsKey(k)) out.add("copy:" + k);
         return out;
     }
 
@@ -77,7 +79,7 @@ public final class BlueprintManager implements Listener {
         String s = selection(p);
         if (!s.startsWith("copy:")) return null;
         Colony c = plugin.colonies().of(p);
-        return c == null ? null : c.blueprints.get(s.substring(5));
+        return ServerBlueprints.find(c, s.substring(5));
     }
 
     public void select(Player p, BuildingType t) {
@@ -99,8 +101,9 @@ public final class BlueprintManager implements Listener {
     private String describe(Player p, String sel) {
         if (sel.startsWith("copy:")) {
             Colony c = plugin.colonies().of(p);
-            CustomBlueprint cb = c == null ? null : c.blueprints.get(sel.substring(5));
-            return cb == null ? "?" : "<white>" + Text.esc(cb.name) + "</white> <dark_gray>- <gray>your copy, " + cb.size() + ", " + cb.solid() + " blocks";
+            CustomBlueprint cb = ServerBlueprints.find(c, sel.substring(5));
+            boolean own = c != null && c.blueprints.containsKey(sel.substring(5));
+            return cb == null ? "?" : "<white>" + Text.esc(cb.name) + "</white> <dark_gray>- <gray>" + (own ? "your copy" : "a server plan") + ", " + cb.size() + ", " + cb.solid() + " blocks <gold>[can be ordered]";
         }
         BuildingType t = BuildingType.valueOf(sel);
         return "<white>" + t.display + "</white> <dark_gray>(" + t.category.display + ")</dark_gray> <gray>" + t.description

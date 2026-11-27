@@ -2,6 +2,7 @@ name: ColonySMP
 version: '${version}'
 main: com.colonysmp.ColonySMP
 api-version: '1.21'
+softdepend: [WorldGuard]
 author: ModdedRealms
 description: Colonies of simulated citizens for SMP servers, in a living world of NPC civilisations that farm, mine, barter, make treaties and go to war whether or not anyone is watching.
 
@@ -36,6 +37,7 @@ permissions:
       colonysmp.admin.event: true
       colonysmp.admin.give: true
       colonysmp.admin.tier: true
+      colonysmp.admin.blueprint: true
       colonysmp.admin.season: true
       colonysmp.admin.audit: true
       colonysmp.admin.audit.resolve: true
@@ -73,6 +75,9 @@ permissions:
     default: op
   colonysmp.admin.give:
     description: Put goods in a player's colony storage (/colonyadmin give)
+    default: op
+  colonysmp.admin.blueprint:
+    description: Share a colony's copy as a plan for every colony, list and reload the server's plans
     default: op
   colonysmp.admin.tier:
     description: Set a colony's tier for testing (/colonyadmin tier)

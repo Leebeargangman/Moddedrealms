@@ -26,6 +26,123 @@ debug:
   # Only these systems (empty = all of them): bodies, simulation, saving, raids, onboarding, protection, admin
   systems: []
 
+# ───────────── Tiers (features.tiers) ─────────────
+# Camp, Village, Town, City and Kingdom are the Town Hall's levels 1-5; Empire comes with empires (features.empires).
+# Moving up is one click in /colony once the colony has what the next tier asks for, paid from the treasury and
+# storage. With features.tiers off the Town Hall upgrades the old way and nothing below is locked.
+#   settlers:       people needed (free citizens)
+#   max-settlers:   most people the colony can hold at this tier (0 = no limit beyond beds and food)
+#   buildings:      registered, working buildings needed (type: how many)
+#   money:          from the treasury
+#   goods:          from storage ("#planks" and "#log" take any kind)
+#   jobs:           jobs that open at this tier (a job also waits for a building where it can work)
+#   building-types: building types that can be registered from this tier; anything not listed is open from Camp
+#   unlocks:        what the colony is told it gained (also shown in the menu)
+# A tier left out of this file comes from the plugin's own copy. Land still grows with the Town Hall level
+# (colonies.base-chunks and chunks-per-level).
+tiers:
+  announce: true           # tell the whole server when a colony moves up
+  fireworks: 4             # fireworks over the Town Hall (0 = none)
+  levels:
+    1:
+      name: Camp
+      colour: "<gray>"
+      max-settlers: 8
+      unlocks:
+        - "Farmers, woodcutters, miners, builders and guards"
+        - "Houses, farms, a woodcutter's hut, a mine, pens and a fishery"
+    2:
+      name: Village
+      colour: "<green>"
+      settlers: 5
+      max-settlers: 16
+      buildings: {HOUSE: 2, FARM: 1, FORESTRY: 1}
+      money: 400
+      goods: {"#planks": 96, cobblestone: 64, iron_ingot: 4}
+      jobs: [SOLDIER]
+      building-types: [BLACKSMITH, MILL, BAKERY, KITCHEN, BUTCHER, INN, WAREHOUSE, GRANARY, CARPENTRY, MASONRY, STABLES, WATCHTOWER]
+      unlocks:
+        - "Blacksmith, mill, bakery, kitchen, butcher and inn"
+        - "Warehouse, granary, carpentry and masonry"
+        - "Watchtowers and soldiers"
+        - "Room for 16 settlers and more land"
+    3:
+      name: Town
+      colour: "<aqua>"
+      settlers: 12
+      max-settlers: 30
+      buildings: {HOUSE: 4, BLACKSMITH: 1, WAREHOUSE: 1}
+      money: 900
+      goods: {stone_bricks: 128, "#planks": 128, iron_ingot: 16, glass: 32}
+      building-types: [MARKET, TRADING_POST, RESTAURANT, SCHOOL, CLINIC, TAVERN, LIBRARY, BARRACKS, PRISON, APIARY]
+      unlocks:
+        - "Market and trading post"
+        - "School, clinic, tavern and library"
+        - "Barracks and a prison"
+        - "Room for 30 settlers and more land"
+    4:
+      name: City
+      colour: "<gold>"
+      settlers: 25
+      max-settlers: 50
+      buildings: {HOUSE: 8, MARKET: 1, SCHOOL: 1}
+      money: 2000
+      goods: {stone_bricks: 256, "#planks": 192, iron_ingot: 32, glass: 64}
+      building-types: [WORKSHOP, ENGINEERING_WORKSHOP, UNIVERSITY, TRAINING_GROUND, ARCHERY_RANGE, ARMOURY, DRUID_GROVE]
+      unlocks:
+        - "Workshop and engineers"
+        - "University and research"
+        - "Training ground, archery range and armoury"
+        - "Room for 50 settlers and more land"
+    5:
+      name: Kingdom
+      colour: "<light_purple>"
+      settlers: 45
+      max-settlers: 0
+      buildings: {HOUSE: 14, BARRACKS: 1, UNIVERSITY: 1}
+      money: 4000
+      goods: {stone_bricks: 512, "#planks": 256, iron_ingot: 64, gold_ingot: 32, glass: 96}
+      building-types: [ENCHANTERS_TOWER]
+      unlocks:
+        - "Enchanter's tower"
+        - "No limit on settlers"
+        - "The most land a colony can hold"
+    6:
+      name: Empire
+      colour: "<red>"
+      unlocks:
+        - "Rule other colonies (comes with empires)"
+
+# ───────────── Winter needs (features.winter-needs) ─────────────
+# Settlers need warmth as well as food. A house with a fire inside (a campfire, furnace or smoker) keeps the people
+# who live there warm, and the Town Hall's hearth warms a few more. Every fire burns firewood from storage once a day.
+# Without warmth settlers get cold: unhappy first, then slower at work, and misery can make one leave (never more
+# than max-leave-per-day a day). Colonies in their founding grace or first steps are spared. The cold never
+# destroys a colony. Switch it per season with features.winter-needs and months.
+winter:
+  # Months (1-12) it applies in; empty = all year while features.winter-needs is on.
+  months: [12, 1, 2]
+  # What burns, in the order it's used. "#log" and "#planks" take any kind; "#planks*4" = 4 planks per firewood.
+  fuel: ["#log", charcoal, coal, "#planks*4"]
+  # Firewood a heated house burns a day, and the Town Hall hearth.
+  house-firewood: 1
+  hall-firewood: 2
+  # People the Town Hall hearth keeps warm, on top of those in heated houses.
+  hall-warms: 5
+  # Days without warmth before cold becomes freezing.
+  freezing-after-days: 2
+  # Mood: warm by a fire / cold / freezing.
+  mood-warm: 2
+  mood-cold: -6
+  mood-freezing: -14
+  # Work speed when cold / freezing (1 = normal).
+  work-cold: 0.85
+  work-freezing: 0.7
+  # Most settlers who may leave a colony in one day out of misery, while it's winter.
+  max-leave-per-day: 1
+  # Tell members when the firewood left lasts fewer days than this.
+  warn-days: 2
+
 # ───────────── New players (features.onboarding / starter-camp / funnel) ─────────────
 onboarding:
   # Days for "returned_next_day" are counted in this timezone.
@@ -113,6 +230,10 @@ colonies:
   # Places no colony may be founded or claim land: "world,x,z,radius,name". Other plugins (ModdedrealmsSMP's
   # towns) add their own through the API.
   no-found-zones: []
+  # Keep new colonies and claims off land a WorldGuard region covers (only if WorldGuard is installed). Regions
+  # named here don't count, for example a region that only sets flags over the whole wild.
+  respect-worldguard: true
+  worldguard-allowed: []
 
 protection:
   # Players can't fight each other on colony land unless their colonies are at war.

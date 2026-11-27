@@ -66,6 +66,9 @@ public final class ColonySMP extends JavaPlugin {
     private BlueprintManager blueprints;
     private BuildingMarker markers;
     private QuestManager quests;
+    private com.colonysmp.colony.Tiers tiers;
+    private com.colonysmp.colony.WorldGuardCheck worldGuard;
+    private com.colonysmp.building.ServerBlueprints serverBlueprints;
     private NpcManager npcs;
     private SimulationEngine sim;
     private MilitaryManager military;
@@ -121,12 +124,15 @@ public final class ColonySMP extends JavaPlugin {
         prison = new PrisonManager(this);
         travelers = new TravelerManager(this);
         quests = new QuestManager(this);
+        tiers = new com.colonysmp.colony.Tiers(this);
         raids = new RaidManager(this);
         requests = new RequestManager(this);
         happenings = new Happenings(this);
         milestones = new Milestones(this);
         christmas = new Christmas(this);
         blueprints = new BlueprintManager(this);
+        serverBlueprints = new com.colonysmp.building.ServerBlueprints(this);
+        serverBlueprints.load();
         markers = new BuildingMarker(this);
         selection = new SelectionManager(this);
         townHall = new TownHallListener(this);
@@ -333,6 +339,10 @@ public final class ColonySMP extends JavaPlugin {
         economy.configure();
         civs.configure();
         christmas.reload();
+        tiers.reload();
+        worldGuard = null;
+        serverBlueprints.load();
+        sim.winter().reload();
         sim.citizens().reload();
         for (Colony c : colonies.list()) buildings.changed(c);
         requestSave();
@@ -359,7 +369,13 @@ public final class ColonySMP extends JavaPlugin {
     /** The name of the place that keeps colonies off this chunk (config or another plugin), or null. */
     public String noFoundZone(String world, int cx, int cz) {
         Settings.Zone z = settings.noFoundZone(world, cx, cz);
-        return z != null ? z.label() : com.colonysmp.api.ColonyApi.zoneAt(world, cx, cz);
+        if (z != null) return z.label();
+        String api = com.colonysmp.api.ColonyApi.zoneAt(world, cx, cz);
+        if (api != null) return api;
+        if (!getConfig().getBoolean("colonies.respect-worldguard")) return null;
+        if (worldGuard == null) worldGuard = new com.colonysmp.colony.WorldGuardCheck(getLogger(), getConfig().getStringList("colonies.worldguard-allowed"));
+        String region = worldGuard.regionAt(world, cx, cz);
+        return region == null ? null : "the protected area \"" + region + "\"";
     }
 
     public Settings settings() {
@@ -404,6 +420,14 @@ public final class ColonySMP extends JavaPlugin {
 
     public QuestManager quests() {
         return quests;
+    }
+
+    public com.colonysmp.building.ServerBlueprints serverBlueprints() {
+        return serverBlueprints;
+    }
+
+    public com.colonysmp.colony.Tiers tiers() {
+        return tiers;
     }
 
     public NpcManager npcs() {

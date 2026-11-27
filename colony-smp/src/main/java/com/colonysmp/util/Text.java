@@ -56,12 +56,17 @@ public final class Text {
                 Duration.ofMillis(fadeIn * 50L), Duration.ofMillis(stay * 50L), Duration.ofMillis(fadeOut * 50L))));
     }
 
-    /** Escapes user-provided text (colony names, player names) for MiniMessage. */
     /** An item's name as plain text. */
     public static String plain(org.bukkit.inventory.ItemStack it) {
         return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(it.effectiveName());
     }
 
+    /** MiniMessage text as plain text (history entries, logs). */
+    public static String plainOf(String mm) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(mm(mm));
+    }
+
+    /** Escapes user-provided text (colony names, player names) for MiniMessage. */
     public static String esc(String s) {
         return s == null ? "" : MM.escapeTags(s);
     }

@@ -116,6 +116,8 @@ public final class Population {
         int pop = col.citizens.size();
         if (pop >= s.maxPopulation) return "The colony is at the server's population limit (" + s.maxPopulation + ").";
         if (col.policies.populationLimit > 0 && pop >= col.policies.populationLimit) return "The colony's population policy caps it at " + col.policies.populationLimit + ".";
+        String full = plugin.tiers().full(col);
+        if (full != null) return full;
         if (freeBeds(col) <= 0) return "There's no free bed. Build or register another house.";
         if (plugin.sim().finances().foodDays(col) < 1) return "There isn't a day's food in storage for one more mouth.";
         return null;
@@ -178,7 +180,7 @@ public final class Population {
             // misery
             if (c.needs.mood < s.emigrateBelow && c.trait != Trait.LOYAL) c.miserableDays++;
             else c.miserableDays = 0;
-            if (c.miserableDays >= s.emigrateDays && col.population() > 2 && !col.inGrace() && r.nextDouble() < s.emigrateChance) {
+            if (c.miserableDays >= s.emigrateDays && col.population() > 2 && !col.inGrace() && r.nextDouble() < s.emigrateChance && plugin.sim().winter().mayLeave(col)) {
                 leave(col, c, "was miserable for too long and left the colony (" + plugin.sim().citizens().why(col, c).toLowerCase() + ")");
             }
         }
