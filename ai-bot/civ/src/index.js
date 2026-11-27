@@ -21,7 +21,8 @@ import * as board from "./village/board.js";
 import * as roster from "./village/roster.js";
 import * as blueprints from "./build/blueprints.js";
 import { village, start as startVillage, stop as stopVillage } from "./village/village.js";
-import { schedule, inWindow, windowText } from "./schedule.js";
+import { schedule, inWindow, windowText, windowKey } from "./schedule.js";
+import { kv } from "./village/db.js";
 import { connectWebsite } from "./web/link.js";
 import { startElders } from "./ai/leader.js";
 import * as settings from "./settings.js";
@@ -132,6 +133,8 @@ if (options.scheduled) {
   log.info("civ", `scheduled mode: sessions ${windowText()} (${schedule().timezone}); waiting for the window`);
   const check = async () => {
     const inside = inWindow();
+    // "End the session" on the website during the window means: done for today. Don't log them back in.
+    if (inside && !session && kv("scheduleSkip") === windowKey()) return;
     if (inside && !session) await startSession("schedule");
     else if (!inside && session && session.reason === "schedule") await endSession("schedule window over");
   };

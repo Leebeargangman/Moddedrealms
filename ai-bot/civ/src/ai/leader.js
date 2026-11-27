@@ -17,8 +17,9 @@ import { village } from "../village/village.js";
 import * as settings from "../settings.js";
 
 const SYSTEM = `You are the council of elders of an AI villager civilisation in Minecraft survival. Every 15 minutes you read a summary of the village and give it direction. Reply with ONE JSON object:
-{"plan":"<at most 3 short sentences: what the village should focus on next and why>","jobs":[{"action":"gather|craft|explore|attack","target":"<item, block or mob>","amount":<number>}]}
-Up to 3 jobs, only things the village really lacks now, in Minecraft names (oak_log, cobblestone, stone_pickaxe, cow...). Follow the progression: wood and tools, then food and shelter (huts), storage, then stone, iron, farms, houses, walls. Keep villagers alive: food and shelter before ambition. Never mention imposters or accuse anyone: you do not know who they are.`;
+{"plan":"<at most 3 short sentences: what the village should focus on next and why>","jobs":[{"action":"gather|craft|mine|smelt|gearup|build|explore|attack","target":"<item, ore, blueprint or mob>","amount":<number>}]}
+Up to 3 jobs, only things the village really lacks now. Job kinds: gather (wood, stone, sand...), craft (an item), mine (iron, coal, copper, gold, diamond: digs down for ore), smelt (raw_iron, sand, beef...), gearup (target "everyone": make stone/iron tools and armour), build (a blueprint name), explore, attack (a mob, e.g. cow for food). Use Minecraft names.
+Never ask for what the chests already hold plenty of: use it instead (e.g. lots of logs and cobblestone stored but nobody has stone tools -> gearup; huts unbuilt -> build). Follow the progression: stone tools for everyone, food, shelter (huts), coal and iron (mine, smelt), iron tools and armour (gearup), then houses, farms, walls. Keep villagers alive: food and shelter before ambition. Never mention imposters or accuse anyone: you do not know who they are.`;
 
 const SCHEMA = {
   type: "object",
@@ -36,11 +37,17 @@ function summary(f) {
   for (const v of alive) roles[v.role] = (roles[v.role] || 0) + 1;
   const bots = [...village.bots.values()].filter((b) => b.ready && roster.factionOf(b.def.name) === f);
   const hungry = bots.filter((b) => b.bot.food <= 10).length;
+  // What gear the villagers carry (the elders can't see inventories otherwise).
+  const tier = (b, kind) => ["iron", "stone", "wooden"].find((t) => b.bot.inventory.items().some((it) => it.name === `${t}_${kind}`)) || "none";
+  const gear = {};
+  for (const b of bots) { const t = tier(b, "pickaxe"); gear[t] = (gear[t] || 0) + 1; }
+  const armoured = bots.filter((b) => ["head", "torso"].some((s) => b.bot.inventory.slots[b.bot.getEquipmentDestSlot(s)])).length;
   const lead = society.leader(f);
   const many = roster.factionNames().length > 1;
   return [
     many ? `You advise the ${f} civilisation only. Others: ${roster.factionNames().filter((x) => x !== f).join(", ")}${settings.get().war ? " (at war)" : ""}.` : "",
     `Day ${village.day ?? "?"}. ${alive.length} villagers alive (${Object.entries(roles).map(([r, n]) => `${n} ${r}`).join(", ")}), ${bots.length} online, ${hungry} hungry.`,
+    `Pickaxes: ${Object.entries(gear).map(([t, n]) => `${n} ${t}`).join(", ") || "unknown"}. Wearing armour: ${armoured}.`,
     `Leader: ${lead?.name || "none"}. Laws: ${society.laws(f).map((l) => l.text).join(" | ") || "none"}.`,
     chests.text(f),
     builder.text(f),
@@ -52,7 +59,7 @@ function summary(f) {
 
 const planKey = (f) => (f === roster.factionNames()[0] ? "elderPlan" : `elderPlan:${f}`);
 
-async function consultAll() {
+export async function consultAll() {
   for (const f of roster.factionNames()) await consult(f);
 }
 

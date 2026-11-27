@@ -16,7 +16,7 @@ const first = () => roster.factionNames()[0] ?? ""; // "" when there are none ye
 
 const CLAIM_EXPIRES_MS = 15 * 60000;
 const MAX_OPEN = 12;          // keep the board short: it is part of every prompt
-const BOARD_ACTIONS = new Set(["gather", "craft", "goto", "explore", "attack"]); // jobs a bot can actually do
+const BOARD_ACTIONS = new Set(["gather", "craft", "goto", "explore", "attack", "mine", "smelt", "gearup", "build"]); // jobs a bot can actually do
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS tasks (

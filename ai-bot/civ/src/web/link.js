@@ -12,7 +12,8 @@ import { ROOT, config } from "../config.js";
 import { log } from "../log.js";
 import { snapshot } from "./status.js";
 import { setPaused } from "../ai/client.js";
-import { schedule } from "../schedule.js";
+import { schedule, inWindow, windowKey } from "../schedule.js";
+import { kv } from "../village/db.js";
 import * as settings from "../settings.js";
 import { resetMemories, resetEverything } from "../village/reset.js";
 import { village } from "../village/village.js";
@@ -54,8 +55,13 @@ export function connectWebsite(control) {
   async function run(cmd) {
     let r;
     try {
+      if (cmd.command === "civStart") kv("scheduleSkip", null); // a manual start cancels "done for today"
       if (cmd.command === "civStart") r = await control.startSession(`started from the website by ${cmd.staff?.name || "staff"}`, Number(cmd.args?.minutes) || schedule().manualMinutes);
-      else if (cmd.command === "civStop") r = await control.endSession(`stopped from the website by ${cmd.staff?.name || "staff"}`);
+      else if (cmd.command === "civStop") {
+        r = await control.endSession(`stopped from the website by ${cmd.staff?.name || "staff"}`);
+        // Done for today: the schedule must not start it again until the next window.
+        if (inWindow()) { kv("scheduleSkip", windowKey()); r = { ...r, detail: `${r.detail}; no more sessions until the next scheduled window` }; }
+      }
       else if (cmd.command === "civPause") { setPaused(true); r = { ok: true, detail: "AI paused: villagers use plain-code behaviour, no API calls" }; }
       else if (cmd.command === "civResume") { setPaused(false); r = { ok: true, detail: "AI resumed" }; }
       else if (cmd.command === "civReset") {

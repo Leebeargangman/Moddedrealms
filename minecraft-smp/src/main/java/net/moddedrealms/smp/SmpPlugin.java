@@ -4,6 +4,7 @@ import java.io.File;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.moddedrealms.smp.crate.CrateManager;
+import net.moddedrealms.smp.grave.GraveManager;
 import net.moddedrealms.smp.npc.Dialogues;
 import net.moddedrealms.smp.npc.NpcCommand;
 import net.moddedrealms.smp.npc.NpcManager;
@@ -26,6 +27,7 @@ public final class SmpPlugin extends JavaPlugin {
     private CrateManager crates;
     private TownManager town;
     private net.moddedrealms.smp.season.SeasonManager season;
+    private GraveManager graves;
     private PackSender packSender;
     private Feedback feedback;
     private Insights insights;
@@ -52,12 +54,16 @@ public final class SmpPlugin extends JavaPlugin {
         plaza = new PlazaBuilder(this);
         town = new TownManager(this);
         season = new net.moddedrealms.smp.season.SeasonManager(this);
+        graves = new GraveManager(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(npcs, this);
         pm.registerEvents(quests, this);
         pm.registerEvents(crates, this);
         pm.registerEvents(new Welcome(this), this);
+        pm.registerEvents(graves, this);
+        getCommand("graves").setExecutor(graves);
+        getCommand("graves").setTabCompleter(graves);
         packSender = new PackSender(this);
         pm.registerEvents(packSender, this);
         feedback = new Feedback(this);
@@ -136,6 +142,7 @@ public final class SmpPlugin extends JavaPlugin {
         npcs.start();
         quests.start();
         town.start();
+        graves.start();
         feedback.start();
         insights.start();
         drops.start();
@@ -146,6 +153,7 @@ public final class SmpPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (graves != null) graves.stop();
         if (duels != null) duels.shutdown();
         if (drops != null) drops.shutdown();
         if (boards != null) boards.shutdown();
@@ -168,6 +176,7 @@ public final class SmpPlugin extends JavaPlugin {
         crates.reload();
         npcs.reload();
         town.loadSettings();
+        graves.loadSettings();
     }
 
     public YamlConfiguration yaml(String name) {
@@ -187,6 +196,7 @@ public final class SmpPlugin extends JavaPlugin {
     public TownManager town() { return town; }
     /** Season 1: advent calendar, countdown, cosmetics (season.yml). */
     public net.moddedrealms.smp.season.SeasonManager season() { return season; }
+    public GraveManager graves() { return graves; }
     public Feedback feedback() { return feedback; }
     public Reports reports() { return reports; }
     public Insights insights() { return insights; }

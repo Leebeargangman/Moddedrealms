@@ -4,7 +4,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { DATA_DIR, config } from "../config.js";
+import { DATA_DIR, config, provider, model as currentModel } from "../config.js";
+import { DatabaseSync } from "node:sqlite";
 
 // Before any real session has been measured: our 20-villager tests came to about $0.85 per 3 hours.
 const FALLBACK_PER_BOT_MINUTE = 0.85 / 20 / 180;
@@ -28,7 +29,24 @@ export function costModel() {
     // no reports yet
   }
   const perBotMinute = botMinutes > 0 ? cost / botMinutes : FALLBACK_PER_BOT_MINUTE;
-  const elderPerSession = config.leader?.enabled ? 0.06 : 0; // ~12 bigger-model calls a 3-hour session
-  cached = { at: Date.now(), value: { perBotMinute, measuredSessions: sessions, elderPerSession } };
+  // The average villager call, measured: tokens not cached, read from the cache, and written.
+  let avg = { uncached: 700, cached: 2100, out: 55 };
+  try {
+    const db = new DatabaseSync(path.join(DATA_DIR, "usage.db"), { readOnly: true });
+    const r = db.prepare("SELECT AVG(input + cache_write) u, AVG(cache_read) c, AVG(output) o, COUNT(*) n FROM api_calls WHERE kind = 'decide' AND model != 'mock' AND id > (SELECT MAX(id) FROM api_calls) - 5000").get();
+    if (r?.n > 50) avg = { uncached: r.u, cached: r.c, out: r.o };
+    db.close();
+  } catch { /* no data yet */ }
+  const price = (m, t) => {
+    const p = config.pricing[m];
+    return p ? (t.uncached * p.input + t.cached * p.cacheRead + t.out * p.output) / 1e6 : 0;
+  };
+  const smartModel = provider === "openai" ? config.leader.openaiModel : config.leader.model;
+  const normalCall = price(currentModel === "mock" ? config.ai.model : currentModel, avg);
+  const smartCall = price(smartModel, avg);
+  // An elder consultation: a ~1,500-token summary (not cached) and a ~250-token plan.
+  const elderCall = price(smartModel, { uncached: 1500, cached: 0, out: 250 });
+  const callsPerBotMinute = normalCall > 0 ? perBotMinute / normalCall : 1.8;
+  cached = { at: Date.now(), value: { perBotMinute, measuredSessions: sessions, avg, normalCall, smartModel, smartCall, elderCall, callsPerBotMinute, elderEveryMinutes: config.leader.everyMinutes } };
   return cached.value;
 }

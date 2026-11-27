@@ -9,7 +9,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { config, DATA_DIR } from "../config.js";
+import { config, DATA_DIR, options, provider } from "../config.js";
 import { log } from "../log.js";
 import { ask, cooldownMultiplier } from "../ai/client.js";
 import { SYSTEM_PROMPT, IMPOSTER_PROMPT, MEMORY_SYSTEM } from "../ai/prompts.js";
@@ -215,7 +215,11 @@ export class Brain {
       const wake = batch.filter((e) => e.woke).map((e) => e.wake || "other").sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || "other";
       const imp = this.imposter;
       const free = factions.isFree();
-      const res = await ask({ bot: this.name, kind: "decide", system: systemBlocks(imp), user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : free ? FREE_SCHEMA : ACTION_SCHEMA, trigger: wake });
+      // Website option "smarter leader": the elected leader of a civilisation thinks with a bigger model.
+      const smart = settings.get().smartLeader;
+      const leads = (smart === "leader" || smart === "both") && society.leader(roster.factionOf(this.name))?.name === this.name;
+      const leaderModel = leads && !options.mock ? (provider === "openai" ? config.leader.openaiModel : config.leader.model) : null;
+      const res = await ask({ bot: this.name, kind: "decide", system: systemBlocks(imp), user, maxTokens: config.ai.maxTokens, schema: imp ? IMPOSTER_SCHEMA : free ? FREE_SCHEMA : ACTION_SCHEMA, trigger: wake, model: leaderModel });
       let action;
       if (res.text) {
         const parsed = parseAction(res.text, { imposter: imp, free });
