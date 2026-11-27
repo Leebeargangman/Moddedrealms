@@ -26,6 +26,7 @@ admin:
     - " <white>give <player> <resource> <amount></white> <gray>goods into a player's colony storage"
     - " <white>tier <colony> <tier></white> <gray>set a colony's tier (testing)"
     - " <white>blueprint list|reload|preview <name>|share <colony> <copy></white> <gray>plans every colony can order"
+    - " <white>challenge [next]</white> <gray>today's colony challenge; next ends it early and picks another"
     - " <white>season end [confirm]</white> <gray>archive and reset the season"
   reload:
     ok: "<green>Reloaded config.yml and messages.yml."
@@ -44,6 +45,8 @@ admin:
     done: "<green>Put {amount} {resource} in {colony}'s storage."
     partly: "<yellow>Storage was full: only {amount} {resource} went into {colony}'s storage."
     item: "<green>Gave {player} a {resource}."
+  challenge:
+    next: "<green>Ended today's challenge (the first to finish got the bonus). New one: <white>{text}"
   blueprint:
     usage: "<gray>Usage: <white>/colonyadmin blueprint list|reload|preview <name>|share <colony> <copy name></white>"
     unknown: "<red>No plan called <white>{name}</white>. <gray>/colonyadmin blueprint list"
@@ -342,3 +345,24 @@ friends:
   welcome-subtitle: "<gray>{player} let you in. Welcome!"
   welcome: "<green>Welcome to {colony}! <gray>Your Colony Charter opens the colony menu. Help your friends with the tasks on the bar."
   together: "<gold>★ <white>You and {player} have played in {colony} together for {minutes} minutes! <gray>Reward: <white>{rewards}"
+
+# ───────────── Daily challenges (features.daily-challenges) ─────────────
+challenges:
+  off: "<gray>Daily colony challenges aren't on right now."
+  none-yet: "<gray>Today's challenge is being picked. Try again in a moment."
+  new: "<gold>☀ Today's colony challenge: <white>{text}</white> <gray>(your colony's target: {target}) · /colony challenge"
+  header: "<gold><bold>Today's colony challenge:</bold> <white>{text}"
+  yours: "<gray>Your colony: {bar} <white>{have}/{need}"
+  yours-done: "<green>✔ Your colony has done it today!"
+  rank: "<white>{n}. {colony} {state}"
+  reset: "<dark_gray>A new challenge every midnight (UK time). The first colony to finish gets a bonus."
+  menu: "<gold>Today: <white>{text} <gray>· {state}"
+  done-title: "<gold>Challenge done!"
+  done-subtitle: "<gray>{text}"
+  done: "<gold>★ <white>Daily challenge done: {text}! <gray>Reward: <white>{rewards}"
+  first: "<gold>★ <white>{colony} is the first colony to finish today's challenge: <gray>{text}"
+  best: "<gold>★ <white>{colony} was the first to finish yesterday's challenge and wins the bonus: <gray>{rewards}"
+  board-title: "<gold><bold>☀ Today's Colony Challenge"
+  board-text: "<white>{text}"
+  board-empty: "<gray>No colony has made a start yet.\n<gray>Found one with Elder Rowan!"
+  board-footer: "<dark_gray>/colony challenge · new every midnight"

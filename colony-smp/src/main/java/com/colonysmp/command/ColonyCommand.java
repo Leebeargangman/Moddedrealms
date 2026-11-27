@@ -58,7 +58,7 @@ import java.util.UUID;
 /** /colony: every player command, and the admin tools under /colony admin. */
 public final class ColonyCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBS = List.of("help", "start", "tasks", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "ask", "letin", "turnaway", "leave", "kick", "members",
+    private static final List<String> SUBS = List.of("help", "start", "tasks", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "ask", "letin", "turnaway", "challenge", "leave", "kick", "members",
             "promote", "demote", "rename", "settings", "menu", "core", "book", "marker", "wand", "rope", "baton", "banner", "disband", "quests",
             "citizens", "citizen", "jobs", "assign", "home", "needs", "settler", "traveller", "exile", "release",
             "buildings", "building", "validate", "upgrade", "construction",
@@ -167,6 +167,9 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             }
             case "invite" -> invite(p, c, a);
             case "join" -> join(p, a);
+            case "challenge", "challenges" -> {
+                for (String line : plugin.challenges().describe(c)) Text.raw(p, line);
+            }
             case "ask" -> {
                 Colony t = a.length == 0 ? null : plugin.colonies().byName(String.join(" ", a));
                 String err = plugin.friends().ask(p, t);

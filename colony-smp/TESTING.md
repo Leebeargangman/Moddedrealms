@@ -207,3 +207,24 @@ Switches: ColonySMP `features.friends`, SMP `referrals.enabled`. For a quick tes
 Steps 1–7 and 9 as above: B was taken 618 blocks to A's camp, landing 5 blocks from A; both got the played-together
 reward after a minute and the invite rewards at two minutes. No errors in the server log. Not covered: step 8, the
 same-address refusal (bots share an address), a reward owed to an offline referrer, and Bedrock players.
+
+## Release 5: daily challenges (ColonySMP 2.10.0)
+
+Switch: `features.daily-challenges`. For the board, `challenges.board: "world, -389.5, 74, 471.5"`.
+
+1. Start the server: the log says "Today's colony challenge: …" within 15 seconds.
+2. Found a colony; `/colony challenge`: the challenge, "Your colony: 0/100" with a bar, the top five (only colonies
+   that have made a start), and when it resets.
+3. Meet it (for a treasury challenge: `/colony admin treasury <colony> add 500`); within 30 seconds members get the
+   "Challenge done!" title and the reward, and everyone gets "X is the first colony to finish today's challenge".
+4. `/colony` → Tasks and goals shows "Today: … · ✔ done".
+5. `/colonyadmin challenge next` ends the day: the first finisher gets the bonus (announced), and a different
+   challenge starts with fresh progress for everyone.
+6. Stand at spawn: the board south-east of Elder Rowan shows the title, the challenge and the leaders (or "No colony
+   has made a start yet").
+7. Change `challenges.pool` and `/colonyadmin reload`: if today's challenge is no longer in the pool, a new one is
+   picked at the next check.
+
+### Last run: 27 Nov 2026, local Paper 1.21.11, one bot player
+Steps 1–6 as above with a two-challenge test pool, and step 7 by hand (a saved challenge that no longer fit the pool
+was picked again). The board text was read back from the server. No errors in the server log.

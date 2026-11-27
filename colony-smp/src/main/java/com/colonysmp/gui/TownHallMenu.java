@@ -135,6 +135,8 @@ public final class TownHallMenu extends Menu {
         List<String> lore = new ArrayList<>();
         boolean steps = c.questStage <= QuestManager.COUNT;
         if (steps) lore.add("<gold>First steps: <white>" + Text.esc(plugin.quests().title(c.questStage)));
+        String today = plugin.challenges().menuLine(c);
+        if (today != null) lore.add(today);
         lore.add("<gray>" + c.requests.size() + " citizen requests open");
         lore.add("<gray>Milestones " + c.milestones.size() + "/" + plugin.milestones().all().size());
         lore.add("<dark_gray>Click to list in chat");

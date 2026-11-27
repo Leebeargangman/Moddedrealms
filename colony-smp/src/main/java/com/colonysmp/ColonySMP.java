@@ -70,6 +70,7 @@ public final class ColonySMP extends JavaPlugin {
     private com.colonysmp.colony.WorldGuardCheck worldGuard;
     private com.colonysmp.building.ServerBlueprints serverBlueprints;
     private com.colonysmp.onboard.Friends friends;
+    private com.colonysmp.colony.Challenges challenges;
     private NpcManager npcs;
     private SimulationEngine sim;
     private MilitaryManager military;
@@ -143,6 +144,7 @@ public final class ColonySMP extends JavaPlugin {
         camps = new com.colonysmp.onboard.StarterCamp(this);
         onboarding = new com.colonysmp.onboard.Onboarding(this);
         friends = new com.colonysmp.onboard.Friends(this);
+        challenges = new com.colonysmp.colony.Challenges(this);
         civCommand = new com.colonysmp.command.CivCommand(this);
         commands = new ColonyCommand(this);
         economy.configure();
@@ -232,6 +234,7 @@ public final class ColonySMP extends JavaPlugin {
         Bukkit.getScheduler().runTaskTimer(this, () -> guarded("camp sites", sites::tick), 200L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, () -> guarded("funnel", funnel::tick), 400L, 400L);
         Bukkit.getScheduler().runTaskTimer(this, () -> guarded("friends", friends::tick), 1200L, 1200L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("challenges", challenges::tick), 300L, 600L);
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             if (dirty) save();
         }, 600L, 600L);
@@ -261,6 +264,7 @@ public final class ColonySMP extends JavaPlugin {
     @Override
     public void onDisable() {
         com.colonysmp.api.ColonyApi.detach();
+        if (challenges != null) challenges.shutdown();
         if (!loaded) return;
         npcs.rememberAll();
         Snapshot snap = snapshot();
@@ -345,6 +349,7 @@ public final class ColonySMP extends JavaPlugin {
         tiers.reload();
         worldGuard = null;
         serverBlueprints.load();
+        challenges.reload();
         sim.winter().reload();
         sim.citizens().reload();
         for (Colony c : colonies.list()) buildings.changed(c);
@@ -423,6 +428,10 @@ public final class ColonySMP extends JavaPlugin {
 
     public QuestManager quests() {
         return quests;
+    }
+
+    public com.colonysmp.colony.Challenges challenges() {
+        return challenges;
     }
 
     public com.colonysmp.onboard.Friends friends() {

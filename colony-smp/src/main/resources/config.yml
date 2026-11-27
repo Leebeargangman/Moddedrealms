@@ -19,6 +19,7 @@ features:
   siege-block-damage: false # siege weapons break blocks (only in wars and raids, always rolled back)
   season-events: false     # advent, Winterfest, frost raids and the rest of the season
   friends: false           # ask to join a friend's colony (Rowan's menu, /colony ask), rewards for playing together
+  daily-challenges: false  # one colony challenge a day for everyone, with rewards and a board at spawn
 
 # ───────────── Debugging ─────────────
 debug:
@@ -126,6 +127,33 @@ friends:
   # these (once per player). Lines as in onboarding.rewards.
   together-minutes: 10
   together-rewards: ["money:50", "key:common:1"]
+
+# ───────────── Daily challenges (features.daily-challenges) ─────────────
+# At midnight (onboarding.timezone) one challenge from the pool is picked for every colony. Progress counts from
+# where each colony stood when the day began (or when it was founded that day). Kinds:
+#   gain      the good ("#log" = any log) in storage goes up by the amount (workers' deliveries and players' own)
+#   settlers  population goes up by the amount       buildings  more registered buildings
+#   requests  citizen requests answered              treasury   the treasury grows by the amount
+#   raids     raids driven off
+# Targets grow with the colony's tier: amount x (1 + scale-per-tier x (tier - 1)).
+# rewards go to every colony that finishes (treasury/good once; money, keys etc. to each member online then).
+# best-rewards go to the first colony to finish, when the day ends. Reward lines as in onboarding.rewards.
+# board: "world,x,y,z" for a floating board with the challenge and the leaders (empty = no board).
+challenges:
+  board: ""
+  scale-per-tier: 0.5
+  announce-first: true
+  rewards: ["treasury:60", "money:30"]
+  best-rewards: ["treasury:150", "key:common:1"]
+  pool:
+    - {kind: gain, good: "#log", amount: 64, text: "Bring 64 logs into storage"}
+    - {kind: gain, good: wheat, amount: 48, text: "Harvest 48 wheat"}
+    - {kind: gain, good: cobblestone, amount: 96, text: "Stock 96 cobblestone"}
+    - {kind: gain, good: bread, amount: 32, text: "Put 32 bread in storage"}
+    - {kind: settlers, amount: 1, text: "Welcome a new settler"}
+    - {kind: buildings, amount: 1, text: "Register a new building"}
+    - {kind: requests, amount: 2, text: "Answer 2 citizen requests"}
+    - {kind: treasury, amount: 100, text: "Grow the treasury by 100"}
 
 # ───────────── Winter needs (features.winter-needs) ─────────────
 # Settlers need warmth as well as food. A house with a fire inside (a campfire, furnace or smoker) keeps the people

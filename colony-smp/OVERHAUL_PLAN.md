@@ -299,3 +299,20 @@ daily challenges).
   other, at most 5 paid referrals a day per player, and nothing when both play from the same address (addresses are
   kept only as salted hashes). `/mrsmp onboarding` shows invited and paid.
 
+### Daily challenges (ColonySMP 2.10.0, tested locally, not deployed)
+
+- `features.daily-challenges`, `colony/Challenges.java`, `challenges:` in config, data in `challenges.yml`. At midnight
+  (UK time) one challenge from `challenges.pool` is picked for every colony: more logs, wheat, cobblestone or bread
+  in storage, a new settler, a new building, citizen requests answered, the treasury grown (raids driven off is
+  available too, not in the default pool). Progress counts from where each colony stood when the day began; targets
+  grow by half for each tier above Camp.
+- A colony that finishes gets `challenges.rewards` (60 to the treasury; $30 for each member online), with a title and
+  the line "X is the first colony to finish today's challenge" for the first. When the day ends, the first finisher
+  gets `challenges.best-rewards` (150 to the treasury and a common key).
+- `/colony challenge` shows the challenge, your progress bar and the top five; the Tasks and goals button has a
+  "Today: … · 45%" line. A board at `challenges.board` (planned live spot: `world, -389.5, 74, 471.5`, open air just
+  south-east of Elder Rowan, checked on the test copy of spawn) shows the challenge and the leaders.
+  `/colonyadmin challenge [next]` shows it or ends the day early.
+- Found in testing: a saved challenge that no longer fits an edited pool left the day without a challenge. It now
+  picks again.
+

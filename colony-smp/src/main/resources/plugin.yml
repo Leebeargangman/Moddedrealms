@@ -38,6 +38,7 @@ permissions:
       colonysmp.admin.give: true
       colonysmp.admin.tier: true
       colonysmp.admin.blueprint: true
+      colonysmp.admin.challenge: true
       colonysmp.admin.season: true
       colonysmp.admin.audit: true
       colonysmp.admin.audit.resolve: true
@@ -75,6 +76,9 @@ permissions:
     default: op
   colonysmp.admin.give:
     description: Put goods in a player's colony storage (/colonyadmin give)
+    default: op
+  colonysmp.admin.challenge:
+    description: See or move on the daily colony challenge (/colonyadmin challenge)
     default: op
   colonysmp.admin.blueprint:
     description: Share a colony's copy as a plan for every colony, list and reload the server's plans

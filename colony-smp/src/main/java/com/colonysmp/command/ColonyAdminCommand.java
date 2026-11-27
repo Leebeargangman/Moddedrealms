@@ -35,7 +35,7 @@ import java.util.TreeMap;
  */
 public final class ColonyAdminCommand implements TabExecutor {
 
-    private static final List<String> OWN = List.of("help", "cleanup", "debug", "reload", "funnel", "raid", "event", "give", "tier", "season", "blueprint");
+    private static final List<String> OWN = List.of("help", "cleanup", "debug", "reload", "funnel", "raid", "event", "give", "tier", "season", "blueprint", "challenge");
 
     private final ColonySMP plugin;
     private final AdminCommand older;
@@ -77,6 +77,15 @@ public final class ColonyAdminCommand implements TabExecutor {
             case "give" -> give(s, rest);
             case "tier" -> tier(s, rest);
             case "blueprint" -> blueprint(s, rest);
+            case "challenge" -> {
+                if (rest.length > 0 && rest[0].equalsIgnoreCase("next")) {
+                    String t = plugin.challenges().skip();
+                    plugin.getLogger().info(s.getName() + " moved the daily challenge on (/colonyadmin challenge next).");
+                    Messages.send(s, t == null ? "challenges.off" : "admin.challenge.next", "text", t == null ? "" : t);
+                } else {
+                    for (String line : plugin.challenges().describe(s instanceof org.bukkit.entity.Player p ? plugin.colonies().of(p) : null)) Text.raw(s, line);
+                }
+            }
             case "season" -> season(s, rest);
             default -> {
                 for (String l : Messages.lines("admin.help")) Text.raw(s, l);
