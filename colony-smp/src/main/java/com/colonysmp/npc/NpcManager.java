@@ -217,6 +217,7 @@ public final class NpcManager implements Listener {
     // ───────────── time and shared state ─────────────
 
     public Phase phase(Colony col, World w) {
+        if (plugin.quests().busy(col)) return Phase.WORK;
         long t = w.getTime();
         long start = col.policies.hours.start, end = col.policies.hours.end, bed = plugin.settings().eveningEnd;
         if (GameTime.within(t, start, end)) return Phase.WORK;

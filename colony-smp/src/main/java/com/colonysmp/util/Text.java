@@ -57,6 +57,11 @@ public final class Text {
     }
 
     /** Escapes user-provided text (colony names, player names) for MiniMessage. */
+    /** An item's name as plain text. */
+    public static String plain(org.bukkit.inventory.ItemStack it) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(it.effectiveName());
+    }
+
     public static String esc(String s) {
         return s == null ? "" : MM.escapeTags(s);
     }

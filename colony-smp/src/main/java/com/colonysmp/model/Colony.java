@@ -380,6 +380,7 @@ public final class Colony {
         s.set("grace-hours", graceHours);
         s.set("last-settlers-day", lastSettlersDay);
         s.set("quest-stage", questStage);
+        s.set("quest-version", com.colonysmp.colony.QuestManager.VERSION);
         s.set("founded", founded);
         List<String> hidden = new ArrayList<>();
         for (UUID u : questHidden) hidden.add(u.toString());
@@ -504,6 +505,7 @@ public final class Colony {
         c.graceHours = s.getDouble("grace-hours", 0);
         c.lastSettlersDay = s.getLong("last-settlers-day", c.foundedDay);
         c.questStage = s.getInt("quest-stage", 1);
+        if (s.getInt("quest-version", 1) < com.colonysmp.colony.QuestManager.VERSION) c.questStage = com.colonysmp.colony.QuestManager.migrate(c.questStage);
         c.founded = s.getBoolean("founded");
         for (String u : s.getStringList("quest-hidden")) {
             try {

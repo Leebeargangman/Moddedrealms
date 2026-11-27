@@ -85,6 +85,10 @@ public final class ColonySMP extends JavaPlugin {
     private com.colonysmp.colony.Founders founders;
     private com.colonysmp.world.CivManager civs;
     private com.colonysmp.command.CivCommand civCommand;
+    private com.colonysmp.onboard.Funnel funnel;
+    private com.colonysmp.onboard.SitePool sites;
+    private com.colonysmp.onboard.StarterCamp camps;
+    private com.colonysmp.onboard.Onboarding onboarding;
 
     private long tick;
     private boolean dirty, saving, loaded;
@@ -98,6 +102,8 @@ public final class ColonySMP extends JavaPlugin {
         if (msgErr != null) getLogger().severe("Using the built-in messages: " + msgErr);
         Keys.init(this);
         founders = new com.colonysmp.colony.Founders(this);
+        funnel = new com.colonysmp.onboard.Funnel(this);
+        funnel.open();
         int goods = ItemGoods.registerAll(settings.prices);
         items = new Items(this);
         items.registerRecipes();
@@ -126,6 +132,9 @@ public final class ColonySMP extends JavaPlugin {
         townHall = new TownHallListener(this);
         prompt = new ChatPrompt(this);
         civs = new com.colonysmp.world.CivManager(this);
+        sites = new com.colonysmp.onboard.SitePool(this);
+        camps = new com.colonysmp.onboard.StarterCamp(this);
+        onboarding = new com.colonysmp.onboard.Onboarding(this);
         civCommand = new com.colonysmp.command.CivCommand(this);
         commands = new ColonyCommand(this);
         economy.configure();
@@ -161,7 +170,8 @@ public final class ColonySMP extends JavaPlugin {
         }
 
         for (Listener l : new Listener[]{items, selection, blueprints, markers, quests, npcs, prison, travelers, wars, townHall, military, raids, requests, happenings, christmas,
-                new CombatListener(this), new ClaimListener(this), new MenuListener(), prompt, civs, new com.colonysmp.world.SettlementProtection(this, civs)}) {
+                new CombatListener(this), new ClaimListener(this), new MenuListener(), prompt, civs, new com.colonysmp.world.SettlementProtection(this, civs),
+                funnel, onboarding}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         PluginCommand cmd = getCommand("colony");
@@ -209,6 +219,10 @@ public final class ColonySMP extends JavaPlugin {
             selection.render();
             blueprints.render();
         }, 5L, 5L);
+        // new players: tips and nudges twice a second, camp sites searched every 2 s, the funnel's 5-minute mark
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("onboarding", onboarding::tick), 10L, 10L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("camp sites", sites::tick), 200L, 40L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("funnel", funnel::tick), 400L, 400L);
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             if (dirty) save();
         }, 600L, 600L);
@@ -252,6 +266,7 @@ public final class ColonySMP extends JavaPlugin {
         db.close();
         civs.shutdown();
         items.unregisterRecipes();
+        if (funnel != null) funnel.close();
     }
 
     // ───────────── saving ─────────────
@@ -467,5 +482,25 @@ public final class ColonySMP extends JavaPlugin {
 
     public com.colonysmp.command.CivCommand civCommand() {
         return civCommand;
+    }
+
+    /** New-player funnel, one-time hints and logoff snapshots (funnel.db). */
+    public com.colonysmp.onboard.Funnel funnel() {
+        return funnel;
+    }
+
+    /** Ready places for starter camps. */
+    public com.colonysmp.onboard.SitePool sites() {
+        return sites;
+    }
+
+    /** "Found a Colony" in one click. */
+    public com.colonysmp.onboard.StarterCamp camps() {
+        return camps;
+    }
+
+    /** Greetings, tips, nudges and away summaries for new colonies. */
+    public com.colonysmp.onboard.Onboarding onboarding() {
+        return onboarding;
     }
 }

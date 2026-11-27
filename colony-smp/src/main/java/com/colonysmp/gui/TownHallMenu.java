@@ -23,6 +23,8 @@ public final class TownHallMenu extends Menu {
         super(viewer, 5, "<dark_aqua>Town Hall · " + Text.esc(c.name));
         this.plugin = plugin;
         this.c = c;
+        plugin.funnel().record(viewer.getUniqueId(), "opened_menu");
+        plugin.quests().event(c, viewer, "menu");
     }
 
     private void chat(String command) {
@@ -34,8 +36,14 @@ public final class TownHallMenu extends Menu {
     protected void draw() {
         var info = plugin.commands().info();
         button(4, Material.LODESTONE, "<aqua><bold>" + Text.esc(c.name), info.colony(c), null);
-        button(19, Material.VILLAGER_SPAWN_EGG, "<green>Citizens", List.of("<gray>" + c.population() + " people: needs, jobs, homes", "<dark_gray>Click to open"),
-                k -> new CitizensMenu(plugin, viewer, c, null).open());
+        boolean jobStep = c.questStage == QuestManager.JOB;
+        List<String> citizensLore = new ArrayList<>(List.of("<gray>" + c.population() + " people: needs, jobs, homes", "<dark_gray>Click to open"));
+        if (jobStep) citizensLore.add(0, "<gold>◀ Next step: give a settler a job");
+        var citizensIcon = com.colonysmp.util.Items.icon(Material.VILLAGER_SPAWN_EGG, (jobStep ? "<gold><bold>" : "<green>") + "Citizens", citizensLore);
+        set(19, jobStep ? com.colonysmp.util.Items.glow(citizensIcon) : citizensIcon, k -> new CitizensMenu(plugin, viewer, c, null).open());
+        if (jobStep) {
+            set(18, com.colonysmp.util.Items.icon(Material.SPECTRAL_ARROW, "<gold><bold>Start here ▶", List.of("<gray>Open Citizens, pick a settler", "<gray>and give them a job.")));
+        }
         button(20, Material.IRON_PICKAXE, "<green>Jobs", List.of("<gray>Open places and who does what", "<dark_gray>Click to list in chat"), k -> chat("colony jobs"));
         button(21, Material.BRICKS, "<green>Buildings", List.of("<gray>" + c.buildings.size() + " registered buildings", "<dark_gray>Click to open"),
                 k -> new BuildingsMenu(plugin, viewer, c).open());

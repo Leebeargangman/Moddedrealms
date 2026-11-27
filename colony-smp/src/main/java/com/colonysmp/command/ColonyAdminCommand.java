@@ -68,6 +68,9 @@ public final class ColonyAdminCommand implements TabExecutor {
             }
             case "funnel" -> {
                 if (!plugin.settings().feature("funnel")) Messages.send(s, "admin.funnel.off");
+                for (String l : plugin.funnel().report(rest.length > 0 ? rest[0] : "7d")) Text.raw(s, l);
+                Messages.raw(s, "admin.funnel.sites", "status", plugin.sites().status(),
+                        "camps", plugin.settings().feature("starter-camp") ? "on" : "off");
             }
             case "raid" -> raid(s, rest);
             case "event" -> event(s, rest);

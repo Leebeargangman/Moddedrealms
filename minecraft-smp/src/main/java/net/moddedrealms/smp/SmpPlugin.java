@@ -28,6 +28,7 @@ public final class SmpPlugin extends JavaPlugin {
     private TownManager town;
     private net.moddedrealms.smp.season.SeasonManager season;
     private GraveManager graves;
+    private net.moddedrealms.smp.onboard.Onboarding onboarding;
     private PackSender packSender;
     private Feedback feedback;
     private Insights insights;
@@ -55,9 +56,11 @@ public final class SmpPlugin extends JavaPlugin {
         town = new TownManager(this);
         season = new net.moddedrealms.smp.season.SeasonManager(this);
         graves = new GraveManager(this);
+        onboarding = new net.moddedrealms.smp.onboard.Onboarding(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(npcs, this);
+        pm.registerEvents(onboarding, this);
         pm.registerEvents(quests, this);
         pm.registerEvents(crates, this);
         pm.registerEvents(new Welcome(this), this);
@@ -153,6 +156,7 @@ public final class SmpPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (onboarding != null) onboarding.shutdown();
         if (graves != null) graves.stop();
         if (duels != null) duels.shutdown();
         if (drops != null) drops.shutdown();
@@ -197,6 +201,8 @@ public final class SmpPlugin extends JavaPlugin {
     /** Season 1: advent calendar, countdown, cosmetics (season.yml). */
     public net.moddedrealms.smp.season.SeasonManager season() { return season; }
     public GraveManager graves() { return graves; }
+    /** Elder Rowan's START HERE flow for new players. */
+    public net.moddedrealms.smp.onboard.Onboarding onboarding() { return onboarding; }
     public Feedback feedback() { return feedback; }
     public Reports reports() { return reports; }
     public Insights insights() { return insights; }

@@ -26,6 +26,63 @@ debug:
   # Only these systems (empty = all of them): bodies, simulation, saving, raids, onboarding, protection, admin
   systems: []
 
+# ───────────── New players (features.onboarding / starter-camp / funnel) ─────────────
+onboarding:
+  # Days for "returned_next_day" are counted in this timezone.
+  timezone: Europe/London
+  # A settler reminds a player of their next step after this many seconds without progress...
+  idle-seconds: 60
+  # ...at most this many times per step.
+  nudges-per-step: 3
+  # Colony members with no bed or respawn anchor respawn at their colony instead of at spawn. During the founding
+  # grace, monsters also leave a founder alone on their own land.
+  respawn-at-colony: true
+  # "While you were away" is shown on login after at least this long offline.
+  away-minutes: 10
+  # The goals of steps 4 and 5 (see quests in messages.yml).
+  goals:
+    settlers: 5
+    food: 64
+  # Paid once per player for each first step, the moment it's done. Lines:
+  #   "treasury:25"       into the colony treasury       "good:oak_log:16"  into colony storage
+  #   "item:camp_banner"  the cosmetic colony banner      "item:<colonysmp item>" (wand, book, marker, rope...)
+  #   anything else goes to ModdedrealmsSMP: "money:40" (coins), "key:common:1", "xp:100", "cosmetic:<id>"
+  rewards:
+    step-1: ["money:10"]
+    step-2: ["money:15", "good:bread:8"]
+    step-3: ["money:40", "item:camp_banner", "key:common:1"]
+    step-4: ["money:50", "treasury:50"]
+    step-5: ["money:75", "key:colony:1"]
+  # Where starter camps go: a ring around the centre (empty = the world spawn), away from claims and builds.
+  sites:
+    world: world
+    centre: ""
+    min-distance: 450
+    max-distance: 1400
+    # Sites kept ready, and the least distance between two of them.
+    pool: 3
+    spacing: 200
+    # Most difference in ground height across the camp (it's levelled), and how much tree cover is needed
+    # around it (columns of leaves within 26 blocks) so the woodcutter has work.
+    max-height-difference: 4
+    min-tree-cover: 80
+    # No camp within this many blocks of anything built.
+    clear-radius: 24
+    # When no site is ready, how many places to try before giving up (each takes a moment).
+    search-tries-when-empty: 12
+  camp:
+    # Jobs of the three settlers who arrive with the camp. One is left without work for the "give a job" step.
+    settler-jobs: [FARMER, BUILDER, UNEMPLOYED]
+    # Extra items for the founder (besides the Colony Charter, Starter Farm, Blueprint Book and Building Marker).
+    kit: ["BREAD:8", "TORCH:16"]
+    # Until a colony has done its first three steps (menu, job, farm), its settlers work day and night, and requests,
+    # travellers and the daily report wait: a new player always sees them busy and only hears about the next step.
+    quiet-first-steps: true
+    # For this many minutes after founding (while the first steps aren't all done) its settlers work through the night.
+    busy-minutes: 30
+    # The Starter Farm looks this far around the clicked spot for a free, flat 5x5 patch.
+    farm-search-radius: 5
+
 general:
   autosave-minutes: 5
   # Database backups kept in plugins/ColonySMP/backups (one is made at every start).

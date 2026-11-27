@@ -39,6 +39,7 @@ public final class Placeholders extends PlaceholderExpansion {
     public String onRequest(OfflinePlayer p, String id) {
         return switch (id.toLowerCase(java.util.Locale.ROOT)) {
             case "season_countdown" -> s.countdown().text(false);
+            case "funnel_step" -> p == null ? "" : net.moddedrealms.smp.onboard.ColonyBridge.funnelStep(p.getUniqueId());
             case "season_countdown_seconds" -> s.countdown().text(true);
             case "season_name" -> s.cfg().getString("season.name", "");
             case "advent_day" -> String.valueOf(s.advent().today());

@@ -71,7 +71,7 @@ public final class Guide implements Listener, CommandExecutor {
                 for (int i = 0; i < Math.min(3, rec.size()); i++) colonyLore.add("<white> " + rec.get(i)[0] + " <dark_gray>(" + rec.get(i)[1] + " people, " + rec.get(i)[2] + ")");
                 colonyLore.add("");
             }
-            colonyLore.add("<yellow>Click</yellow> <gray>to start one.");
+            colonyLore.add(net.moddedrealms.smp.onboard.ColonyBridge.starterCamps() ? "<yellow>Click</yellow> <gray>for a ready camp with 3 settlers." : "<yellow>Click</yellow> <gray>to start one.");
         }
         boolean colonies = t != null && t.coloniesLinked();
         if (colonies) m.inv.setItem(COLONY, item(Material.LODESTONE, "<aqua><bold>Start a colony", colonyLore));
@@ -115,7 +115,15 @@ public final class Guide implements Listener, CommandExecutor {
             case COLONY -> {
                 if (plugin.town() == null || !plugin.town().coloniesLinked()) return;
                 if (plugin.town().colonyName(p) != null) run = "colony menu";
-                else {
+                else if (net.moddedrealms.smp.onboard.ColonyBridge.starterCamps()) {
+                    p.closeInventory();
+                    net.moddedrealms.smp.onboard.ColonyBridge.funnel(p.getUniqueId(), "chose_colony");
+                    String err = net.moddedrealms.smp.onboard.ColonyBridge.startColony(p, done -> {
+                        if (done != null && !done.equals("offline")) p.sendMessage(SmpPlugin.mm("<red>" + done));
+                    });
+                    if (err != null) p.sendMessage(SmpPlugin.mm("<red>" + err));
+                    return;
+                } else {
                     p.closeInventory();
                     p.sendMessage(SmpPlugin.mm("<aqua><bold>Founding a colony</bold></aqua>\n"
                             + "<gray>1. Walk out of town into the wilds (colonies can't be in the Old Town or Meadowbrook). <white>/warp</white> takes you far out.\n"

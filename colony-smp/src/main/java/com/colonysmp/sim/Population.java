@@ -72,7 +72,12 @@ public final class Population {
 
     /** The first settlers of a newly founded colony. */
     public void settlers(Colony col) {
-        for (Job j : plugin.settings().startingJobs) {
+        settlers(col, plugin.settings().startingJobs, true);
+    }
+
+    /** The first band of settlers, with these jobs, and their provisions and tools; tell = explain it in chat. */
+    public void settlers(Colony col, java.util.List<Job> jobs, boolean tell) {
+        for (Job j : jobs) {
             Citizen c = create(col, j, false);
             c.remember(plugin.sim().day(col), "Arrived as one of the first settlers");
         }
@@ -91,7 +96,7 @@ public final class Population {
         col.lastSettlersDay = plugin.sim().day(col);
         col.graceHours = Math.max(col.graceHours, plugin.settings().foundingGraceDays * 24);
         col.log(ColonyEvent.Type.POPULATION, plugin.sim().day(col), col.citizens.size() + " settlers arrived to found the colony.");
-        for (Player p : col.onlineMembers()) {
+        for (Player p : tell ? col.onlineMembers() : java.util.List.<Player>of()) {
             Text.send(p, "<green>Your first <white>" + col.citizens.size() + "</white> settlers have arrived. Right-click one to see them, or use the Town Hall. "
                     + "Register a house so they have beds, and workplaces so they can work. "
                     + (plugin.settings().startingTools.isEmpty()

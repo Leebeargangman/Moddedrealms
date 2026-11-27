@@ -41,7 +41,11 @@ public final class CitizenMenu extends Menu {
         boolean free = ct.status.free();
         LifeStage stage = plugin.sim().citizens().stage(ct);
         if (free) {
-            button(19, Material.IRON_PICKAXE, "<green>Change job", List.of("<gray>Now: " + ct.job.display, "<dark_gray>Click to choose"), k -> {
+            boolean step = c.questStage == com.colonysmp.colony.QuestManager.JOB;
+            List<String> jobLore = new ArrayList<>(List.of("<gray>Now: " + ct.job.display, "<dark_gray>Click to choose"));
+            if (step) jobLore.add(0, "<gold>◀ Next step: make them a Woodcutter");
+            var jobIcon = com.colonysmp.util.Items.icon(Material.IRON_PICKAXE, (step ? "<gold><bold>" : "<green>") + "Change job", jobLore);
+            set(19, step ? com.colonysmp.util.Items.glow(jobIcon) : jobIcon, k -> {
                 if (plugin.access().check(viewer, c, Perm.MANAGE_JOBS)) new JobPicker().open();
             });
             if (stage != LifeStage.CHILD) {
@@ -92,7 +96,32 @@ public final class CitizenMenu extends Menu {
         fill(Material.GRAY_STAINED_GLASS_PANE);
     }
 
-    /** Every job, with places free and whether this citizen qualifies. */
+    /** The main jobs first (Woodcutter highlighted while that's the colony's next step); the rest one click further. */
+    private static final Job[] MAIN = {Job.FARMER, Job.FORESTER, Job.MINER, Job.BUILDER, Job.GUARD, Job.BLACKSMITH};
+
+    private List<String> jobLore(Job j) {
+        List<String> lore = new ArrayList<>();
+        lore.add("<gray>" + j.description);
+        if (j.needsWorkplace()) lore.add("<gray>Free places: <white>" + plugin.sim().jobs().vacancies(c, j));
+        if (j.education > 0) lore.add("<gray>Needs education " + j.education);
+        String why = plugin.sim().jobs().canTake(c, ct, j, null);
+        lore.add(why == null ? "<green>Click to assign" : "<red>" + Text.esc(why));
+        return lore;
+    }
+
+    private void pick(Job j) {
+        String err = plugin.sim().jobs().assign(c, ct, j, null);
+        if (err != null) Text.send(viewer, "<red>" + err);
+        else if (j != Job.UNEMPLOYED) {
+            com.colonysmp.model.Building w = c.building(ct.workplace);
+            Text.send(viewer, com.colonysmp.util.Messages.get(w != null ? "jobs.assigned" : j.needsWorkplace() ? "jobs.assigned-no-place" : "jobs.assigned-free",
+                    "name", ct.name, "job", j.display, "place", w == null ? "" : w.label()));
+            plugin.funnel().record(viewer.getUniqueId(), "first_job_assigned");
+            plugin.quests().event(c, viewer, "job");
+        }
+        new CitizenMenu(plugin, viewer, c, ct).open();
+    }
+
     private final class JobPicker extends Menu {
         JobPicker() {
             super(CitizenMenu.this.viewer, 4, "<dark_aqua>A job for " + Text.esc(ct.name));
@@ -100,22 +129,38 @@ public final class CitizenMenu extends Menu {
 
         @Override
         protected void draw() {
-            int i = 0;
-            for (Job j : Job.values()) {
-                if (j == Job.SOLDIER) continue;
-                List<String> lore = new ArrayList<>();
-                lore.add("<gray>" + j.description);
-                if (j.needsWorkplace()) lore.add("<gray>Free places: <white>" + plugin.sim().jobs().vacancies(c, j));
-                if (j.education > 0) lore.add("<gray>Needs education " + j.education);
-                String why = plugin.sim().jobs().canTake(c, ct, j, null);
-                lore.add(why == null ? "<green>Click to assign" : "<red>" + Text.esc(why));
-                button(i++, j.icon, (j == ct.job ? "<gold>" : "<white>") + j.display, lore, k -> {
-                    String err = plugin.sim().jobs().assign(c, ct, j, null);
-                    if (err != null) Text.send(viewer, "<red>" + err);
-                    new CitizenMenu(plugin, viewer, c, ct).open();
-                });
+            boolean step = c.questStage == com.colonysmp.colony.QuestManager.JOB;
+            for (int i = 0; i < MAIN.length; i++) {
+                Job j = MAIN[i];
+                List<String> lore = jobLore(j);
+                boolean star = step && j == Job.FORESTER;
+                if (star) lore.add(0, "<gold>◀ Pick this one: your next step");
+                var icon = com.colonysmp.util.Items.icon(j.icon, (j == ct.job ? "<gold>" : star ? "<gold><bold>" : "<white>") + j.display, lore);
+                set(10 + i, star ? com.colonysmp.util.Items.glow(icon) : icon, k -> pick(j));
             }
+            button(16, Material.BOOKSHELF, "<aqua>More jobs...", List.of("<gray>Fisher, cook, baker, doctor, teacher", "<gray>and the rest, as your colony grows"),
+                    k -> new MoreJobs().open());
+            button(22, Job.UNEMPLOYED.icon, (ct.job == Job.UNEMPLOYED ? "<gold>" : "<white>") + Job.UNEMPLOYED.display, jobLore(Job.UNEMPLOYED), k -> pick(Job.UNEMPLOYED));
             button(31, Material.ARROW, "<white>Back", List.of(), k -> new CitizenMenu(plugin, viewer, c, ct).open());
+            fill(Material.GRAY_STAINED_GLASS_PANE);
+        }
+    }
+
+    private final class MoreJobs extends Menu {
+        MoreJobs() {
+            super(CitizenMenu.this.viewer, 5, "<dark_aqua>More jobs for " + Text.esc(ct.name));
+        }
+
+        @Override
+        protected void draw() {
+            int i = 0;
+            java.util.Set<Job> main = java.util.EnumSet.of(Job.SOLDIER, Job.UNEMPLOYED);
+            main.addAll(java.util.Arrays.asList(MAIN));
+            for (Job j : Job.values()) {
+                if (main.contains(j) || i >= 36) continue;
+                button(i++, j.icon, (j == ct.job ? "<gold>" : "<white>") + j.display, jobLore(j), k -> pick(j));
+            }
+            button(40, Material.ARROW, "<white>Back", List.of(), k -> new JobPicker().open());
             fill(Material.GRAY_STAINED_GLASS_PANE);
         }
     }

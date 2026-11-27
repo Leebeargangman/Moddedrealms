@@ -24,8 +24,14 @@ final class Welcome implements Listener {
         if (!cfg.getBoolean("welcome.enabled", true)) return;
         Player p = e.getPlayer();
         boolean first = !p.hasPlayedBefore();
+        // with onboarding on, Elder Rowan greets newcomers (title, task bar, choice); they still get the kit
+        boolean rowan = first && plugin.onboarding() != null && plugin.onboarding().handlesFirstJoin();
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!p.isOnline()) return;
+            if (rowan) {
+                starterKit(p);
+                return;
+            }
             var ph = Placeholder.unparsed("player", p.getName());
             p.showTitle(Title.title(SmpPlugin.MM.deserialize(cfg.getString("welcome.title", "")),
                     SmpPlugin.MM.deserialize(cfg.getString("welcome.subtitle", "")),

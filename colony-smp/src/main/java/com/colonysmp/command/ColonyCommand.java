@@ -58,7 +58,7 @@ import java.util.UUID;
 /** /colony: every player command, and the admin tools under /colony admin. */
 public final class ColonyCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBS = List.of("help", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "leave", "kick", "members",
+    private static final List<String> SUBS = List.of("help", "start", "tasks", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "leave", "kick", "members",
             "promote", "demote", "rename", "settings", "menu", "core", "book", "marker", "wand", "rope", "baton", "banner", "disband", "quests",
             "citizens", "citizen", "jobs", "assign", "home", "needs", "settler", "traveller", "exile", "release",
             "buildings", "building", "validate", "upgrade", "construction",
@@ -116,7 +116,8 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             if (sub.equals("help")) {
-                help(sender, rest);
+                if (sender instanceof Player hp && rest.length == 0 && plugin.settings().feature("onboarding")) new com.colonysmp.gui.HelpMenu(plugin, hp).open();
+                else help(sender, rest);
                 return true;
             }
             if (sub.equals("list")) {
@@ -144,9 +145,14 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "create" -> create(p, a);
             case "info" -> {
+                if (a.length == 0 && c != null && c.core != null && plugin.settings().feature("onboarding")) {
+                    new TownHallMenu(plugin, p, c).open();
+                    return;
+                }
                 Colony t = a.length > 0 ? plugin.colonies().byName(String.join(" ", a)) : c != null ? c : plugin.colonies().at(p.getLocation());
                 if (t == null) {
-                    Text.send(p, "You don't belong to a colony. Start one with <white>/colony create <name></white>.");
+                    if (plugin.settings().feature("starter-camp")) com.colonysmp.util.Messages.send(p, "camp.how");
+                    else Text.send(p, "You don't belong to a colony. Start one with <white>/colony create <name></white>.");
                     return;
                 }
                 sendInfo(p, t);
@@ -196,6 +202,13 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             case "marker", "wand", "rope", "baton", "banner" -> items(p, c, sub);
             case "disband" -> disband(p, c);
             case "quests" -> quests(p, c, a);
+            case "tasks" -> quests(p, c, a.length == 0 ? a : new String[]{a[0].equalsIgnoreCase("off") || a[0].equalsIgnoreCase("hide") ? "hide" : "show"});
+            case "start" -> {
+                String err = plugin.camps().start(p, e -> {
+                    if (e != null && !e.equals("offline")) Text.send(p, "<red>" + e);
+                });
+                if (err != null) Text.send(p, "<red>" + err);
+            }
             case "citizens" -> {
                 if (!need(p, c)) new CitizensMenu(plugin, p, c, null).open();
             }

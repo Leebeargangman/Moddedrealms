@@ -59,7 +59,7 @@ public final class RequestManager implements Listener {
                 ct.remember(day, "Asked for " + Goods.get(r.good()).name().toLowerCase() + " and nobody brought any");
             }
         }
-        if (!s.requestsEnabled || c.core == null || !c.anyMemberOnline()) return;
+        if (!s.requestsEnabled || c.core == null || !c.anyMemberOnline() || plugin.quests().settling(c)) return;
         if (c.requests.size() >= s.requestsMax) return;
         if (ThreadLocalRandom.current().nextDouble() >= s.requestChance) return;
         Request r = create(c, day);

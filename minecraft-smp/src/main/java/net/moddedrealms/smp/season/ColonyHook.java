@@ -53,6 +53,16 @@ final class ColonyHook implements ColonyApi.ServerHook {
     }
 
     @Override
+    public void reward(org.bukkit.entity.Player p, List<String> rewards) {
+        s.plugin().rewards().give(p, rewards);
+    }
+
+    @Override
+    public String describe(List<String> rewards) {
+        return s.plugin().rewards().describe(rewards);
+    }
+
+    @Override
     public List<String> strayNpcs(boolean remove) {
         SmpPlugin p = s.plugin();
         List<String> out = new ArrayList<>();

@@ -33,8 +33,8 @@ public enum BuildingType {
             "A fenced paddock with hay. Horses inside can be taken in as war horses; cavalry trains here."),
     FISHERY("Fishery", Category.AGRICULTURAL, Shape.ROOM, Material.FISHING_ROD, 3,
             "A hut on the shore of open water (at least 20 water blocks nearby)."),
-    FORESTRY("Forestry Hut", Category.INDUSTRIAL, Shape.ROOM, Material.OAK_LOG, 3,
-            "Home of the foresters, who fell and replant the trees around the colony."),
+    FORESTRY("Woodcutter's Hut", Category.INDUSTRIAL, Shape.ROOM, Material.OAK_LOG, 3,
+            "Home of the woodcutters, who fell and replant the trees around the colony."),
     MINE("Mine", Category.INDUSTRIAL, Shape.MINE, Material.IRON_PICKAXE, 3,
             "A mine entrance in natural ground; miners dig down and branch out for ore."),
     MILL("Mill", Category.FOOD, Shape.ROOM, Material.GRINDSTONE, 2,
@@ -202,6 +202,7 @@ public enum BuildingType {
         String u = s.trim().toUpperCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
         if (u.equals("TOWER") || u.equals("GUARD_TOWER")) return WATCHTOWER;
         if (u.equals("PEN") || u.equals("PASTURE")) return ANIMAL_PEN;
+        if (u.equals("WOODCUTTERS_HUT") || u.equals("WOODCUTTER'S_HUT") || u.equals("FORESTRY_HUT")) return FORESTRY;
         if (u.equals("SIEGE_WORKSHOP")) return ENGINEERING_WORKSHOP;
         if (u.equals("GROVE") || u.equals("DRUIDS_GROVE")) return DRUID_GROVE;
         if (u.equals("ENCHANTER") || u.equals("ENCHANTERS") || u.equals("ENCHANTER_TOWER")) return ENCHANTERS_TOWER;

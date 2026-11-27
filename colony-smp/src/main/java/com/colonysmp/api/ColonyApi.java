@@ -191,6 +191,37 @@ public final class ColonyApi {
         }
     }
 
+    // ───────────── new players ─────────────
+
+    /** True when "Found a Colony" places a ready starter camp (features.starter-camp). */
+    public static boolean starterCamps() {
+        return plugin != null && plugin.settings().feature("starter-camp");
+    }
+
+    /**
+     * Founds a colony with a starter camp for this player at a ready site and takes them there. Returns why it can't
+     * at once, or null when it has started; {@code done} then gets null (founded) or why it failed, on the main thread.
+     */
+    public static String startColony(Player p, java.util.function.Consumer<String> done) {
+        if (plugin == null) return "Colonies aren't running right now.";
+        return plugin.camps().start(p, done);
+    }
+
+    /** Records a new-player funnel step (talked_to_rowan, chose_colony, chose_battles...) the first time it happens. */
+    public static void funnel(UUID player, String step) {
+        if (plugin != null) plugin.funnel().record(player, step);
+    }
+
+    /** The furthest funnel step this player has reached, or "". */
+    public static String funnelStep(UUID player) {
+        return plugin == null ? "" : plugin.funnel().furthest(player);
+    }
+
+    /** True when this player has seen a one-time hint before; marks it seen. Use for "first time" tips. */
+    public static boolean firstTime(UUID player, String hint) {
+        return plugin != null && plugin.funnel().firstTime(player, hint);
+    }
+
     // ───────────── no-colony zones ─────────────
 
     /** Keeps colonies out of a circle of a world (a town, a spawn). Calling it again with the same key moves it. */
@@ -226,6 +257,15 @@ public final class ColonyApi {
 
         /** Its NPCs that are duplicated or orphaned, one line each (removed when remove=true). */
         List<String> strayNpcs(boolean remove);
+
+        /** Pays reward lines ColonySMP doesn't handle itself ("money:50", "key:common:1", "cosmetic:x"...). */
+        default void reward(Player p, List<String> rewards) {
+        }
+
+        /** Those rewards in a few words ("$50, 1 Common Key"), or "". */
+        default String describe(List<String> rewards) {
+            return "";
+        }
     }
 
     private static volatile ServerHook hook;

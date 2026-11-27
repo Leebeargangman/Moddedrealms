@@ -30,7 +30,7 @@ public final class Reports {
         String summary = "Day " + day + ": " + c.population() + " citizens, food for " + Text.num(foodDays) + " days, mood " + Math.round(mood)
                 + ", stability " + Math.round(c.stability) + ", " + (income >= expenses ? "+" : "") + (income - expenses) + " worth of valuables.";
         c.log(ColonyEvent.Type.COLONY, day, summary + (problems.isEmpty() ? "" : " Problems: " + String.join("; ", problems) + "."));
-        for (Player p : c.onlineMembers()) {
+        for (Player p : plugin.quests().settling(c) ? List.<Player>of() : c.onlineMembers()) {
             Text.send(p, "<white>" + Text.esc(c.name) + "</white> — day " + day + ": <white>" + c.population() + "</white> citizens, food "
                     + (foodDays < 2 ? "<red>" : "<green>") + Text.num(foodDays) + "d<gray>, mood " + Text.color(mood) + Math.round(mood)
                     + "<gray>, stability " + Text.color(c.stability) + Math.round(c.stability) + "<gray>, treasury <gold>"

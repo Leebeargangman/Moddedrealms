@@ -48,6 +48,56 @@ welcome:
   # Given once, on a first join.
   starter-kit: ["STONE_SWORD:1", "STONE_PICKAXE:1", "STONE_AXE:1", "STONE_SHOVEL:1", "BREAD:16", "TORCH:16", "WHITE_BED:1", "GOLD_INGOT:5"]
 
+# ---- New players: Elder Rowan's START HERE flow (the first minute). With it on, first-time players arrive in front
+# of Rowan, see the title below and a task bar, and Rowan offers Found a Colony (a ready camp from ColonySMP, which
+# needs features.starter-camp there) or Join the Battles. The welcome title, first-join message and /start menu above
+# are skipped for them; the starter kit is still given. Who chose what is in onboarding.yml; /mrsmp onboarding sums it up.
+onboarding:
+  enabled: false
+  # The NPC id of the guide (see /mrnpc list).
+  guide-npc: elder
+  # How far in front of the guide a newcomer is placed, and how soon after joining (ticks).
+  arrival-distance: 4.5
+  arrival-delay-ticks: 8
+  title: "<gold><bold>Welcome to ModdedRealms"
+  subtitle: "<white>Build your kingdom. Rule an empire."
+  hologram: "<gold><bold>⚔ START HERE ⚔</bold></gold>\n<yellow>Right-click Elder Rowan"
+  hologram-height: 2.75
+  bar-talk: "<gold>Talk to Elder Rowan</gold> <gray>· he's glowing gold by the fountain"
+  bar-choose: "<gold>Choose your path</gold> <gray>· right-click Elder Rowan again"
+  # What the other spawn NPCs say to a newcomer who hasn't chosen yet.
+  other-npc: "Talk to Elder Rowan first, {player} - he's the one glowing gold by the fountain."
+  # Rowan's welcome, one line every 1.4 s, then the choice menu opens.
+  intro:
+    - "Welcome to Moddedrealms, {player}! I'm Elder Rowan."
+    - "Out in the wilds there's free land. Found a colony and settlers will farm, build and fight for you."
+    - "Grow it from a camp into a kingdom... or test your sword in the Battles."
+    - "Choose your path:"
+  again: "Ready to choose, {player}?"
+  # Rowan calls a newcomer who hasn't come over (or chosen) after idle-seconds, at most this many times.
+  idle-seconds: 60
+  nudges: 3
+  nudge: "{player}! Over here, by the fountain - right-click me and I'll get you started."
+  nudge-choose: "Take your time, {player}. Right-click me when you're ready to choose."
+  menu-title: "Elder Rowan · Choose your path"
+  colony-name: "<green><bold>Found a Colony</bold> <gold>(recommended)"
+  colony-lore:
+    - "<gray>A ready camp out in the wild with"
+    - "<gray>three settlers who farm, build and defend."
+    - "<gray>Grow it from a camp into a kingdom."
+    - ""
+    - "<yellow>Click to found yours"
+  battles-name: "<red><bold>Join the Battles"
+  battles-lore:
+    - "<gray>PvP battles on the Battles server."
+    - "<gray>Come back any time with <white>/server smp"
+    - ""
+    - "<yellow>Click to go there"
+  battles-server: arena
+  colony-start: "Splendid! My scouts know just the place. Follow me..."
+  colony-manual: "Walk out into the wilds, then use /colony create <name> to found your colony. The menu shows the way."
+  battles: "To the Battles, then! Come back to us any time."
+
 # ---- Daily login rewards (/daily): claim once a day (UTC); come back the next day to keep the streak. Day 7 is the
 # big one, then the week repeats. Reward lines as in quests: money:N, item:MATERIAL:N, key:<crate>:N, xp:N.
 daily:

@@ -63,6 +63,15 @@ public final class Messages {
         return s;
     }
 
+    /** Like {@link #get}, but the values are MiniMessage already (other messages, built text): they are not escaped. */
+    public static String compose(String key, Object... kv) {
+        String s = current.getString(key);
+        if (s == null) s = defaults.getString(key);
+        if (s == null) return "<red>[missing message: " + key + "]";
+        for (int i = 0; i + 1 < kv.length; i += 2) s = s.replace("{" + kv[i] + "}", String.valueOf(kv[i + 1]));
+        return s;
+    }
+
     /** A list of lines (menu lore, book pages). */
     public static java.util.List<String> lines(String key, Object... kv) {
         java.util.List<String> raw = current.isList(key) ? current.getStringList(key) : defaults.getStringList(key);
@@ -72,6 +81,13 @@ public final class Messages {
             out.add(s);
         }
         return out;
+    }
+
+    /** The child keys of a section (current file first, then the jar's copy). */
+    public static java.util.List<String> keys(String key) {
+        var sec = current.getConfigurationSection(key);
+        if (sec == null) sec = defaults.getConfigurationSection(key);
+        return sec == null ? java.util.List.of() : new java.util.ArrayList<>(sec.getKeys(false));
     }
 
     /** With the [Colony] prefix. */

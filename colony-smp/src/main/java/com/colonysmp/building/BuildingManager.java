@@ -410,6 +410,7 @@ public final class BuildingManager {
         b.checkedDay = plugin.sim().day(c);
         b.stock.setCapacity(b.type.stockSlots(b.level), 0);
         changed(c);
+        if (p != null) plugin.funnel().record(p.getUniqueId(), "first_building");
         return Result.ok(b);
     }
 

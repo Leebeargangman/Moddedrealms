@@ -160,6 +160,10 @@ final class SmpCommand implements TabExecutor {
                 String err = plugin.season().reload();
                 return say(sender, err == null ? "season.yml reloaded." : "season.yml not reloaded, nothing changed: " + err, err == null ? NamedTextColor.GREEN : NamedTextColor.RED);
             }
+            case "onboarding" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.onboarding().stats()) sender.sendMessage(SmpPlugin.mm(l));
+            }
             case "colonies" -> {
                 if (!admin) return no(sender);
                 for (String l : plugin.town().colonyStatus()) sender.sendMessage(SmpPlugin.mm(l));
