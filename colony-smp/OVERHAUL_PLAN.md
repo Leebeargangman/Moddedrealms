@@ -3,7 +3,8 @@
 Status: **in progress**. Written 25 Nov 2026. Release 1 (Phase 1 + season code, season off) live 25 Nov. Season switched on 27 Nov.
 Release 2 (Phase 2 onboarding: ColonySMP 2.7.0, SMP 1.15.0) live 27 Nov 17:33 CET, with onboarding, starter camps and
 the funnel switched on. Release 3 (Phase 3 colony core: ColonySMP 2.8.0) live 27 Nov 18:02 CET with `features.tiers: true` and
-`features.winter-needs: false` (to be switched on at the 18 Dec launch). Next: the new features in section 15.
+`features.winter-needs: false` (to be switched on at the 18 Dec launch). Release 4 (friends: ColonySMP 2.9.0 + SMP 1.16.0)
+live 27 Nov 18:26 CET with `features.friends` and `referrals.enabled` on. Next: the rest of section 15.
 
 ## 1. What is there today
 
@@ -282,7 +283,7 @@ friends features first, because the players who stayed played in groups.
 Not picked this time: a colony visits board at spawn, a Discord link (needs a bot token), weekly contests (replaced by
 daily challenges).
 
-### Built so far (27 Nov, ColonySMP 2.9.0 + SMP 1.16.0, tested locally, not deployed)
+### Built so far (Release 4, ColonySMP 2.9.0 + SMP 1.16.0, live since 27 Nov 18:26 CET)
 
 - **Play with friends** (`features.friends`, `onboard/Friends.java`): Rowan's menu has "Join a Friend's Colony" (slot
   13), listing colonies with members online (tier, settlers, who's on). Picking one, or `/colony ask <colony>`, sends
