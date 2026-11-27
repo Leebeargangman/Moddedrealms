@@ -1744,6 +1744,8 @@
       imposters: mode === "village" && f.imposters.checked,
       factionDistance: Number(f.factionDistance.value) || 150,
       instructions: f.instructions.value,
+      permadeath: f.permadeath.checked,
+      smartLeader: f.smartLeader.value,
     };
   }
 
@@ -1767,11 +1769,17 @@
     var v = civFormValues();
     var minutes = Math.max(0, toMinutes(v.schedule.end) - toMinutes(v.schedule.start));
     var model = c.costModel || { perBotMinute: 0.00024, measuredSessions: 0, elderPerSession: 0 };
-    var session = model.perBotMinute * v.botCount * minutes + (model.elderPerSession || 0);
+    // Smarter leader: each civilisation's leader pays the bigger model's price instead of the normal one;
+    // the elder planner is one bigger-model call per civilisation every 15 minutes.
+    var civs = v.mode === "civilisations" ? v.factions.length : v.mode === "free" ? 2 : 1;
+    var leaderExtra = v.smartLeader === "leader" || v.smartLeader === "both" ? (model.callsPerBotMinute || 1.8) * minutes * Math.max(0, (model.smartCall || 0) - (model.normalCall || 0)) * civs : 0;
+    var elderExtra = v.smartLeader === "elders" || v.smartLeader === "both" ? (minutes / (model.elderEveryMinutes || 15)) * (model.elderCall || 0) * civs : 0;
+    var session = model.perBotMinute * v.botCount * minutes + leaderExtra + elderExtra;
     var week = session * v.schedule.days.length;
     var out = $("[data-civ-cost]");
     out.textContent = "Estimated AI cost: " + money(session) + " a session (" + v.botCount + " villagers × " + Math.round(minutes / 6) / 10 + " h), " +
       money(week) + " a week, about " + money(week * 4.35) + " a month. " +
+      (leaderExtra + elderExtra > 0 ? "Includes " + money(leaderExtra + elderExtra) + " a session for the smarter " + (model.smartModel || "model") + ". " : "") +
       (model.measuredSessions ? "Based on your last " + model.measuredSessions + " real session(s)." : "Estimated from test runs (no real session measured yet).") +
       (session > v.budget ? " Over the daily budget of " + money(v.budget) + ": the villagers slow down at 80% and stop using the AI when it runs out." : "");
     out.className = "civ-cost small" + (session > v.budget ? " ai-test-bad" : "");
@@ -1797,6 +1805,8 @@
     f.imposters.checked = !!s.imposters;
     f.factionDistance.value = s.factionDistance;
     f.instructions.value = s.instructions || "";
+    f.permadeath.checked = s.permadeath !== false;
+    f.smartLeader.value = s.smartLeader || "off";
     var admin = state.me && state.me.admin;
     $$("input, select, textarea, button", f).forEach(function (n) {
       n.disabled = !admin;

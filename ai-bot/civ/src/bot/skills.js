@@ -16,12 +16,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Run a promise but give up after `ms` (and stop walking). */
 async function withTimeout(bot, promise, ms, what) {
   let timer;
+  const gen = bot.civGen; // which task started this walk (civbot.perform counts tasks)
   const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${what} took too long`)), ms); });
   try {
     return await Promise.race([promise, timeout]);
   } finally {
     clearTimeout(timer);
-    if (bot.pathfinder.isMoving()) bot.pathfinder.stop();
+    // Only stop walking if no newer task has started meanwhile. (An old, cancelled task finishing late
+    // used to stop the NEW task's walk: "Path was stopped before it could be completed", ~300 times a day.)
+    if (bot.civGen === gen && bot.pathfinder.isMoving()) bot.pathfinder.stop();
   }
 }
 
@@ -119,7 +122,7 @@ function blockMatcher(bot, target) {
 const reserved = new Map(); // "x,y,z" -> { by, until }
 const isReserved = (key, me) => { const r = reserved.get(key); return r && r.by !== me && r.until > Date.now(); };
 
-async function gather(bot, a, task) {
+async function gather(bot, a, task, ctx = {}) {
   const test = blockMatcher(bot, a.target);
   if (!test) return { ok: false, detail: `"${a.target}" is not a block I can gather` };
   const ids = new Set(bot.registry.blocksArray.filter((b) => test(b.name)).map((b) => b.id));
@@ -136,7 +139,11 @@ async function gather(bot, a, task) {
     const pos = bot.findBlocks({ matching: (b) => ids.has(b.type), maxDistance: 48, count: 40 })
       .filter((p) => !skip.has(p.toString()) && !skipColumns.has(`${p.x},${p.z}`) && !isProtected(bot, p) && !isReserved(p.toString(), bot.username)) // can't break blocks in spawn protection
       .sort((a, b) => score(a) - score(b))[0];
-    if (!pos) return { ok: got > 0, detail: got ? `got ${got}, no more ${a.target} within 48 blocks` : `no ${a.target} I can break within 48 blocks (blocks near the world spawn are protected; explore to find some)` };
+    if (!pos) {
+      const stored = ctx.storedCount ? ctx.storedCount(a.target) : 0;
+      const hint = stored ? ` The village chests already have ${stored} ${a.target === "wood" ? "logs" : a.target}: withdraw them instead.` : " Explore to find more.";
+      return { ok: got > 0, detail: (got ? `got ${got}, no more ${a.target} within 48 blocks.` : `no ${a.target} I can reach within 48 blocks.`) + hint };
+    }
     const block = bot.blockAt(pos);
     // Stone and ores drop nothing without the right tool.
     if (block.harvestTools && !bot.inventory.items().some((it) => block.harvestTools[it.type])) {

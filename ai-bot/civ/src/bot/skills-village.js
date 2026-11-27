@@ -7,6 +7,7 @@ import { Vec3 } from "vec3";
 import * as chests from "../village/chests.js";
 import { FOOD_ITEMS, isNight, isProtected } from "./state.js";
 import { walkTo, sleep, equipWeapon, SKILLS } from "./skills.js";
+import { hideForNight } from "./skills-progress.js";
 
 const { goals } = pf;
 
@@ -224,7 +225,7 @@ export async function murder(bot, a, task) {
   return still ? { ok: false, detail: `${a.target} got away (they know it was you!)` } : { ok: true, detail: `${a.target} is dead` };
 }
 
-export const VILLAGE_SKILLS = { deposit, withdraw, give, hide };
+export const VILLAGE_SKILLS = { deposit, withdraw, give, hide: (bot, a, task, ctx) => hideForNight(bot, a, task, ctx, hide) };
 
 // --- signs, books, reading -------------------------------------------------------------------------
 /** Wrap text into sign lines: up to 4 lines of 15 characters (what fits visibly on a sign). */

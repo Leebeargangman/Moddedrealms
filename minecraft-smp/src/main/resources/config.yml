@@ -128,6 +128,20 @@ poll:
 # NPCs turn to look at players within this many blocks.
 npc-look-radius: 8
 
+# Graves: when a player dies their drops (and XP) wait in a player-head grave where they fell, with a floating
+# label. Right-click it to get everything back in the same slots. Skipped when keepInventory is on.
+graves:
+  enabled: true
+  # Only the owner (and staff) can open a grave for this long; then anyone can. 0 = owner only, forever.
+  unlock-minutes: 15
+  # A grave this old spills its items on the ground (only while its chunk is loaded). 0 = never.
+  expire-minutes: 0
+  store-xp: true
+  hologram: true
+  # How far from the death spot to look for room for the head (1-8).
+  search-radius: 4
+  disabled-worlds: []
+
 # ============================================================================
 #  Town: police, townsfolk, reputation and the jail
 # ============================================================================
