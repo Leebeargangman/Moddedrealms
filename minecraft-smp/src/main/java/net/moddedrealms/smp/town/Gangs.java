@@ -139,7 +139,7 @@ public final class Gangs implements Listener, TabExecutor {
             }
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException ex) {
             t.plugin().getLogger().warning("Could not save gangs.yml: " + ex.getMessage());
         }

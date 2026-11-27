@@ -142,7 +142,7 @@ public final class TravelerManager implements Listener {
         var s = plugin.settings();
         if (s.travelersEnabled) {
             for (Colony col : plugin.colonies().list()) {
-                if (byColony.containsKey(col.id) || col.core == null || !col.active) continue;
+                if (byColony.containsKey(col.id) || col.core == null || !col.active || plugin.quests().settling(col)) continue;
                 if (col.policies.recruitment == Policies.Recruitment.CLOSED) continue;
                 World w = col.world();
                 long day = plugin.sim().day(col);

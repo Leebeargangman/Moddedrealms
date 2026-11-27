@@ -64,7 +64,7 @@ final class Careers {
         if (!dirty) return;
         dirty = false;
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Couldn't save careers.yml: " + e.getMessage());
         }

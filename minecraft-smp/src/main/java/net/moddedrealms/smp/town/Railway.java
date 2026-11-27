@@ -589,7 +589,7 @@ public final class Railway implements Listener {
         YamlConfiguration meta = new YamlConfiguration();
         meta.set("world", w.getName());
         meta.set("area", List.of(a[0], a[1], a[2], a[3], a[4], a[5]));
-        meta.save(metaFile());
+        net.moddedrealms.smp.SafeYaml.save(meta, metaFile());
         try {
             line();
             stations();
@@ -603,7 +603,7 @@ public final class Railway implements Listener {
         y.set("x", x);
         y.set("south-z", sZ);
         y.set("north-z", nZ);
-        y.save(file);
+        net.moddedrealms.smp.SafeYaml.save(y, file);
         ready = true;
         state = State.BOARDING;
         atSouth = true;

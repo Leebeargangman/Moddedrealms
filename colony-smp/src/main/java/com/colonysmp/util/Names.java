@@ -28,6 +28,31 @@ public final class Names {
         return FIRST[r.nextInt(FIRST.length)] + " " + LAST[r.nextInt(LAST.length)];
     }
 
+    /**
+     * {@code wanted} if nobody has it, otherwise a free name: a new first name with the same surname (so families
+     * stay families), then any free name, and if the colony is so big that every one is used, a numbered one.
+     */
+    public static String unique(String wanted, java.util.function.Predicate<String> taken) {
+        if (wanted != null && !wanted.isBlank() && !taken.test(wanted)) return wanted;
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        String last = wanted == null || !wanted.contains(" ") ? null : wanted.substring(wanted.lastIndexOf(' ') + 1);
+        if (last != null) {
+            for (int i = 0; i < 40; i++) {
+                String n = FIRST[r.nextInt(FIRST.length)] + " " + last;
+                if (!taken.test(n)) return n;
+            }
+        }
+        for (int i = 0; i < 400; i++) {
+            String n = random();
+            if (!taken.test(n)) return n;
+        }
+        String base = wanted == null || wanted.isBlank() ? random() : wanted;
+        for (int i = 2; ; i++) {
+            String n = base + " " + i;
+            if (!taken.test(n)) return n;
+        }
+    }
+
     /** A first name with a family's surname (children). */
     public static String child(String parentName) {
         String last = parentName == null || !parentName.contains(" ") ? LAST[ThreadLocalRandom.current().nextInt(LAST.length)]

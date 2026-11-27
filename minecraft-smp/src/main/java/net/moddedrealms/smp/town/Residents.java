@@ -122,7 +122,7 @@ public final class Residents {
             y.set(k + "kids", x.kids);
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
             dirty = false;
         } catch (IOException e) {
             t.plugin().getLogger().warning("Couldn't save residents.yml: " + e.getMessage());

@@ -37,6 +37,12 @@ public final class Dialogues {
     }
 
     public void interact(Player p, NpcDef npc) {
+        if (plugin.onboarding() != null && plugin.onboarding().intercept(p, npc)) return;
+        converse(p, npc);
+    }
+
+    /** The NPC's own conversation (story, quests, dialogue lines), without the new-player detour. */
+    public void converse(Player p, NpcDef npc) {
         String action = npc.action;
         if (action != null && !action.startsWith("dialogue")) {
             plugin.quests().talked(p, npc.id);

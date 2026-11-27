@@ -66,6 +66,11 @@ public final class ColonySMP extends JavaPlugin {
     private BlueprintManager blueprints;
     private BuildingMarker markers;
     private QuestManager quests;
+    private com.colonysmp.colony.Tiers tiers;
+    private com.colonysmp.colony.WorldGuardCheck worldGuard;
+    private com.colonysmp.building.ServerBlueprints serverBlueprints;
+    private com.colonysmp.onboard.Friends friends;
+    private com.colonysmp.colony.Challenges challenges;
     private NpcManager npcs;
     private SimulationEngine sim;
     private MilitaryManager military;
@@ -82,8 +87,13 @@ public final class ColonySMP extends JavaPlugin {
     private Happenings happenings;
     private Milestones milestones;
     private Christmas christmas;
+    private com.colonysmp.colony.Founders founders;
     private com.colonysmp.world.CivManager civs;
     private com.colonysmp.command.CivCommand civCommand;
+    private com.colonysmp.onboard.Funnel funnel;
+    private com.colonysmp.onboard.SitePool sites;
+    private com.colonysmp.onboard.StarterCamp camps;
+    private com.colonysmp.onboard.Onboarding onboarding;
 
     private long tick;
     private boolean dirty, saving, loaded;
@@ -93,7 +103,12 @@ public final class ColonySMP extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
         settings = new Settings(getConfig(), getLogger());
+        String msgErr = com.colonysmp.util.Messages.load(this);
+        if (msgErr != null) getLogger().severe("Using the built-in messages: " + msgErr);
         Keys.init(this);
+        founders = new com.colonysmp.colony.Founders(this);
+        funnel = new com.colonysmp.onboard.Funnel(this);
+        funnel.open();
         int goods = ItemGoods.registerAll(settings.prices);
         items = new Items(this);
         items.registerRecipes();
@@ -111,17 +126,25 @@ public final class ColonySMP extends JavaPlugin {
         prison = new PrisonManager(this);
         travelers = new TravelerManager(this);
         quests = new QuestManager(this);
+        tiers = new com.colonysmp.colony.Tiers(this);
         raids = new RaidManager(this);
         requests = new RequestManager(this);
         happenings = new Happenings(this);
         milestones = new Milestones(this);
         christmas = new Christmas(this);
         blueprints = new BlueprintManager(this);
+        serverBlueprints = new com.colonysmp.building.ServerBlueprints(this);
+        serverBlueprints.load();
         markers = new BuildingMarker(this);
         selection = new SelectionManager(this);
         townHall = new TownHallListener(this);
         prompt = new ChatPrompt(this);
         civs = new com.colonysmp.world.CivManager(this);
+        sites = new com.colonysmp.onboard.SitePool(this);
+        camps = new com.colonysmp.onboard.StarterCamp(this);
+        onboarding = new com.colonysmp.onboard.Onboarding(this);
+        friends = new com.colonysmp.onboard.Friends(this);
+        challenges = new com.colonysmp.colony.Challenges(this);
         civCommand = new com.colonysmp.command.CivCommand(this);
         commands = new ColonyCommand(this);
         economy.configure();
@@ -157,13 +180,20 @@ public final class ColonySMP extends JavaPlugin {
         }
 
         for (Listener l : new Listener[]{items, selection, blueprints, markers, quests, npcs, prison, travelers, wars, townHall, military, raids, requests, happenings, christmas,
-                new CombatListener(this), new ClaimListener(this), new MenuListener(), prompt, civs, new com.colonysmp.world.SettlementProtection(this, civs)}) {
+                new CombatListener(this), new ClaimListener(this), new MenuListener(), prompt, civs, new com.colonysmp.world.SettlementProtection(this, civs),
+                funnel, onboarding, friends}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         PluginCommand cmd = getCommand("colony");
         if (cmd != null) {
             cmd.setExecutor(commands);
             cmd.setTabCompleter(commands);
+        }
+        PluginCommand adminCmd = getCommand("colonyadmin");
+        if (adminCmd != null) {
+            var ca = new com.colonysmp.command.ColonyAdminCommand(this, commands);
+            adminCmd.setExecutor(ca);
+            adminCmd.setTabCompleter(ca);
         }
         PluginCommand civ = getCommand("civ");
         if (civ != null) {
@@ -199,6 +229,12 @@ public final class ColonySMP extends JavaPlugin {
             selection.render();
             blueprints.render();
         }, 5L, 5L);
+        // new players: tips and nudges twice a second, camp sites searched every 2 s, the funnel's 5-minute mark
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("onboarding", onboarding::tick), 10L, 10L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("camp sites", sites::tick), 200L, 40L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("funnel", funnel::tick), 400L, 400L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("friends", friends::tick), 1200L, 1200L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("challenges", challenges::tick), 300L, 600L);
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             if (dirty) save();
         }, 600L, 600L);
@@ -228,6 +264,7 @@ public final class ColonySMP extends JavaPlugin {
     @Override
     public void onDisable() {
         com.colonysmp.api.ColonyApi.detach();
+        if (challenges != null) challenges.shutdown();
         if (!loaded) return;
         npcs.rememberAll();
         Snapshot snap = snapshot();
@@ -242,6 +279,7 @@ public final class ColonySMP extends JavaPlugin {
         db.close();
         civs.shutdown();
         items.unregisterRecipes();
+        if (funnel != null) funnel.close();
     }
 
     // ───────────── saving ─────────────
@@ -278,6 +316,28 @@ public final class ColonySMP extends JavaPlugin {
         }));
     }
 
+    /**
+     * /colonyadmin reload: config.yml and messages.yml are read first and a broken one is refused, so a typo can't
+     * leave the server running on half a config. Null when it worked, else what was wrong.
+     */
+    public String reloadSafely() {
+        java.io.File f = new java.io.File(getDataFolder(), "config.yml");
+        try {
+            new org.bukkit.configuration.file.YamlConfiguration().load(f);
+        } catch (java.io.IOException | org.bukkit.configuration.InvalidConfigurationException e) {
+            return "config.yml: " + String.valueOf(e.getMessage()).lines().findFirst().orElse("can't be read");
+        }
+        String err = com.colonysmp.util.Messages.load(this);
+        if (err != null) return err;
+        reload();
+        return null;
+    }
+
+    /** A line in the log when debug.logging is on for this system. */
+    public void debug(String system, String message) {
+        if (settings.debug(system)) getLogger().info("[debug " + system + "] " + message);
+    }
+
     public void reload() {
         reloadConfig();
         settings = new Settings(getConfig(), getLogger());
@@ -286,6 +346,11 @@ public final class ColonySMP extends JavaPlugin {
         economy.configure();
         civs.configure();
         christmas.reload();
+        tiers.reload();
+        worldGuard = null;
+        serverBlueprints.load();
+        challenges.reload();
+        sim.winter().reload();
         sim.citizens().reload();
         for (Colony c : colonies.list()) buildings.changed(c);
         requestSave();
@@ -312,7 +377,13 @@ public final class ColonySMP extends JavaPlugin {
     /** The name of the place that keeps colonies off this chunk (config or another plugin), or null. */
     public String noFoundZone(String world, int cx, int cz) {
         Settings.Zone z = settings.noFoundZone(world, cx, cz);
-        return z != null ? z.label() : com.colonysmp.api.ColonyApi.zoneAt(world, cx, cz);
+        if (z != null) return z.label();
+        String api = com.colonysmp.api.ColonyApi.zoneAt(world, cx, cz);
+        if (api != null) return api;
+        if (!getConfig().getBoolean("colonies.respect-worldguard")) return null;
+        if (worldGuard == null) worldGuard = new com.colonysmp.colony.WorldGuardCheck(getLogger(), getConfig().getStringList("colonies.worldguard-allowed"));
+        String region = worldGuard.regionAt(world, cx, cz);
+        return region == null ? null : "the protected area \"" + region + "\"";
     }
 
     public Settings settings() {
@@ -357,6 +428,22 @@ public final class ColonySMP extends JavaPlugin {
 
     public QuestManager quests() {
         return quests;
+    }
+
+    public com.colonysmp.colony.Challenges challenges() {
+        return challenges;
+    }
+
+    public com.colonysmp.onboard.Friends friends() {
+        return friends;
+    }
+
+    public com.colonysmp.building.ServerBlueprints serverBlueprints() {
+        return serverBlueprints;
+    }
+
+    public com.colonysmp.colony.Tiers tiers() {
+        return tiers;
     }
 
     public NpcManager npcs() {
@@ -423,6 +510,11 @@ public final class ColonySMP extends JavaPlugin {
         return christmas;
     }
 
+    /** Who has had a founding grant this season. */
+    public com.colonysmp.colony.Founders founders() {
+        return founders;
+    }
+
     /** The living world: NPC civilisations, their settlements, and the transaction journal. */
     public com.colonysmp.world.CivManager civs() {
         return civs;
@@ -430,5 +522,25 @@ public final class ColonySMP extends JavaPlugin {
 
     public com.colonysmp.command.CivCommand civCommand() {
         return civCommand;
+    }
+
+    /** New-player funnel, one-time hints and logoff snapshots (funnel.db). */
+    public com.colonysmp.onboard.Funnel funnel() {
+        return funnel;
+    }
+
+    /** Ready places for starter camps. */
+    public com.colonysmp.onboard.SitePool sites() {
+        return sites;
+    }
+
+    /** "Found a Colony" in one click. */
+    public com.colonysmp.onboard.StarterCamp camps() {
+        return camps;
+    }
+
+    /** Greetings, tips, nudges and away summaries for new colonies. */
+    public com.colonysmp.onboard.Onboarding onboarding() {
+        return onboarding;
     }
 }

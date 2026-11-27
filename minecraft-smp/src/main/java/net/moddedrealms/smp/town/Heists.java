@@ -95,7 +95,7 @@ public final class Heists implements Listener {
         y.set("bank-ready", bankReady);
         y.set("wagon-ready", wagonReady);
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Could not save heists.yml: " + e.getMessage());
         }

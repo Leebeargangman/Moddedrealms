@@ -1,5 +1,6 @@
 package net.moddedrealms.smp.town;
 
+import net.moddedrealms.smp.SafeYaml;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -77,7 +78,7 @@ final class Mint {
         for (var e : net.entrySet()) y.set("net." + e.getKey().name(), Math.round(e.getValue() * 1000) / 1000.0);
         y.set("last-decay", lastDecay);
         try {
-            y.save(file);
+            SafeYaml.save(y, file);
         } catch (IOException ignored) {
         }
     }

@@ -25,6 +25,7 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -148,6 +149,45 @@ public final class NpcManager implements Listener {
         return e != null && e.getPersistentDataContainer().has(Keys.CITIZEN, PersistentDataType.STRING);
     }
 
+    /**
+     * Citizen bodies and mounts in loaded chunks that shouldn't be there: a body nobody is tracking (a second body
+     * of someone who already has one, or left over from a crash), a body whose citizen no longer exists, and
+     * horses with no rider. Used by /colonyadmin cleanup.
+     */
+    public List<Entity> strays() {
+        List<Entity> out = new ArrayList<>();
+        for (World w : Bukkit.getWorlds()) {
+            for (Entity e : w.getEntities()) {
+                if (isBody(e)) {
+                    Npc n = byEntity.get(e.getUniqueId());
+                    UUID cid;
+                    try {
+                        cid = UUID.fromString(e.getPersistentDataContainer().get(Keys.CITIZEN, PersistentDataType.STRING));
+                    } catch (IllegalArgumentException | NullPointerException ex) {
+                        cid = null;
+                    }
+                    if (n == null || cid == null || plugin.colonies().citizen(cid) == null || !n.c.id.equals(cid)) out.add(e);
+                } else if (e.getPersistentDataContainer().has(Keys.MOUNT, PersistentDataType.STRING) && e.getPassengers().isEmpty()) {
+                    out.add(e);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Removes what {@link #strays()} found; the activity loop gives anyone who should have a body a fresh one. */
+    public int removeStrays(List<Entity> strays) {
+        int n = 0;
+        for (Entity e : strays) {
+            if (!e.isValid()) continue;
+            Npc tracked = byEntity.get(e.getUniqueId());
+            if (tracked != null) despawn(tracked);
+            else e.remove();
+            n++;
+        }
+        return n;
+    }
+
     /** Has this citizen a body right now (then the background simulation leaves them alone)? */
     public boolean embodied(Citizen c) {
         return npc(c) != null;
@@ -178,6 +218,7 @@ public final class NpcManager implements Listener {
     // ───────────── time and shared state ─────────────
 
     public Phase phase(Colony col, World w) {
+        if (plugin.quests().busy(col)) return Phase.WORK;
         long t = w.getTime();
         long start = col.policies.hours.start, end = col.policies.hours.end, bed = plugin.settings().eveningEnd;
         if (GameTime.within(t, start, end)) return Phase.WORK;
@@ -658,6 +699,31 @@ public final class NpcManager implements Listener {
         }
     }
 
+    /**
+     * A hit on the block being worked, between breaks: crumbs, a knock and a swing, so work can be seen and heard.
+     * At most every 8 ticks per worker.
+     */
+    public void workHit(Npc n, org.bukkit.block.Block b) {
+        if (b == null || b.getType().isAir()) return;
+        World w = b.getWorld();
+        long t = w.getGameTime();
+        if (t - n.lastHit < 8) return;
+        n.lastHit = t;
+        n.body.swingMainHand();
+        w.spawnParticle(org.bukkit.Particle.BLOCK, b.getLocation().add(0.5, 0.5, 0.5), 5, 0.25, 0.25, 0.25, 0, b.getBlockData());
+        w.playSound(b.getLocation(), b.getBlockData().getSoundGroup().getHitSound(), 0.45f, 0.8f);
+    }
+
+    /** What a walking worker is carrying, as the item to show in their hand (null when nothing to show). */
+    private static ItemStack carriedItem(Npc n) {
+        if (n.c.carried.isEmpty() || !n.mover.moving()) return null;
+        for (String good : n.c.carried.snapshot().keySet()) {
+            Material mat = Material.matchMaterial(good.toUpperCase(Locale.ROOT));
+            if (mat != null && mat.isItem() && !mat.isAir()) return new ItemStack(mat);
+        }
+        return null;
+    }
+
     public void showHand(Npc n) {
         Citizen c = n.c;
         ItemStack hand = null;
@@ -666,7 +732,9 @@ public final class NpcManager implements Listener {
                 hand = n.enemy != null && c.ranged != null && c.ammo > 0 && n.loc().distanceSquared(n.enemy.getLocation()) > 25 ? c.ranged
                         : c.weapon != null ? c.weapon : c.ranged;
             } else if (c.status == Status.CITIZEN) {
-                hand = c.tool;
+                // goods being hauled show in the hand while walking; the tool otherwise
+                ItemStack carry = carriedItem(n);
+                hand = carry != null ? carry : c.tool;
             }
         }
         if (same(hand, n.shownHand)) return;

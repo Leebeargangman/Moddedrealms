@@ -31,6 +31,9 @@ public final class Mood {
         public boolean confined;
         /** A bard plays at the colony's tavern. */
         public boolean entertained;
+        /** Winter: warm, cold or freezing (null when winter needs don't apply). */
+        public String warmth;
+        public double warmthMood;
     }
 
     public record Result(double target, Map<String, Double> factors) {
@@ -78,6 +81,7 @@ public final class Mood {
         put(f, "Taxes", -in.taxRate * 25);
         put(f, "Services", Math.min(10, in.services * 2.0));
         if (in.entertained) put(f, "Music at the tavern", 4);
+        if (in.warmth != null) put(f, in.warmth, in.warmthMood);
         put(f, "Recent events", in.events);
         if (in.confined) put(f, "Confined", -20);
         double t = 50;

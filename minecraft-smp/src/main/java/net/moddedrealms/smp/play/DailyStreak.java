@@ -54,7 +54,7 @@ public final class DailyStreak implements Listener, CommandExecutor {
 
     private void save() {
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             plugin.getLogger().warning("Couldn't save streaks.yml: " + e.getMessage());
         }

@@ -120,6 +120,10 @@ public final class Jobs {
     /** Why a citizen can't take a job (at a building, if given), or null. */
     public String canTake(Colony c, Citizen ct, Job j, Building b) {
         if (!ct.status.free()) return ct.name + " is not free to work.";
+        if (j != ct.job) {
+            String locked = plugin.tiers().jobLocked(c, j);
+            if (locked != null) return locked;
+        }
         LifeStage stage = plugin.sim().citizens().stage(ct);
         if (stage == LifeStage.CHILD && j != Job.STUDENT && j != Job.UNEMPLOYED) return ct.name + " is a child: children can only study.";
         if (stage == LifeStage.ELDER && (j.heavy || j.military())) return ct.name + " is too old for heavy or military work.";

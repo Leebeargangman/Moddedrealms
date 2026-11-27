@@ -105,7 +105,10 @@ public final class Mining {
         }
         n.mover.stop();
         n.working = true;
-        if (now < n.actionAt) return;
+        if (now < n.actionAt) {
+            if (cell.pos.loaded(w)) m.workHit(n, cell.pos.block(w));
+            return;
+        }
         Block b = cell.pos.block(w);
         CitizenBrain.face(n, cell.pos.center(w));
         if (b.isLiquid()) {

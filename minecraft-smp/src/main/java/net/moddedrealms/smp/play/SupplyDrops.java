@@ -83,7 +83,7 @@ public final class SupplyDrops implements Listener, CommandExecutor {
         y.set("y", l.getBlockY());
         y.set("z", l.getBlockZ());
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException ignored) {
         }
     }

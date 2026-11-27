@@ -18,7 +18,7 @@ public enum Job {
             "Feeds and breeds the animals of a pen; collects eggs, wool and milk."),
     MILLER("Miller", Material.GRINDSTONE, Skill.COOKING, Background.RECIPE, 2, 0, null, false,
             "Grinds wheat into flour and cane into sugar at a mill."),
-    FORESTER("Forester", Material.IRON_AXE, Skill.FORESTRY, Background.NONE, 2, 0, Tools.Kind.AXE, true,
+    FORESTER("Woodcutter", Material.IRON_AXE, Skill.FORESTRY, Background.NONE, 2, 0, Tools.Kind.AXE, true,
             "Fells mature trees around the colony and replants saplings."),
     FISHER("Fisher", Material.FISHING_ROD, Skill.FISHING, Background.FISHING, 2, 0, Tools.Kind.FISHING_ROD, false,
             "Fishes from a fishery on the shore."),
@@ -170,7 +170,7 @@ public enum Job {
         if (s == null) return null;
         String u = s.trim().toUpperCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
         switch (u) {
-            case "LUMBERJACK" -> u = "FORESTER";
+            case "LUMBERJACK", "WOODCUTTER" -> u = "FORESTER";
             case "HERDER", "KEEPER" -> u = "ANIMAL_KEEPER";
             case "SMITH" -> u = "BLACKSMITH";
             case "NONE", "IDLE" -> u = "UNEMPLOYED";

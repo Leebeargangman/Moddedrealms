@@ -341,7 +341,7 @@ public final class Duels implements Listener, TabExecutor {
         stats.set(loser + ".run", 0);
         stats.set(loser + ".name", name(loser));
         try {
-            stats.save(file);
+            net.moddedrealms.smp.SafeYaml.save(stats, file);
         } catch (IOException ignored) {
         }
         String wn = name(winner), ln = name(loser);

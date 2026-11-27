@@ -191,6 +191,53 @@ public final class ColonyApi {
         }
     }
 
+    // ───────────── new players ─────────────
+
+    /** True when "Found a Colony" places a ready starter camp (features.starter-camp). */
+    public static boolean starterCamps() {
+        return plugin != null && plugin.settings().feature("starter-camp");
+    }
+
+    /**
+     * Founds a colony with a starter camp for this player at a ready site and takes them there. Returns why it can't
+     * at once, or null when it has started; {@code done} then gets null (founded) or why it failed, on the main thread.
+     */
+    public static String startColony(Player p, java.util.function.Consumer<String> done) {
+        if (plugin == null) return "Colonies aren't running right now.";
+        return plugin.camps().start(p, done);
+    }
+
+    /** Records a new-player funnel step (talked_to_rowan, chose_colony, chose_battles...) the first time it happens. */
+    /** Playing with friends is on (features.friends). */
+    public static boolean friends() {
+        return plugin != null && plugin.friends().on();
+    }
+
+    /** Colonies with members online that this player could ask to join (empty if they have one already). */
+    public static List<com.colonysmp.onboard.Friends.Joinable> joinable(Player p) {
+        return plugin == null ? List.of() : plugin.friends().joinable(p);
+    }
+
+    /** Asks a colony's members to let this player in. Null when asked; otherwise why not. */
+    public static String askToJoin(Player p, String colonyId) {
+        if (plugin == null) return "Colonies aren't running.";
+        return plugin.friends().ask(p, plugin.colonies().get(colonyId));
+    }
+
+    public static void funnel(UUID player, String step) {
+        if (plugin != null) plugin.funnel().record(player, step);
+    }
+
+    /** The furthest funnel step this player has reached, or "". */
+    public static String funnelStep(UUID player) {
+        return plugin == null ? "" : plugin.funnel().furthest(player);
+    }
+
+    /** True when this player has seen a one-time hint before; marks it seen. Use for "first time" tips. */
+    public static boolean firstTime(UUID player, String hint) {
+        return plugin != null && plugin.funnel().firstTime(player, hint);
+    }
+
     // ───────────── no-colony zones ─────────────
 
     /** Keeps colonies out of a circle of a world (a town, a spawn). Calling it again with the same key moves it. */
@@ -206,5 +253,45 @@ public final class ColonyApi {
     public static String zoneAt(String world, int cx, int cz) {
         for (Settings.Zone z : zones.values()) if (z.covers(world, cx, cz)) return z.label();
         return null;
+    }
+
+    // ───────────── the server's own plugin ─────────────
+
+    /**
+     * What ModdedrealmsSMP does for /colonyadmin: the season's events and reset (season.yml lives there), and
+     * its own NPCs for cleanup. ColonySMP never depends on that plugin; it registers itself here instead.
+     */
+    public interface ServerHook {
+        /** Season event names for /colonyadmin event. */
+        List<String> seasonEvents();
+
+        /** Starts or stops one; null when it worked, else why not. */
+        String seasonEvent(String name, boolean start);
+
+        /** Archives the season and resets what the SMP owns (confirm=false only describes what would happen). */
+        List<String> seasonEnd(boolean confirm);
+
+        /** Its NPCs that are duplicated or orphaned, one line each (removed when remove=true). */
+        List<String> strayNpcs(boolean remove);
+
+        /** Pays reward lines ColonySMP doesn't handle itself ("money:50", "key:common:1", "cosmetic:x"...). */
+        default void reward(Player p, List<String> rewards) {
+        }
+
+        /** Those rewards in a few words ("$50, 1 Common Key"), or "". */
+        default String describe(List<String> rewards) {
+            return "";
+        }
+    }
+
+    private static volatile ServerHook hook;
+
+    public static void hook(ServerHook h) {
+        hook = h;
+    }
+
+    /** The registered hook, or null. */
+    public static ServerHook hook() {
+        return hook;
     }
 }

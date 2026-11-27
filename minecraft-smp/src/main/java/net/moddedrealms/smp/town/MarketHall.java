@@ -393,7 +393,7 @@ public final class MarketHall {
         meta.set("board", board == null ? null : board.toString());
         meta.set("path", legMeta);
         meta.set("created", System.currentTimeMillis());
-        meta.save(metaFile());
+        net.moddedrealms.smp.SafeYaml.save(meta, metaFile());
         t.stalls().refreshAll();
         return "Market hall built at " + w.getName() + " " + x + " " + y + " " + z + " facing " + f.name().toLowerCase()
                 + ": 8 vendors, the broker's exchange and 12 stalls to rent. Undo with /mrtown market undo.";

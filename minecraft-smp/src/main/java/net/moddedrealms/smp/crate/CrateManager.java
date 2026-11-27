@@ -186,7 +186,7 @@ public final class CrateManager implements Listener {
 
     private void save() {
         try {
-            blocks.save(blocksFile);
+            net.moddedrealms.smp.SafeYaml.save(blocks, blocksFile);
         } catch (IOException e) {
             plugin.getLogger().warning("Could not save crate-blocks.yml: " + e.getMessage());
         }

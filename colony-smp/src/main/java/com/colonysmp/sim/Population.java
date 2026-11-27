@@ -72,7 +72,12 @@ public final class Population {
 
     /** The first settlers of a newly founded colony. */
     public void settlers(Colony col) {
-        for (Job j : plugin.settings().startingJobs) {
+        settlers(col, plugin.settings().startingJobs, true);
+    }
+
+    /** The first band of settlers, with these jobs, and their provisions and tools; tell = explain it in chat. */
+    public void settlers(Colony col, java.util.List<Job> jobs, boolean tell) {
+        for (Job j : jobs) {
             Citizen c = create(col, j, false);
             c.remember(plugin.sim().day(col), "Arrived as one of the first settlers");
         }
@@ -82,15 +87,21 @@ public final class Population {
             if (good != null) col.storage.force(good, it.getAmount());
             else col.equipment.force(it);
         }
+        // and their own tools, so the farmer and the forester can start at once
+        for (ItemStack it : plugin.settings().startingTools) {
+            for (int i = 0; i < it.getAmount(); i++) col.equipment.force(new ItemStack(it.getType()));
+        }
         plugin.sim().housing().assign(col);
         plugin.sim().jobs().refreshWorkplaces(col);
         col.lastSettlersDay = plugin.sim().day(col);
         col.graceHours = Math.max(col.graceHours, plugin.settings().foundingGraceDays * 24);
         col.log(ColonyEvent.Type.POPULATION, plugin.sim().day(col), col.citizens.size() + " settlers arrived to found the colony.");
-        for (Player p : col.onlineMembers()) {
+        for (Player p : tell ? col.onlineMembers() : java.util.List.<Player>of()) {
             Text.send(p, "<green>Your first <white>" + col.citizens.size() + "</white> settlers have arrived. Right-click one to see them, or use the Town Hall. "
-                    + "Register a house so they have beds, and workplaces so they can work. <yellow>They bring no tools:</yellow> put a hoe and an axe in storage "
-                    + "(or sneak + right-click a settler with one) before they can farm or fell.");
+                    + "Register a house so they have beds, and workplaces so they can work. "
+                    + (plugin.settings().startingTools.isEmpty()
+                    ? "<yellow>They bring no tools:</yellow> put a hoe and an axe in storage (or sneak + right-click a settler with one) before they can farm or fell."
+                    : "They brought a few tools (in the armoury); better ones make them faster."));
             if (col.inGrace()) {
                 Text.send(p, "<aqua>Founding grace:</aqua> <gray>for the first <white>" + graceDays(col) + "</white> days you play, nobody in "
                         + Text.esc(col.name) + " can die. Use them to give everyone a bed and get a farm going. Leave the bread in storage: it's their food.");
@@ -105,6 +116,8 @@ public final class Population {
         int pop = col.citizens.size();
         if (pop >= s.maxPopulation) return "The colony is at the server's population limit (" + s.maxPopulation + ").";
         if (col.policies.populationLimit > 0 && pop >= col.policies.populationLimit) return "The colony's population policy caps it at " + col.policies.populationLimit + ".";
+        String full = plugin.tiers().full(col);
+        if (full != null) return full;
         if (freeBeds(col) <= 0) return "There's no free bed. Build or register another house.";
         if (plugin.sim().finances().foodDays(col) < 1) return "There isn't a day's food in storage for one more mouth.";
         return null;
@@ -167,7 +180,7 @@ public final class Population {
             // misery
             if (c.needs.mood < s.emigrateBelow && c.trait != Trait.LOYAL) c.miserableDays++;
             else c.miserableDays = 0;
-            if (c.miserableDays >= s.emigrateDays && col.population() > 2 && !col.inGrace() && r.nextDouble() < s.emigrateChance) {
+            if (c.miserableDays >= s.emigrateDays && col.population() > 2 && !col.inGrace() && r.nextDouble() < s.emigrateChance && plugin.sim().winter().mayLeave(col)) {
                 leave(col, c, "was miserable for too long and left the colony (" + plugin.sim().citizens().why(col, c).toLowerCase() + ")");
             }
         }

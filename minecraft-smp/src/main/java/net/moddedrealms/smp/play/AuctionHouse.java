@@ -138,7 +138,7 @@ public final class AuctionHouse implements Listener, TabExecutor {
             if (!s.isEmpty()) y.set("collect." + e.getKey(), s);
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
             return true;
         } catch (IOException e) {
             plugin.getLogger().severe("Couldn't save auctions.yml: " + e.getMessage());

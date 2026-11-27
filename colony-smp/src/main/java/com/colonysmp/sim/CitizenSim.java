@@ -209,6 +209,7 @@ public final class CitizenSim {
         if (stage(c) == LifeStage.ELDER) f *= 0.8;
         f *= 1 + researched(col, c.job);
         if (c.motivatedUntil >= 0 && c.motivatedUntil >= (ctx != null ? ctx.day : plugin.sim().day(col))) f *= 1.15;
+        f *= plugin.sim().winter().work(col, c);
         return Math.max(0.02, f);
     }
 
@@ -353,6 +354,11 @@ public final class CitizenSim {
         in.events = ctx.events + (ctx.wages ? col.policies.wages.mood : -2) + (c.job == Job.SOLDIER && col.policies.military == Policies.Military.CONSCRIPTION ? -4 : 0);
         in.confined = c.status.confined();
         in.entertained = ctx.entertained;
+        var cold = plugin.sim().winter().mood(col, c);
+        if (cold != null) {
+            in.warmth = cold.getKey();
+            in.warmthMood = cold.getValue();
+        }
         return Mood.target(in);
     }
 

@@ -70,8 +70,7 @@ public final class Officers {
     }
 
     public Walker spawn(Location at) {
-        List<String> names = cfg().getStringList("town.names.officers");
-        String sur = names.isEmpty() ? "Grant" : names.get(r.nextInt(names.size()));
+        String sur = t.freshName("town.names.officers", "Grant", "Guard ", "town.names.townsfolk", true);
         String uniform = cfg().getString("town.officer-uniform-color", "#1F2A44");
         Map<EquipmentSlot, ItemStack> gear = new EnumMap<>(EquipmentSlot.class);
         gear.put(EquipmentSlot.HEAD, new ItemStack(Material.IRON_HELMET));

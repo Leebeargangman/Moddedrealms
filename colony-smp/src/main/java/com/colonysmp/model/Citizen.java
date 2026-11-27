@@ -94,6 +94,8 @@ public final class Citizen {
 
     // record keeping
     public int miserableDays;
+    /** Days in a row without warmth (winter needs); 0 = warm. */
+    public int coldDays;
     public long joinedDay;
     public final Deque<String> history = new ArrayDeque<>();
     public double lastX, lastY, lastZ;
@@ -237,6 +239,7 @@ public final class Citizen {
         s.set("crimes", crimes);
         s.set("motivated-until", motivatedUntil);
         s.set("miserable-days", miserableDays);
+        if (coldDays > 0) s.set("cold-days", coldDays);
         s.set("joined", joinedDay);
         s.set("history", new ArrayList<>(history));
         if (hasLast) s.set("last", lastX + "," + lastY + "," + lastZ);
@@ -312,6 +315,7 @@ public final class Citizen {
         c.crimes = s.getInt("crimes");
         c.motivatedUntil = s.getLong("motivated-until", -1);
         c.miserableDays = s.getInt("miserable-days");
+        c.coldDays = s.getInt("cold-days");
         c.joinedDay = s.getLong("joined");
         for (String h : s.getStringList("history")) c.history.addLast(h);
         String last = s.getString("last");

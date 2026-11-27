@@ -559,7 +559,7 @@ public final class TownManager implements Listener {
         y.set("towns." + z.id() + ".police-radius", z.police());
         y.set("towns." + z.id() + ".town-radius", z.town());
         try {
-            y.save(f);
+            net.moddedrealms.smp.SafeYaml.save(y, f);
         } catch (IOException e) {
             plugin.getLogger().warning("Could not save towns.yml: " + e.getMessage());
         }
@@ -579,7 +579,7 @@ public final class TownManager implements Listener {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
         y.set("towns." + id, null);
         try {
-            y.save(f);
+            net.moddedrealms.smp.SafeYaml.save(y, f);
         } catch (IOException ignored) {
         }
         zones.removeIf(x -> x.id().equals(id));
@@ -633,8 +633,51 @@ public final class TownManager implements Listener {
         return e == null ? null : byEntity.get(e.getUniqueId());
     }
 
+    /** One of the town's walker bodies that no walker owns any more (for /colonyadmin cleanup). */
+    public boolean isStray(Entity e) {
+        if (!isOurs(e) || walker(e) != null) return false;
+        String role = e.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+        try {
+            Walker.Role.valueOf(role); // walker legs and bodies only: seats and train passengers have other tags
+            return true;
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            return false;
+        }
+    }
+
     public boolean isOurs(Entity e) {
         return e.getPersistentDataContainer().has(key, PersistentDataType.STRING);
+    }
+
+    /**
+     * A name from the config list {@code poolKey} that no walker out right now goes by (shown as prefix + name),
+     * so two "Guard Finch" never stand in one street. When every name in the list is out, a name from the
+     * {@code comboKey} list is added (first names before surnames: "Guard Ned Finch", "Ada Finch").
+     */
+    String freshName(String poolKey, String fallback, String prefix, String comboKey, boolean comboFirst) {
+        Set<String> used = new HashSet<>();
+        for (Walker w : walkers) used.add(plainName(w.name));
+        List<String> pool = new ArrayList<>(plugin.getConfig().getStringList(poolKey));
+        if (pool.isEmpty()) pool.add(fallback);
+        java.util.Collections.shuffle(pool);
+        for (String n : pool) if (!used.contains(prefix + n)) return n;
+        List<String> combo = plugin.getConfig().getStringList(comboKey);
+        java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
+        if (!combo.isEmpty()) {
+            for (int i = 0; i < 300; i++) {
+                String a = combo.get(r.nextInt(combo.size())), b = pool.get(r.nextInt(pool.size()));
+                String n = comboFirst ? a + " " + b : b + " " + a;
+                if (!used.contains(prefix + n)) return n;
+            }
+        }
+        for (int i = 2; ; i++) {
+            String n = pool.get(0) + " " + i;
+            if (!used.contains(prefix + n)) return n;
+        }
+    }
+
+    static String plainName(String miniMessage) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(SmpPlugin.mm(miniMessage == null ? "" : miniMessage));
     }
 
     public List<Walker> walkers(Walker.Role role) {
@@ -1072,7 +1115,7 @@ public final class TownManager implements Listener {
         for (var e : treasury.entrySet()) y.set("treasury." + e.getKey(), e.getValue());
         for (TownData d : data.values()) if (d.worthSaving()) d.save(y.createSection("players." + d.id));
         try {
-            y.save(dataFile);
+            net.moddedrealms.smp.SafeYaml.save(y, dataFile);
             dirty = false;
         } catch (IOException e) {
             plugin.getLogger().warning("Could not save town-data.yml: " + e.getMessage());

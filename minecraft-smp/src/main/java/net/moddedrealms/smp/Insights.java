@@ -53,7 +53,7 @@ public final class Insights implements Listener {
         if (!dirty) return;
         dirty = false;
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             plugin.getLogger().warning("Couldn't save insights.yml: " + e.getMessage());
         }
@@ -66,6 +66,14 @@ public final class Insights implements Listener {
     private void add(String path, long n) {
         y.set(path, y.getLong(path) + n);
         dirty = true;
+    }
+
+    /** Seconds this player has played here: earlier sessions plus the one under way. */
+    public long playedSeconds(UUID u) {
+        long s = y.getLong("players." + u + ".seconds");
+        Long at = joinedAt.get(u);
+        if (at != null) s += Math.max(0, (System.currentTimeMillis() - at) / 1000);
+        return s;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

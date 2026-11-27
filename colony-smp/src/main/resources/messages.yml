@@ -1,0 +1,368 @@
+# ColonySMP messages
+#
+# Everything here is MiniMessage: <gold>, <bold>, <gradient:#a:#b>, <click:run_command:'/colony'>...
+# See https://docs.advntr.dev/minimessage/format
+# Words in {curly brackets} are filled in by the plugin. You can move them around or leave them out.
+# Change a line, then /colonyadmin reload. A broken file is refused and the old text stays in use.
+# A line you delete here comes back from the copy inside the plugin.
+#
+# New and changed text goes here. Older text still lives in the code and moves here as it is reworked.
+
+founding:
+  no-grant: "<gray>You've already had a founding grant this season, so this colony's treasury starts empty."
+
+admin:
+  no-permission: "<red>You need <white>{permission}</white> for that."
+  unknown-colony: "<red>No colony called <white>{name}</white>."
+  unknown-player: "<red>{name} isn't online."
+  help:
+    - "<aqua><bold>/colonyadmin</bold></aqua> <gray>(also everything from /colony admin)"
+    - " <white>cleanup [confirm]</white> <gray>find and remove duplicate or orphaned NPCs"
+    - " <white>debug <colony></white> <gray>internal state: NPCs, jobs, stores, tasks, chunks"
+    - " <white>reload</white> <gray>reload config.yml and messages.yml"
+    - " <white>funnel [24h|7d|all]</white> <gray>where new players drop off"
+    - " <white>raid <colony|all> [strength]</white> <gray>start a raid"
+    - " <white>event <name> start|stop</white> <gray>season events"
+    - " <white>give <player> <resource> <amount></white> <gray>goods into a player's colony storage"
+    - " <white>tier <colony> <tier></white> <gray>set a colony's tier (testing)"
+    - " <white>blueprint list|reload|preview <name>|share <colony> <copy></white> <gray>plans every colony can order"
+    - " <white>challenge [next]</white> <gray>today's colony challenge; next ends it early and picks another"
+    - " <white>season end [confirm]</white> <gray>archive and reset the season"
+  reload:
+    ok: "<green>Reloaded config.yml and messages.yml."
+    refused: "<red>Not reloaded, nothing changed: <white>{error}"
+  cleanup:
+    none: "<green>No duplicate or orphaned NPCs found."
+    found: "<yellow>Found {count} stray NPC(s):"
+    line: " <gray>- <white>{what}</white> at {where}"
+    more: " <gray>... and {count} more"
+    confirm: "<gray>Run <white>/colonyadmin cleanup confirm</white> to remove them."
+    done: "<green>Removed {count} stray NPC(s)."
+  give:
+    usage: "<gray>Usage: <white>/colonyadmin give <player> <resource> <amount></white> (a good such as oak_log, or an item: wand, book, marker, core...)"
+    no-colony: "<red>{player} isn't in a colony."
+    unknown: "<red>No colony resource or item called <white>{resource}</white>."
+    done: "<green>Put {amount} {resource} in {colony}'s storage."
+    partly: "<yellow>Storage was full: only {amount} {resource} went into {colony}'s storage."
+    item: "<green>Gave {player} a {resource}."
+  challenge:
+    next: "<green>Ended today's challenge (the first to finish got the bonus). New one: <white>{text}"
+  blueprint:
+    usage: "<gray>Usage: <white>/colonyadmin blueprint list|reload|preview <name>|share <colony> <copy name></white>"
+    unknown: "<red>No plan called <white>{name}</white>. <gray>/colonyadmin blueprint list"
+    previewed: "<green>Put down <white>{name}</white> ({n} blocks) in front of you. <gray>It's only a preview: break it when you're done."
+    list: "<gray>Server plans ({n}) in <white>plugins/ColonySMP/blueprints</white>: <white>{names}"
+    none: "<gray>No server plans. Put .yml copies or .nbt structure files in <white>plugins/ColonySMP/blueprints</white>."
+    reloaded: "<green>Read the blueprints folder again: {n} plans."
+    no-copy: "<red>{colony} has no copy called <white>{name}</white>."
+    shared: "<green>Every colony can now order <white>{name}</white> from the Blueprint Book."
+    failed: "<red>Couldn't save it: {error}"
+  tier:
+    usage: "<gray>Usage: <white>/colonyadmin tier <colony> <1-{max}></white>"
+    no-hall: "<red>{colony} has no Town Hall yet."
+    done: "<green>{colony} is now tier {tier} (Town Hall level {tier})."
+  raid:
+    usage: "<gray>Usage: <white>/colonyadmin raid <colony|all> [strength]</white>"
+    started: "<green>A raid of {size} is attacking {colony}."
+    failed: "<red>{colony}: {error}"
+    off: "<red>Raids are switched off (features.raids / raids.enabled)."
+  funnel:
+    off: "<gray>Funnel tracking is switched off (<white>features.funnel</white>): these numbers are from when it was on."
+    sites: "<gray>Starter camps: <white>{camps}</white> · sites: {status}"
+  season:
+    missing: "<red>Season events are run by ModdedrealmsSMP, which isn't installed or is too old."
+    usage: "<gray>Usage: <white>/colonyadmin season end [confirm]</white>"
+  event:
+    usage: "<gray>Usage: <white>/colonyadmin event <name> start|stop</white>. Events: <white>{events}"
+  feature-off: "<red>That's switched off for now (<white>features.{feature}</white> in config.yml)."
+
+# ───────────── Starter camps ("Found a Colony") ─────────────
+camp:
+  off: "Ready-made camps aren't open right now. Found a colony the classic way: <white>/colony create <name></white>."
+  busy: "Your camp is already being set up: one moment."
+  used: "You've had your ready-made camp. Found a new colony the classic way: walk into the wilds and use <white>/colony create <name></white>."
+  has-colony: "You already belong to a colony. <white>/colony</white> opens its menu."
+  searching: "<gray>Scouts are looking for good land for you. This takes a few seconds..."
+  no-site: "No free land was found just now. Try again in a minute, or walk out into the wilds and use <white>/colony create <name></white>."
+  failed: "Something went wrong setting up your camp, and nothing was changed. Please try again, or tell the staff with /report."
+  how: "You don't belong to a colony yet. <click:run_command:'/colony start'><hover:show_text:'<gray>A ready camp with three settlers'><green><u>/colony start</u></green></hover></click> gives you a ready camp with three settlers, or <white>/colony create <name></white> founds one where you stand."
+  title: "<gold><bold>{colony}</bold></gold>"
+  subtitle: "<white>Your colony, {colony}, has been founded!"
+  founded:
+    - "<gold><bold>{colony} is yours.</bold></gold> <gray>The tent sleeps three, the woodcutter's hut is ready and the storage chest is by the Town Hall core."
+    - "<gray>Your settlers are on their way. <yellow>Right-click your Colony Charter</yellow> to open the colony menu."
+  # What the first settlers say when they reach you, one line each (the jobless one says greeting-jobless).
+  greetings:
+    - "Welcome, {player}! So this is our new home? I'll get the fields ready."
+    - "Good to meet you, {player}. Point me at something to build and I'll build it."
+    - "{player}! Fine spot for a camp. We'll make something of it."
+  greeting-jobless: "Hello, {player}! I've got no work yet. Click me and give me a job - I'd make a good woodcutter."
+
+farm:
+  click-ground: "<yellow>Right-click flat grass inside your colony's land to lay out the farm."
+  outside: "The farm must be inside your colony's land: find flat grass closer to the Town Hall."
+  on-building: "Something of your colony already stands there. Pick an open patch of grass."
+  ground: "That ground won't take a farm: it needs flat grass or dirt (5 by 5 blocks)."
+  blocked: "Something is in the way there. Pick an open 5 by 5 patch of flat grass."
+  done: "<green>Your first farm is laid out!</green> <gray>Your farmer will tend it and the harvest goes to storage."
+
+charter:
+  no-colony: "This charter's colony is gone. <white>/colony start</white> founds a new one."
+  no-hall: "Place your Town Hall Core first: the charter opens its menu."
+
+jobs:
+  assigned: "<green>{name} is now a {job}</green> <gray>and heads to the {place}."
+  assigned-no-place: "<yellow>{name} is now a {job}</yellow> <gray>but there's no free workplace for it yet: register one (Building Marker) or order one (Blueprint Book)."
+  assigned-free: "<green>{name} is now a {job}.</green>"
+
+# One-time tips on the action bar, the first time a player meets something.
+hints:
+  settler: "<yellow>Right-click a settler</yellow> <gray>to see what they need and give them a job"
+  core: "<yellow>The Town Hall core</yellow> <gray>· right-click it (or your Colony Charter) for the colony menu"
+  chest: "<yellow>The storage chest</yellow> <gray>· settlers eat from it and builders take materials from it"
+  charter: "<yellow>Colony Charter</yellow> <gray>· right-click to open your colony menu"
+  farm-item: "<yellow>Starter Farm</yellow> <gray>· right-click flat grass inside your land"
+
+# The first steps on the task bar. {settlers} and {food} are the goals from config.yml (onboarding.goals).
+quests:
+  bar: "<gold>Step {step}/{count}: <yellow>{title}</yellow> <gray>· {task}"
+  place-core: "<gold>Place your Town Hall Core</gold> <gray>where your colony should stand"
+  complete-title: "<gold>Step Complete"
+  complete: "<green>✔ Step {step}/{count}: <white>{title}</white>."
+  next: "<gray>Next: <gold>{title}</gold> <gray>- {task}"
+  reward: "<gold>Reward:</gold> <white>{rewards}"
+  reward-treasury: "to the treasury"
+  done-title: "<gold>The Colony Takes Root"
+  done-subtitle: "<gray>Starter supplies sent to storage"
+  done: "<gold>First steps complete!</gold> Tools, seeds and food went to colony storage. Open the colony menu to see what to build next, and <white>/colony help</white> for everything else."
+  menu:
+    title: "Your Colony Menu"
+    task: "right-click the Colony Charter (or type /colony)"
+    hint: "The Colony Charter in your bag opens our colony's menu. Right-click it!"
+  job:
+    title: "Put Them to Work"
+    task: "click a settler and make them a Woodcutter"
+    hint: "I've no work yet! Right-click me and choose Change job, then Woodcutter."
+    hint-other: "{name} has no work yet. Right-click them, choose Change job, then Woodcutter."
+    someone: "One of us"
+  farm:
+    title: "Break Ground"
+    task: "right-click flat grass with the Starter Farm"
+    hint: "We'll need food. Use the Starter Farm on some flat grass near the camp and I'll tend it."
+  grow:
+    title: "A Growing Camp"
+    task: "grow to {settlers} settlers: build a house, then recruit at the Town Hall"
+    progress: "{count}/{settlers} settlers · build a house, then recruit at the Town Hall"
+    hint: "More hands would help! Order a House with the Blueprint Book (shift + left-click) and recruit settlers in the colony menu."
+  stores:
+    title: "Stock the Stores"
+    task: "have {food} food in colony storage"
+    progress: "{count}/{food} food in storage"
+    hint: "Winter's coming. Let's fill the storage chest with food: farm, fish, or bring some in."
+
+away:
+  header: "<gold>While you were away</gold> <gray>({time}) in <white>{colony}</white>:"
+  joined: "<green>+{count} settler(s)</green> joined"
+  left: "<red>{count} settler(s)</red> left"
+
+# /colony help: pages of the guide. Each has an icon, a name, a summary (on the button), text (on the page) and
+# examples: "MATERIAL|name|lore line|lore line".
+help:
+  title: "<dark_aqua>Colony guide"
+  pages:
+    basics:
+      icon: LODESTONE
+      name: "<aqua><bold>Basics"
+      summary: ["<gray>What a colony is and how it starts"]
+      text:
+        - "<gray>A colony is a settlement of NPC settlers"
+        - "<gray>who farm, build and defend while you play."
+        - ""
+        - "<white>/colony</white> <gray>or the Colony Charter: the menu"
+        - "<white>/colony start</white> <gray>a ready camp out in the wild"
+        - "<white>/colony tasks off</white> <gray>hides the task bar"
+      examples:
+        - "LODESTONE|<aqua>Town Hall core|<gray>The heart of the colony. Right-click it."
+        - "CHEST|<gold>Storage chest|<gray>Food and materials for everyone."
+        - "BOOK|<gold>Colony Charter|<gray>Right-click: the colony menu."
+        - "RED_BED|<white>Beds|<gray>Every settler needs one."
+    jobs:
+      icon: IRON_AXE
+      name: "<green><bold>Jobs"
+      summary: ["<gray>Farmer, Woodcutter, Miner, Builder..."]
+      text:
+        - "<gray>Right-click a settler, then Change job."
+        - "<gray>Most jobs need a workplace: a farm, a"
+        - "<gray>woodcutter's hut, a mine. Tools make"
+        - "<gray>them faster; keep spares in storage."
+      examples:
+        - "WHEAT|<white>Farmer|<gray>Works a farm. Food for everyone."
+        - "IRON_AXE|<white>Woodcutter|<gray>Fells and replants trees."
+        - "IRON_PICKAXE|<white>Miner|<gray>Digs for stone and ore."
+        - "BRICKS|<white>Builder|<gray>Builds what you order."
+        - "IRON_SWORD|<white>Guard|<gray>Defends against raids."
+        - "ANVIL|<white>Blacksmith|<gray>Makes tools and arms."
+    buildings:
+      icon: BRICKS
+      name: "<gold><bold>Buildings"
+      summary: ["<gray>Houses, farms, workshops"]
+      text:
+        - "<gray>Build a room yourself and place a Building"
+        - "<gray>Marker inside: it works out what it is."
+        - "<gray>Or order one with the Blueprint Book and"
+        - "<gray>your builders put it up block by block."
+      examples:
+        - "LIGHT_BLUE_BANNER|<aqua>Building Marker|<gray>Registers what you built."
+        - "BOOK|<yellow>Blueprint Book|<gray>Orders new buildings."
+        - "RED_BED|<white>House|<gray>Beds: room for more settlers."
+        - "WHEAT_SEEDS|<white>Farm|<gray>Farmland for your farmers."
+    tiers:
+      icon: BEACON
+      name: "<light_purple><bold>Tiers"
+      summary: ["<gray>From camp to empire"]
+      text:
+        - "<gray>Every colony starts as a Camp. Open"
+        - "<white>Tier</white> <gray>in /colony to see what the next"
+        - "<gray>tier needs: settlers, buildings, materials."
+        - "<gray>Moving up is one click. Each tier opens"
+        - "<gray>new jobs and buildings, more room and land."
+      examples:
+        - "CAMPFIRE|<gray>Camp|<gray>Farmers, woodcutters, miners, guards."
+        - "OAK_DOOR|<green>Village|<gray>Blacksmith, mill, bakery, soldiers."
+        - "BELL|<aqua>Town|<gray>Market, school, tavern, barracks."
+        - "LODESTONE|<gold>City|<gray>Workshop, engineers, university."
+        - "GOLDEN_HELMET|<light_purple>Kingdom|<gray>Enchanters, no limit on settlers."
+        - "NETHER_STAR|<red>Empire|<gray>Rule other colonies (later)."
+    empire:
+      icon: GOLDEN_HELMET
+      name: "<yellow><bold>Empire"
+      summary: ["<gray>Vassals and siege weapons (coming later)"]
+      text:
+        - "<gray>Great colonies will rule others as vassals,"
+        - "<gray>with siege weapons for wars between them."
+        - "<gray>This comes in a later update."
+      examples: []
+    war:
+      icon: CROSSBOW
+      name: "<red><bold>War and raids"
+      summary: ["<gray>Bandits, guards, defending"]
+      text:
+        - "<gray>Bandits raid colonies now and then. Guards"
+        - "<gray>fight them off; help them and you're rewarded."
+        - "<gray>Your builds are never lost in a raid."
+      examples:
+        - "IRON_SWORD|<white>Guards|<gray>Give settlers the Guard job."
+    winter:
+      icon: CAMPFIRE
+      name: "<aqua><bold>Winter"
+      summary: ["<gray>Keeping settlers warm"]
+      text:
+        - "<gray>In winter settlers need warmth as well"
+        - "<gray>as food. A house with a campfire, furnace"
+        - "<gray>or smoker inside keeps its people warm;"
+        - "<gray>the Town Hall's hearth warms a few more."
+        - "<gray>Fires burn logs, charcoal or coal from"
+        - "<gray>storage. Cold settlers work slower."
+      examples:
+        - "CAMPFIRE|<white>A fire inside|<gray>Register the house again after adding it."
+        - "OAK_LOG|<white>Firewood|<gray>Woodcutters bring logs to storage."
+        - "BRICKS|<white>Hearth Cottage|<gray>A warm house your builders can build."
+# ───────────── Tiers (features.tiers) ─────────────
+# Plain text (no tags) where noted: those lines also appear inside other menus and messages.
+tiers:
+  title: "the {tier} of {colony}"
+  # plain text
+  locked-job: "{job} opens when the colony becomes a {tier}."
+  # plain text
+  locked-building: "A {building} can be registered once the colony is a {tier}."
+  # plain text
+  full: "A {tier} holds {max} settlers at most. Become a {next} to make room for more."
+  check:
+    settlers: "{have}/{need} settlers"
+    building: "{have}/{need} × {building}"
+    money: "{need} in the treasury (it has {have})"
+    good: "{have}/{need} {good} in storage"
+  # plain text from here to goods-promised
+  not-yet: "To become a {tier} you still need: {what}"
+  top: "The colony is already as high as it can go."
+  empire-later: "A Kingdom becomes an Empire by ruling other colonies. That comes with empires, later."
+  no-hall: "The colony has no Town Hall Core."
+  no-permission: "You may not move the colony up a tier."
+  goods-gone: "The materials just left storage."
+  goods-promised: "The materials are promised to other work."
+  no-money: "The treasury can't pay for it."
+  log: "{by} made {colony} a {tier}."
+  up-title: "{tier}"
+  up-subtitle: "<gray>{colony} has moved up a tier"
+  unlock-line: "<gold> ✦ <white>{text}"
+  announce: "<gold>★ <white>The {old} of {colony} has become a {tier}<white>!"
+  done: "<green>{colony} is now a {tier}<green>!"
+  menu:
+    name: "{tier} <gray>· tier {n}/5"
+    next: "<gray>Next: {tier}"
+    ready: "<green>▶ Click to become a {tier}"
+    need: "<gray>Still needed:"
+    have: "<green>✔ <gray>{what}"
+    missing: "<red>✘ <gray>{what}"
+    unlocks: "<gray>Unlocks:"
+    top: "<gray>The highest tier for now. Empires come later."
+
+# ───────────── Winter needs (features.winter-needs) ─────────────
+winter:
+  log-cold: "{n} settlers spent the day in the cold."
+  cold: "<aqua>❄ <white>{n} of {colony}'s settlers are cold. <gray>Put a campfire, furnace or smoker in a house (then register it again), and keep logs in storage for firewood."
+  low: "<aqua>❄ <yellow>Firewood for about {days} more days. <gray>Woodcutters bring logs; any log, charcoal or coal burns."
+  menu:
+    name: "<aqua>Warmth"
+    off: "<gray>Winter needs aren't on right now"
+    spared: "<green>Spared the cold while the colony settles in"
+    waiting: "<gray>Checked at the next day change"
+    people: "<white>{warm} <gray>warm · <aqua>{cold} <gray>cold · <blue>{freezing} <gray>freezing"
+    houses: "<gray>Houses with a fire: <white>{heated}<gray> · without: <white>{unheated}"
+    hall: "<gray>Town Hall hearth: {state}"
+    hall-lit: "<green>lit"
+    hall-out: "<red>out of firewood"
+    firewood: "<gray>Firewood: <white>{n} <gray>(about {days} days)"
+    how: "<dark_gray>A campfire, furnace or smoker in a house warms it"
+
+# ───────────── Playing with friends (features.friends) ─────────────
+# plain text: off, no-colony, already-member, have-one, wait, nobody-to-ask
+friends:
+  off: "Joining friends isn't open yet."
+  no-colony: "There's no colony by that name."
+  already-member: "You're already in {colony}."
+  have-one: "You already belong to a colony."
+  wait: "Wait {seconds}s before asking again."
+  nobody-to-ask: "Nobody who can let you into {colony} is online right now."
+  asked: "<green>Asked {colony} to let you in. <gray>You'll hear back here within {minutes} minutes."
+  asked-member: "<aqua>{player}</aqua> <white>would like to join <aqua>{colony}</aqua>. <click:run_command:'{yes}'><green>[Let them in]</green></click> <click:run_command:'{no}'><red>[No thanks]</red></click>"
+  no-ask: "<red>{player} hasn't asked to join (or the request ran out)."
+  joined-elsewhere: "<yellow>{player} has joined another colony since."
+  joined-members: "<green>{player} joined {colony}. <gray>(let in by {by})"
+  turned-away-member: "<gray>You turned {player} away."
+  turned-away: "<yellow>{colony} can't take you in right now. <gray>Try another colony, or found your own with Elder Rowan."
+  welcome-title: "<aqua>{colony}"
+  welcome-subtitle: "<gray>{player} let you in. Welcome!"
+  welcome: "<green>Welcome to {colony}! <gray>Your Colony Charter opens the colony menu. Help your friends with the tasks on the bar."
+  together: "<gold>★ <white>You and {player} have played in {colony} together for {minutes} minutes! <gray>Reward: <white>{rewards}"
+
+# ───────────── Daily challenges (features.daily-challenges) ─────────────
+challenges:
+  off: "<gray>Daily colony challenges aren't on right now."
+  none-yet: "<gray>Today's challenge is being picked. Try again in a moment."
+  new: "<gold>☀ Today's colony challenge: <white>{text}</white> <gray>(your colony's target: {target}) · /colony challenge"
+  header: "<gold><bold>Today's colony challenge:</bold> <white>{text}"
+  yours: "<gray>Your colony: {bar} <white>{have}/{need}"
+  yours-done: "<green>✔ Your colony has done it today!"
+  rank: "<white>{n}. {colony} {state}"
+  reset: "<dark_gray>A new challenge every midnight (UK time). The first colony to finish gets a bonus."
+  menu: "<gold>Today: <white>{text} <gray>· {state}"
+  done-title: "<gold>Challenge done!"
+  done-subtitle: "<gray>{text}"
+  done: "<gold>★ <white>Daily challenge done: {text}! <gray>Reward: <white>{rewards}"
+  first: "<gold>★ <white>{colony} is the first colony to finish today's challenge: <gray>{text}"
+  best: "<gold>★ <white>{colony} was the first to finish yesterday's challenge and wins the bonus: <gray>{rewards}"
+  board-title: "<gold><bold>☀ Today's Colony Challenge"
+  board-text: "<white>{text}"
+  board-empty: "<gray>No colony has made a start yet.\n<gray>Found one with Elder Rowan!"
+  board-footer: "<dark_gray>/colony challenge · new every midnight"

@@ -127,7 +127,7 @@ public final class Bank implements Listener {
         y.set("status", status == null ? null : status.toString());
         y.set("last-robbery", lastRobbery);
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Could not save bank.yml: " + e.getMessage());
         }
@@ -427,7 +427,7 @@ public final class Bank implements Listener {
         meta.set("centre", List.of(x, y, z));
         meta.set("area", List.of(a[0], a[1], a[2], a[3], a[4], a[5]));
         meta.set("created", System.currentTimeMillis());
-        meta.save(metaFile());
+        net.moddedrealms.smp.SafeYaml.save(meta, metaFile());
         for (Entity e : w.getNearbyEntities(boxOf(a))) if (loose(e)) e.remove();
         panes.clear();
         if (gate != null) path(gate);

@@ -476,7 +476,7 @@ public final class PlazaBuilder {
         meta.set("block-entities", countTiles());
         meta.set("saved-entities", st.getEntities().size());
         meta.set("created", System.currentTimeMillis());
-        meta.save(metaFile());
+        net.moddedrealms.smp.SafeYaml.save(meta, metaFile());
         for (Entity e : regionEntities()) if (loose(e)) e.remove();
     }
 

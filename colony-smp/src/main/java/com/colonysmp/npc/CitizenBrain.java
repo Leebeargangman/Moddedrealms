@@ -86,6 +86,11 @@ public final class CitizenBrain {
             n.doing("Downed");
             return;
         }
+        // the first settlers of a starter camp walk over to say hello before anything else
+        if (n.c.status == com.colonysmp.model.Status.CITIZEN && plugin.onboarding().greet(n)) {
+            m.showHand(n);
+            return;
+        }
         switch (n.c.status) {
             case CAPTIVE, PRISONER -> plugin.prison().think(n, col, now);
             case RIOTER -> riot(n, col, now);

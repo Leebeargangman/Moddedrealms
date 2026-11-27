@@ -22,6 +22,8 @@ public final class Npc {
 
     public long thinkOffset;
     public long actionAt;
+    /** World time of the last visible hit on a block being worked. */
+    public long lastHit;
     /** Game time of the last needs update. */
     public long lastLife = -1;
     /** Working at the workplace right now (hours count towards wages and the building's staffing). */

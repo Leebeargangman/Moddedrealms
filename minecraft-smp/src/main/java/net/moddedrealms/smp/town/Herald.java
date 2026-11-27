@@ -61,7 +61,7 @@ final class Herald {
         for (String[] s : stories) st.add(s[0] + '\u0001' + s[1]);
         y.set("stories", st);
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException ignored) {
         }
     }

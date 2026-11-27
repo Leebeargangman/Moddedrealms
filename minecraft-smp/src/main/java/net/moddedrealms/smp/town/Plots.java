@@ -170,7 +170,7 @@ public final class Plots implements Listener, TabExecutor {
             s.set("sign", p.sign == null ? null : p.sign.toString());
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             t.plugin().getLogger().warning("Could not save plots.yml: " + e.getMessage());
         }

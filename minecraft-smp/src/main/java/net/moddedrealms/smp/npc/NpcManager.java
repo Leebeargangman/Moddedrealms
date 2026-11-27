@@ -69,7 +69,7 @@ public final class NpcManager implements Listener {
         YamlConfiguration y = new YamlConfiguration();
         for (NpcDef d : defs.values()) d.save(y.createSection(d.id));
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException e) {
             plugin.getLogger().warning("Could not save npcs.yml: " + e.getMessage());
         }
@@ -288,6 +288,12 @@ public final class NpcManager implements Listener {
         if (idOf(e.getEntity()) == null) return;
         e.setCancelled(true);
         if (e instanceof EntityDamageByEntityEvent by && by.getDamager() instanceof Player p) clicked(p, e.getEntity());
+    }
+
+    /** An NPC body that isn't the one being tracked for its id (a duplicate or a leftover): for /colonyadmin cleanup. */
+    public boolean isStray(Entity en) {
+        String id = idOf(en);
+        return id != null && (!defs.containsKey(id) || !en.getUniqueId().equals(entities.get(id)));
     }
 
     @EventHandler

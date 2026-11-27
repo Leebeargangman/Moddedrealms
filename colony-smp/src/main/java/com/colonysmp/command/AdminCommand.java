@@ -62,8 +62,9 @@ final class AdminCommand {
         if (c == null && a.length > 1) c = plugin.colonies().get(a[1]);
         switch (sub) {
             case "reload" -> {
-                plugin.reload();
-                Text.send(s, "Configuration reloaded.");
+                String err = plugin.reloadSafely();
+                if (err == null) com.colonysmp.util.Messages.send(s, "admin.reload.ok");
+                else com.colonysmp.util.Messages.send(s, "admin.reload.refused", "error", err);
             }
             case "save" -> {
                 plugin.save();

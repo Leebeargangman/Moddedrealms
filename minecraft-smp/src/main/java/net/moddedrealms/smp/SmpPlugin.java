@@ -4,6 +4,7 @@ import java.io.File;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.moddedrealms.smp.crate.CrateManager;
+import net.moddedrealms.smp.grave.GraveManager;
 import net.moddedrealms.smp.npc.Dialogues;
 import net.moddedrealms.smp.npc.NpcCommand;
 import net.moddedrealms.smp.npc.NpcManager;
@@ -25,11 +26,15 @@ public final class SmpPlugin extends JavaPlugin {
     private PlazaBuilder plaza;
     private CrateManager crates;
     private TownManager town;
+    private net.moddedrealms.smp.season.SeasonManager season;
+    private GraveManager graves;
+    private net.moddedrealms.smp.onboard.Onboarding onboarding;
     private PackSender packSender;
     private Feedback feedback;
     private Insights insights;
     private Guide guide;
     private net.moddedrealms.smp.play.DailyStreak streaks;
+    private net.moddedrealms.smp.play.Referrals referrals;
     private Reports reports;
     private net.moddedrealms.smp.play.Duels duels;
     private net.moddedrealms.smp.play.SupplyDrops drops;
@@ -50,12 +55,19 @@ public final class SmpPlugin extends JavaPlugin {
         crates = new CrateManager(this);
         plaza = new PlazaBuilder(this);
         town = new TownManager(this);
+        season = new net.moddedrealms.smp.season.SeasonManager(this);
+        graves = new GraveManager(this);
+        onboarding = new net.moddedrealms.smp.onboard.Onboarding(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(npcs, this);
+        pm.registerEvents(onboarding, this);
         pm.registerEvents(quests, this);
         pm.registerEvents(crates, this);
         pm.registerEvents(new Welcome(this), this);
+        pm.registerEvents(graves, this);
+        getCommand("graves").setExecutor(graves);
+        getCommand("graves").setTabCompleter(graves);
         packSender = new PackSender(this);
         pm.registerEvents(packSender, this);
         feedback = new Feedback(this);
@@ -73,6 +85,10 @@ public final class SmpPlugin extends JavaPlugin {
         streaks = new net.moddedrealms.smp.play.DailyStreak(this);
         pm.registerEvents(streaks, this);
         getCommand("daily").setExecutor(streaks);
+        referrals = new net.moddedrealms.smp.play.Referrals(this);
+        pm.registerEvents(referrals, this);
+        getCommand("invite").setExecutor(referrals);
+        getServer().getScheduler().runTaskTimer(this, referrals::tick, 1200L, 1200L);
         duels = new net.moddedrealms.smp.play.Duels(this);
         pm.registerEvents(duels, this);
         getCommand("duel").setExecutor(duels);
@@ -88,6 +104,11 @@ public final class SmpPlugin extends JavaPlugin {
         pm.registerEvents(boards, this);
         getCommand("leaderboard").setExecutor(boards);
         getCommand("leaderboard").setTabCompleter(boards);
+
+        getCommand("advent").setExecutor(season.advent());
+        getCommand("advent").setTabCompleter(season.advent());
+        getCommand("titles").setExecutor(season.cosmetics());
+        getCommand("titles").setTabCompleter(season.cosmetics());
 
         var smp = new SmpCommand(this);
         getCommand("mrsmp").setExecutor(smp);
@@ -129,6 +150,7 @@ public final class SmpPlugin extends JavaPlugin {
         npcs.start();
         quests.start();
         town.start();
+        graves.start();
         feedback.start();
         insights.start();
         drops.start();
@@ -139,11 +161,15 @@ public final class SmpPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (onboarding != null) onboarding.shutdown();
+        if (graves != null) graves.stop();
         if (duels != null) duels.shutdown();
         if (drops != null) drops.shutdown();
         if (boards != null) boards.shutdown();
         if (feedback != null) feedback.save();
         if (insights != null) insights.save();
+        if (referrals != null) referrals.save();
+        if (season != null) season.shutdown();
         if (town != null) town.stop();
         if (crates != null) crates.finishAll();
         if (quests != null) quests.saveAll();
@@ -160,6 +186,7 @@ public final class SmpPlugin extends JavaPlugin {
         crates.reload();
         npcs.reload();
         town.loadSettings();
+        graves.loadSettings();
     }
 
     public YamlConfiguration yaml(String name) {
@@ -177,11 +204,17 @@ public final class SmpPlugin extends JavaPlugin {
     public PlazaBuilder plaza() { return plaza; }
     public CrateManager crates() { return crates; }
     public TownManager town() { return town; }
+    /** Season 1: advent calendar, countdown, cosmetics (season.yml). */
+    public net.moddedrealms.smp.season.SeasonManager season() { return season; }
+    public GraveManager graves() { return graves; }
+    /** Elder Rowan's START HERE flow for new players. */
+    public net.moddedrealms.smp.onboard.Onboarding onboarding() { return onboarding; }
     public Feedback feedback() { return feedback; }
     public Reports reports() { return reports; }
-    public Insights insights() { return insights; }
     public Guide guide() { return guide; }
     public net.moddedrealms.smp.play.DailyStreak streaks() { return streaks; }
+    public net.moddedrealms.smp.play.Referrals referrals() { return referrals; }
+    public Insights insights() { return insights; }
     public net.moddedrealms.smp.play.Duels duels() { return duels; }
     public net.moddedrealms.smp.play.SupplyDrops drops() { return drops; }
     public net.moddedrealms.smp.play.AuctionHouse auctions() { return auctions; }

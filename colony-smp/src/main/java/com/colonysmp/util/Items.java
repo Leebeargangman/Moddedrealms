@@ -30,7 +30,8 @@ import java.util.UUID;
 public final class Items implements Listener {
 
     public static final String WAND = "wand", CORE = "core", BOOK = "book", ROPE = "rope", BATON = "baton", WAR_BANNER = "war_banner",
-            MARKER = "marker", CHRISTMAS_SAPLING = "christmas_sapling", PRESENT = "present";
+            MARKER = "marker", CHRISTMAS_SAPLING = "christmas_sapling", PRESENT = "present", CHARTER = "charter", STARTER_FARM = "starter_farm",
+            CAMP_BANNER = "camp_banner";
 
     private final Plugin plugin;
 
@@ -101,6 +102,43 @@ public final class Items implements Listener {
                 "<yellow>Shift + Right-Click</yellow> <gray>a block: <white>register",
                 "<gray>  the building you're standing in or at",
                 "<gold>Shift + Left-Click</gold><gray>: <white>order construction");
+    }
+
+    /** Right-click to open the colony menu. */
+    public ItemStack charter(String colonyId, String colonyName) {
+        ItemStack it = make(Material.BOOK, CHARTER, "<gold><bold>Colony Charter", true, 1,
+                "<gray>The founding charter of <white>" + Text.esc(colonyName) + "</white>.",
+                "",
+                "<yellow>Right-Click</yellow> <gray>to open the colony menu:",
+                "<gray>settlers, jobs, buildings and goals.");
+        ItemMeta meta = it.getItemMeta();
+        meta.getPersistentDataContainer().set(Keys.COLONY, PersistentDataType.STRING, colonyId);
+        it.setItemMeta(meta);
+        return it;
+    }
+
+    /** Right-click a patch of grass in your colony: a small field with water and sprouting wheat appears. */
+    public ItemStack starterFarm() {
+        return make(Material.WHEAT_SEEDS, STARTER_FARM, "<green><bold>Starter Farm", true, 1,
+                "<gray>A ready field for your farmer.",
+                "",
+                "<yellow>Right-Click</yellow> <gray>a patch of flat grass inside",
+                "<gray>your colony's land: a 5x5 field with water",
+                "<gray>and sprouting wheat appears, registered",
+                "<gray>as a Farm.");
+    }
+
+    /** A cosmetic banner for finishing the first steps. */
+    public ItemStack campBanner(String colonyName) {
+        ItemStack it = make(Material.RED_BANNER, CAMP_BANNER, "<gold><bold>Banner of " + Text.esc(colonyName), true, 16,
+                "<gray>Flown by colonies that finished",
+                "<gray>their first steps. Place it proudly.");
+        if (it.getItemMeta() instanceof BannerMeta bm) {
+            bm.setPatterns(List.of(new Pattern(DyeColor.YELLOW, PatternType.STRIPE_BOTTOM), new Pattern(DyeColor.YELLOW, PatternType.TRIANGLES_TOP),
+                    new Pattern(DyeColor.WHITE, PatternType.CROSS), new Pattern(DyeColor.YELLOW, PatternType.BORDER)));
+            it.setItemMeta(bm);
+        }
+        return it;
     }
 
     public ItemStack marker() {
@@ -179,6 +217,7 @@ public final class Items implements Listener {
             case WAND -> wand();
             case BOOK -> book();
             case MARKER -> marker();
+            case STARTER_FARM -> starterFarm();
             case ROPE -> rope();
             case BATON -> baton();
             case WAR_BANNER -> warBanner();

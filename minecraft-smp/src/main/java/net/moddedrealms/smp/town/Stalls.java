@@ -786,7 +786,7 @@ public final class Stalls implements Listener {
             y.set("claims." + e.getKey(), l);
         }
         try {
-            y.save(file);
+            net.moddedrealms.smp.SafeYaml.save(y, file);
         } catch (IOException ignored) {
         }
     }

@@ -58,7 +58,7 @@ import java.util.UUID;
 /** /colony: every player command, and the admin tools under /colony admin. */
 public final class ColonyCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBS = List.of("help", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "leave", "kick", "members",
+    private static final List<String> SUBS = List.of("help", "start", "tasks", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "ask", "letin", "turnaway", "challenge", "leave", "kick", "members",
             "promote", "demote", "rename", "settings", "menu", "core", "book", "marker", "wand", "rope", "baton", "banner", "disband", "quests",
             "citizens", "citizen", "jobs", "assign", "home", "needs", "settler", "traveller", "exile", "release",
             "buildings", "building", "validate", "upgrade", "construction",
@@ -70,6 +70,11 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
     private final ColonySMP plugin;
     private final Info info;
     private final AdminCommand admin;
+
+    /** The /colony admin tools, which /colonyadmin also runs. */
+    AdminCommand admin() {
+        return admin;
+    }
 
     public ColonyCommand(ColonySMP plugin) {
         this.plugin = plugin;
@@ -111,7 +116,8 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             if (sub.equals("help")) {
-                help(sender, rest);
+                if (sender instanceof Player hp && rest.length == 0 && plugin.settings().feature("onboarding")) new com.colonysmp.gui.HelpMenu(plugin, hp).open();
+                else help(sender, rest);
                 return true;
             }
             if (sub.equals("list")) {
@@ -139,9 +145,14 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "create" -> create(p, a);
             case "info" -> {
+                if (a.length == 0 && c != null && c.core != null && plugin.settings().feature("onboarding")) {
+                    new TownHallMenu(plugin, p, c).open();
+                    return;
+                }
                 Colony t = a.length > 0 ? plugin.colonies().byName(String.join(" ", a)) : c != null ? c : plugin.colonies().at(p.getLocation());
                 if (t == null) {
-                    Text.send(p, "You don't belong to a colony. Start one with <white>/colony create <name></white>.");
+                    if (plugin.settings().feature("starter-camp")) com.colonysmp.util.Messages.send(p, "camp.how");
+                    else Text.send(p, "You don't belong to a colony. Start one with <white>/colony create <name></white>.");
                     return;
                 }
                 sendInfo(p, t);
@@ -156,6 +167,19 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             }
             case "invite" -> invite(p, c, a);
             case "join" -> join(p, a);
+            case "challenge", "challenges" -> {
+                for (String line : plugin.challenges().describe(c)) Text.raw(p, line);
+            }
+            case "ask" -> {
+                Colony t = a.length == 0 ? null : plugin.colonies().byName(String.join(" ", a));
+                String err = plugin.friends().ask(p, t);
+                if (err != null) Text.send(p, "<red>" + Text.esc(err));
+            }
+            case "letin", "turnaway" -> {
+                if (need(p, c)) return;
+                if (sub.equals("letin")) plugin.friends().letIn(p, c, a.length == 0 ? null : a[0]);
+                else plugin.friends().turnAway(p, c, a.length == 0 ? null : a[0]);
+            }
             case "leave" -> leave(p, c);
             case "kick" -> kick(p, c, a);
             case "members" -> members(p, c);
@@ -191,6 +215,13 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             case "marker", "wand", "rope", "baton", "banner" -> items(p, c, sub);
             case "disband" -> disband(p, c);
             case "quests" -> quests(p, c, a);
+            case "tasks" -> quests(p, c, a.length == 0 ? a : new String[]{a[0].equalsIgnoreCase("off") || a[0].equalsIgnoreCase("hide") ? "hide" : "show"});
+            case "start" -> {
+                String err = plugin.camps().start(p, e -> {
+                    if (e != null && !e.equals("offline")) Text.send(p, "<red>" + e);
+                });
+                if (err != null) Text.send(p, "<red>" + err);
+            }
             case "citizens" -> {
                 if (!need(p, c)) new CitizensMenu(plugin, p, c, null).open();
             }
@@ -414,6 +445,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             Text.send(p, "<red>" + err);
             return;
         }
+        boolean grant = plugin.founders().mayGrant(p.getUniqueId());
         Colony c = plugin.colonies().create(p, name);
         give(p, plugin.items().core(c.id, c.name));
         give(p, plugin.items().book());
@@ -421,6 +453,9 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         Text.send(p, "<green>The colony of <white>" + Text.esc(c.name) + "</white> is created.</green> Place the <aqua>Town Hall Core</aqua> (in your inventory) where it should stand: "
                 + "the land around it becomes yours and your first settlers arrive. Place the <aqua>Building Marker</aqua> inside a building you've built to register it "
                 + "(it works out what the building is); the <white>Blueprint Book</white> orders new ones.");
+        if (!grant && plugin.settings().startingTreasury > 0) {
+            com.colonysmp.util.Messages.send(p, "founding.no-grant");
+        }
         plugin.quests().refresh(c);
     }
 
@@ -464,6 +499,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         for (Player m : c.onlineMembers()) Text.send(m, "<green>" + Text.esc(p.getName()) + " joined " + Text.esc(c.name) + ".");
         plugin.quests().refresh(c);
         plugin.requestSave();
+        if (plugin.friends().on()) plugin.friends().welcome(p, c, plugin.getServer().getOfflinePlayer(c.owner).getName());
     }
 
     private void leave(Player p, Colony c) {

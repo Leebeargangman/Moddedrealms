@@ -144,7 +144,7 @@ public final class Settings {
 
     public final List<ItemStack> questReward;
     /** Provisions the first settlers bring. */
-    public final List<ItemStack> startingGoods;
+    public final List<ItemStack> startingGoods, startingTools;
 
     /** The living world (config: civilisations) and the transaction journal (config: transactions). */
     public static final class Civs {
@@ -213,7 +213,26 @@ public final class Settings {
 
     public final Civs civs;
 
+    /** Feature switches (features: in config.yml); a missing one is off. */
+    public final java.util.Map<String, Boolean> features;
+    public final boolean debugLogging;
+    public final java.util.Set<String> debugSystems;
+
+    public boolean feature(String name) {
+        return features.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), false);
+    }
+
+    public boolean debug(String system) {
+        return debugLogging && (debugSystems.isEmpty() || debugSystems.contains(system));
+    }
+
     public Settings(FileConfiguration c, Logger log) {
+        var fs = c.getConfigurationSection("features");
+        java.util.Map<String, Boolean> flags = new java.util.HashMap<>();
+        if (fs != null) for (String k : fs.getKeys(false)) flags.put(k.toLowerCase(java.util.Locale.ROOT), fs.getBoolean(k));
+        features = java.util.Map.copyOf(flags);
+        debugLogging = c.getBoolean("debug.logging", false);
+        debugSystems = java.util.Set.copyOf(c.getStringList("debug.systems").stream().map(x -> x.toLowerCase(java.util.Locale.ROOT)).toList());
         civs = new Civs(c, log);
         autosaveMinutes = Math.max(1, c.getInt("general.autosave-minutes", 5));
         backups = Math.max(0, c.getInt("general.backups-to-keep", 5));
@@ -398,7 +417,7 @@ public final class Settings {
         mineBranchLength = Math.max(2, c.getInt("mines.branch-length", 16));
         maxMines = Math.max(1, c.getInt("mines.max-per-colony", 3));
 
-        raidsEnabled = c.getBoolean("raids.enabled", true);
+        raidsEnabled = c.getBoolean("raids.enabled", true) && c.getBoolean("features.raids", true);
         raidMinPopulation = Math.max(1, c.getInt("raids.min-population", 6));
         raidGraceDays = Math.max(0, c.getInt("raids.grace-days", 5));
         raidMinDays = Math.max(1, c.getInt("raids.min-days-between", 4));
@@ -435,6 +454,7 @@ public final class Settings {
 
         questReward = items(c, "quests.reward", log);
         startingGoods = items(c, "citizens.starting-goods", log);
+        startingTools = items(c, "citizens.starting-tools", log);
     }
 
     /** A list of "MATERIAL:amount" entries. */
