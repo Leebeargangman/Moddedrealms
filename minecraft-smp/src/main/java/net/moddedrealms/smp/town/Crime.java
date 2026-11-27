@@ -14,15 +14,15 @@ public enum Crime {
     ASSAULT("assault", 2, 15),
     ROBBERY("robbing a player", 2, 20),
     PET_KILLING("killing someone's pet", 2, 25),
-    ASSAULT_OFFICER("assaulting an officer", 2, 25),
+    ASSAULT_OFFICER("assaulting a guard", 2, 25),
     MANSLAUGHTER("killing a townsperson", 3, 40),
     MURDER("murder", 4, 50),
-    BANK_ROBBERY("robbing the bank", 4, 60),
+    BANK_ROBBERY("robbing the counting house", 4, 60),
     HEIST("armed heist", 5, 100),
     PRISON_BREAK("breaking someone out of jail", 3, 40),
-    LOAN_DEFAULT("defaulting on a bank loan", 2, 30),
+    LOAN_DEFAULT("defaulting on a counting house loan", 2, 30),
     ESCAPE("escaping from jail", 3, 30),
-    COP_KILLING("killing an officer", 5, 80);
+    COP_KILLING("killing a guard", 5, 80);
 
     public final String label;
     public final int defaultStars;

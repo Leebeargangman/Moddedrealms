@@ -116,6 +116,13 @@ trinkets for the Fence) and rob other players (same move: 5% of their money, max
 - Up to ★★ officers walk up and order you to surrender (crouch, or click [Surrender]); from ★★★, or if you resist,
   they draw swords. The hit that would kill you arrests you instead ("busted", +1 min).
 - Not crimes: hitting back within 10s (self-defence), fighting someone who is wanted, anything WorldGuard blocked.
+- **Newcomers get warnings** (`town.newcomer-grace`): with under 2 hours of play time, a player's first 3 minor
+  offences (hitting a guard, a townsperson or a player, arson, killing a pet) are a warning from the nearest guard
+  instead of wanted stars. In the 30s after a warning their hits do no harm. Since 1.12.1: on 2026-11-25 every new
+  player who stayed more than a few minutes was jailed 2-9 times, mostly for "assaulting a guard".
+- **Stray hits** (`town.accidents`): sweep attacks never hurt guards, townsfolk or villagers, and a swing that lands on
+  a guard or townsperson within 4s of fighting a monster is ignored with a "Careful!" note (guards come to help
+  players who are attacked, so they stand in the way). Thieves, bandits, gangsters and couriers still count.
 - Stars fade one per minute when no officer can see you. Leaving the 500-block zone stops the chase.
 - Arrest: fine ($100 per star, never below $0), 1 min per star in a cell (max 5, only counts down while online),
   `/bail` to pay $4 per second left. Prisoners can't use other commands, teleport, fight or be hurt. Every arrest saves a
@@ -257,6 +264,20 @@ odds, and insurance pays 80% of the loss. `/business` opens the panel (prices, u
 security, insurance); `/business market` shows every seller's price, stock and rating; `/business deposit|withdraw`
 moves cash.
 
+**Premises and work** (1.8.0). A player's business makes nothing on an empty plot and nothing while nobody works
+it. It needs its fittings on the plot, under a roof: an inn needs at least 4 beds (one per room), a bell at
+reception, 4 lights and a door; a cookhouse stoves, 4 seats and lights; a tavern 2 barrels, 4 seats and lights; a
+bakery an oven and a barrel; a tailor or wool mill looms (and the mill 2 sheep); a sawmill a stonecutter and log piles;
+a carpenter a crafting table and a stonecutter; a store 4 chests or barrels and a counter (lectern or bell); a farm 16
+crops and a composter (outdoors); a still a brewing stand and a cauldron. The fittings set how much it can make a cycle
+(each level lets more of them count), and the work done sets how much of that gets made: 1.5 for each task by the owner
+or a worker, 3 a cycle for each NPC staff or resident employee, a quarter of that while the owner hasn't been active
+for 15 minutes. Staff take 75% of the margin on what they make, so a business left to its staff earns little and an
+AFK owner's earns nothing; one that's worked earns well. At shops, inns, taverns and cookhouses, a shift also brings
+customers: right-click one to serve them (a sale on the spot, and a tip for you); they walk out if the price is over
+1.6x the fair price, or if nobody serves them in 25 seconds. Anyone idle for 3 minutes on shift is clocked out.
+`/business premises` shows the checklist; the panel shows it too, with the work done this cycle.
+
 **Jobs** (`/jobs`, `/job`). Town and player businesses hire. `/jobs` lists who's hiring, `/job apply <business id>`: town
 businesses take you on the spot; a player owner gets your application and `/business accept`s it (or offers you a job
 first with `/business hire <player>`, which you take with `/job accept`). At work,
@@ -285,6 +306,148 @@ Staff who build or test near spawn can be given `mrsmp.lawless` so the police ig
 How the NPCs walk: each one is an invisible, silent skeleton with its AI removed (it only pathfinds where told) carrying
 a Mannequin with the clothes. Neither is saved with the world. Needs a difficulty above peaceful.
 
+## Medieval look, repairs and protection (1.7.0)
+
+**Medieval.** Player-facing names are medieval: the Town Watch's guards (not police), the King's Inquisition and its
+inquisitors (not the Bureau's agents), the reeve, the gambling den, the counting house and its moneylenders, the inn,
+the cookhouse, the hidden still. Command names are unchanged (`/police`, `/casino`, `/loan`...). `/mrtown medieval
+[name|all]` gives generated buildings the look in place: quartz, polished deepslate/blackstone/andesite, smooth stone,
+sea lanterns and redstone lamps become stone brick, cobble, timber and glowstone (stairs and slabs keep their shape),
+the guardhouse's blue light becomes a brazier, flat roofs on the guardhouse and counting house get battlements, and
+floating signs, NPC names and business names are renamed. Players' own Meadowbrook plots are skipped. New builds get it
+automatically.
+
+![Before and after](docs/medieval-before-after.png)
+
+**Repair.** `/mrtown repair [name|all]` joins up fences, panes, bars and walls and gives stairs their corner shapes
+(generated buildings are placed without block updates), and moves any bed whose head is stuck in a wall back into the
+room. Runs after every build too.
+
+**Protection** (`town.protection`). Explosions (creepers, TNT, beds, withers...), fire spreading and burning, mobs
+changing blocks, trampled crops and liquids flowing in from outside can't damage the towns: every generated building's
+area plus a radius (default 160) around each town centre.
+
+**Guards and mobs.** Guards go for hostile mobs within 24 blocks (the ones chasing a player first), and when a mob
+hurts a player or a guard in town the nearest two come to help, or one is called in.
+
+## Meadowbrook's residents
+
+Families move into the town's free homes (not ones players own): couples, children and grandparents with medieval
+names and their own skins. Adults work at town businesses or at players' businesses (20 a cycle each, paid by the
+business, +25% output each; `/business fire <name>` lets one go); children play in the square and elders sit there.
+Everyone keeps to the clock: work from dawn, errands at the shops in the afternoon (they buy things), the tavern in the
+evening, home at night. Only residents near a player are walking about. Each real day brings births, weddings,
+children growing up and moving into a home of their own, and elders passing away, all in the news. Right-click one to
+chat; `/census` lists the families. Admin: `/mrtown residents [day]`. Settings under `town.residents`.
+
+## The Herald and the court (AI)
+
+**The Meadowbrook Herald** (`/herald`, or the editor): every few hours, when there's news, a new edition comes out and
+is announced; it opens as a book. **The court** (`/trial`): someone in jail may appeal once, with
+`/trial plead <their side>` or an advocate (`/trial advocate <notes>`, an in-game fee). The judge upholds, reduces,
+overturns or lengthens the sentence; the effect is clamped (from release to 1.5x the time left; 4-5 star crimes at
+least half), and everyone in the courthouse hears the hearing.
+
+Both run on OpenAI when a key is set, and on scripted text otherwise. The key goes in
+`plugins/ModdedrealmsSMP/openai.key` (use the AMP file manager; never chat or the console, which Essentials logs), then
+`/mrtown ai reload`. `/mrtown ai` shows the model and the spend. The cap is hard: before each request the worst case is
+checked against what's left of the month (`monthly-budget-usd`, default $6, about 5 pounds) and the day
+(`daily-budget-usd`); over it, nothing is sent. Spend is counted from the tokens OpenAI reports times
+`price-input-per-million` / `price-output-per-million`; the defaults are higher than the small models cost, so set them
+to the real prices from OpenAI's pricing page for an exact count. AI features are free for every player.
+
+## The market hall (1.9.0)
+
+![The market hall](docs/market-hall.png) ![Inside, roof cut away](docs/market-hall-inside.png)
+
+A covered timber market east of the spawn plaza, reached by a lantern-lit path from the plaza's east gate
+(`/mrtown market check|build <x> <floorY> <z> [west]`, undo with `/mrtown market undo`; on Bedwars201 it stands at
+-352 70 511 facing west).
+
+**The exchange.** About 100 wares in eight kinds (ores and gems, farm produce, meat and fish, bread and cooked food,
+timber, stone, wool/leather/paper, curios). Each has a normal stock; its price is `base × (normal / stock)^0.7`, so
+every unit sold makes the next one cheaper and every unit bought makes it dearer. Sell 640 iron and iron drops from
+$13 to about $4; buy the market out of something and it gets dear. Stock drifts back to normal over a few hours, a
+shortage or glut hits one ware every six hours (Herald news, as do huge sales), there's a 7% spread so flipping never
+pays, prices stay between 0.15× and 4× base, and past 12× normal stock the market stops buying (so a farm can't print
+money). Only plain items trade: nothing named, enchanted or carrying plugin data. Master Aldous (the broker, in the
+middle under the price board) trades everything and can sell your whole inventory in two clicks; the eight vendors
+along the sides each trade their own kind and cry their wares (and their bargains) to people walking past. `/market`
+shows the prices anywhere; trading happens in the hall. Town businesses with no local supplier buy wheat, wool,
+logs and bread here before importing at double price, so selling them to the market feeds the town.
+
+**Stalls.** Twelve stalls to rent by the day ($400, up to 14 days ahead, two per player, renewing itself unless
+switched off). Right-click a stall's counter: an empty one offers to rent; your own opens your stock, where clicking
+items in your inventory puts them out and left/right (shift for ×10) sets the price; anyone else gets a shop. Buyers
+pay the owner straight away, even offline, minus the market's 5%. Hire a keeper (+$100 a day) and townsfolk shopping
+in the hall buy market wares from the stall too, as long as it's priced at or under the exchange. When the rent runs
+out the stall is cleared and its stock waits for `/stall claim`. Stolen goods and dishes can't be stocked.
+
+**Business counters.** Every business, town-run or a player's, has a counter: its bell or lectern (sneak to use the
+block itself), its shopkeeper, or `/business shop` inside. Buy what it makes as real items (meals at the cookhouse,
+ale and mead at the tavern, tunics at the tailor, planks at the sawmill, a night's stay at the inn: you wake there
+and leave well rested) and sell it what it needs (wheat to bakeries and cookhouses, wool to the tailor, logs or
+planks to the carpenter). Prices follow the exchange: a counter never sells under the exchange's price or pays over
+it, so there's nothing to farm between them. Owners stock their own business from the same screen for free.
+
+**Table service.** Workers on shift at a cookhouse or tavern get diners. One comes in wanting a table: click them,
+they follow, click a free chair (a stair or slab inside) and they sit. They order from the menu (rabbit stew, steak,
+pumpkin pie..., or ale, pork pie, roast mutton at a tavern); cook it at a stove (smoker, furnace or campfire: pick
+the dish, stay by it for a few seconds) and hand it to them. The right dish is a sale for the business and a tip for
+the worker, bigger the faster it came; the wrong one is sent back (twice and they walk out). They eat, leave, and the
+table needs clearing (click the chair) before anyone else can sit there. Waiters aren't sent on deliveries, and the
+dishes are only for customers: they can't be eaten, stocked on a stall or kept after clocking out. Town-run eateries
+fill with NPC diners when players are about.
+
+## Colonies, new players and feedback (1.10.0)
+
+**ColonySMP link** (`town/ColonyLink.java`, only when ColonySMP 2.5+ is installed; `town.colonies` in config.yml).
+Colonies keep their barter economy, but meet the town's money at the market hall: `/market colony` (or the chest
+minecart in the market menu) is the freight desk. The colony's owner and co-owners sell what the colony can spare
+(stock not set aside for a task, food above its reserve) to the exchange for dollars, and any member who may store
+goods buys wares with their own money, carted to colony storage. Both move the exchange's prices, and the town's
+businesses buy from the same exchange, so colony wheat ends up in the bakeries. Big colony news (foundings, raids,
+wars, milestones, weddings, resettlements; at most `herald-per-hour`) goes to the Herald. No colony may hold land
+within `old-town-radius` of the fountain or `meadowbrook-radius` of Meadowbrook (ColonySMP refuses the claim).
+
+**New players.** A first join gets a starter kit (`welcome.starter-kit`) and the `/start` menu a few seconds later:
+start a colony (with the steps), quests, `/warp` into the wild, the market, town jobs, bosses, the Watch and the poll.
+`/start` (also `/guide`) opens it any time.
+
+**Feedback.** `/poll` asks the questions under `poll.questions` (multiple choice, in a menu), offered once to every
+player who has played `ask-after-minutes`, with `reward` dollars for answering (in-game money only). `/suggest <idea>`
+saves anything else and tells online staff. Staff: `/mrsmp poll` (tallies), `/mrsmp suggestions [n]`.
+
+**Insights.** `insights.yml` counts, for staff, how long new players' first visit lasts, who comes back on a later day,
+kick reasons, and the commands players (and newcomers in their first ten minutes) use. No chat or addresses. Read it
+with `/mrsmp insights [days]`; `/mrsmp colonies` lists the colonies.
+
+## The resource pack
+
+`resourcepack/` holds the server pack's own art: 82 NPC skins (`gen_skins.py`, medieval clothes for every role and
+40 residents), the train's engine and carriages (`gen_models.py`, item models shown by item displays that follow the
+minecarts) and item art for bolt cutters, loot bags, gold bars and the Herald. `python3 build_pack.py
+<MythicDepths resourcepack.zip> out.zip` merges it with the MythicDepths pack and prints the SHA-1 for
+`server.properties`. NPCs wear the skins through their profile's skin patch; `resource-pack.models: false` turns all
+of it off for a server that doesn't send the pack. If the engine faces backwards, set `town.railway.model-yaw: 180`.
+
+**Hosting.** Players reach the server through Minehut's proxy, which only lets packs through from its approved hosts
+(raw.githubusercontent.com, mc-packs.net, resourcepack.host, digitaloceanspaces.com, lobfile.com). A pack anywhere
+else is declined before the client sees it; with `require-resource-pack=true` that kicks everyone mid-join, and the
+client shows "Network Protocol Error". So the live pack is committed in `resourcepack/hosted/` and served from
+`https://raw.githubusercontent.com/Leebeargangman/Moddedrealms/<commit>/minecraft-smp/resourcepack/hosted/<file>.zip`
+(a commit hash in the URL, so it never changes under a client).
+
+**Sending.** The plugin sends the pack itself while a player joins (`resource-pack.url`, `sha1`, `prompt` in
+config.yml), so `server.properties` has no pack and `require-resource-pack=false`. In AMP that's
+`Minecraft.ResourcePackURL` empty and `Minecraft.RequireResourcePack=False` in `MinecraftModule.kvp`, changed with the
+instance stopped, because AMP rewrites `server.properties` from it on every start. Minehut can't send packs to Bedrock
+players, so Bedrock players are skipped (`skip-bedrock`, recognised by Floodgate's `.` name prefix or all-zero id). Java
+players still have to accept the pack (`required`). One who declines is let in and kicked a second later with
+`decline-message`, because a kick during the join reaches them through Minehut as "Network Protocol Error". A pack
+that fails to download kicks nobody. After rebuilding the pack: add the new zip to `hosted/`, push, then set the new
+URL and SHA-1 in config.yml and run `/mrsmp reload`.
+
 ## Console bridge
 
 AMP has no command-line way to type into the console, so lines appended to
@@ -293,6 +456,9 @@ Only someone who can already write the server's files can use it.
 
 ## Build
 
+ModdedrealmsSMP compiles against ColonySMP's API jar, so build `colony-smp/` first:
+
 ```bash
+(cd colony-smp && ./gradlew --offline build -x test)
 ~/.local/share/apache-maven-3.9.9/bin/mvn -f minecraft-smp/pom.xml package
 ```

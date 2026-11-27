@@ -69,7 +69,7 @@ final class SmpCommand implements TabExecutor {
                             return say(sender, "/mrsmp spawn build <x> <floorY> <z> [world]", NamedTextColor.YELLOW);
                         }
                         if (w == null) return say(sender, "World not found.", NamedTextColor.RED);
-                        say(sender, plugin.plaza().build(w, x, y, z), NamedTextColor.GREEN);
+                        say(sender, plugin.plaza().build(w, x, y, z) + " " + plugin.town().medieval("plaza") + " " + plugin.town().repair("plaza"), NamedTextColor.GREEN);
                     } else if (what.equals("undo")) {
                         say(sender, plugin.plaza().undo(), NamedTextColor.GREEN);
                     } else {
@@ -108,7 +108,58 @@ final class SmpCommand implements TabExecutor {
                     say(sender, target.getName() + " has " + plugin.quests().keys(target.getUniqueId(), crate) + " " + plugin.crates().keyName(crate) + "(s).", NamedTextColor.GREEN);
                 }
             }
-            default -> say(sender, "/mrsmp <reload|spawn build|spawn undo|key>   /mrnpc for NPCs   /quests for quests", NamedTextColor.YELLOW);
+            case "poll" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.feedback().results()) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "suggestions", "ideas" -> {
+                if (!admin) return no(sender);
+                int n = 15;
+                try {
+                    if (args.length > 1) n = Math.max(1, Math.min(100, Integer.parseInt(args[1])));
+                } catch (NumberFormatException ignored) {
+                }
+                for (String l : plugin.feedback().suggestions(n)) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "insights", "stats" -> {
+                if (!admin) return no(sender);
+                int days = 7;
+                try {
+                    if (args.length > 1) days = Math.max(1, Math.min(90, Integer.parseInt(args[1])));
+                } catch (NumberFormatException ignored) {
+                }
+                for (String l : plugin.insights().report(days)) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "drop" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.drops().admin(sender, args.length > 1 ? args[1].toLowerCase() : "status")));
+            }
+            case "ah" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.auctions().status()));
+            }
+            case "disaster", "disasters" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.town().disasterAdmin(sender, args)));
+            }
+            case "mint", "currency" -> {
+                if (!admin) return no(sender);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.town().mintStatus()));
+            }
+            case "reports" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.reports().list(args.length > 1 && args[1].equalsIgnoreCase("all"))) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            case "report" -> {
+                if (!admin) return no(sender);
+                if (args.length < 3) return say(sender, "/mrsmp report <id> <note to the reporter>", NamedTextColor.YELLOW);
+                sender.sendMessage(SmpPlugin.mm("<gold>" + plugin.reports().close(args[1], String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)))));
+            }
+            case "colonies" -> {
+                if (!admin) return no(sender);
+                for (String l : plugin.town().colonyStatus()) sender.sendMessage(SmpPlugin.mm(l));
+            }
+            default -> say(sender, "/mrsmp <reload|spawn build|spawn undo|key|poll|suggestions|insights [days]|colonies|drop now|ah>   /mrnpc for NPCs   /quests for quests", NamedTextColor.YELLOW);
         }
         return true;
     }
@@ -132,7 +183,7 @@ final class SmpCommand implements TabExecutor {
         List<String> out = new ArrayList<>();
         if (!sender.hasPermission("mrsmp.admin")) return out;
         if (args.length == 1) {
-            for (String s : List.of("reload", "spawn", "key")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
+            for (String s : List.of("reload", "spawn", "key", "poll", "suggestions", "insights", "colonies", "drop", "ah")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn")) {
             out.addAll(List.of("check", "build", "undo"));
         }

@@ -45,7 +45,7 @@ const q = {
 
 // Actions a routine may use. Not: kill, exile, law, vote, diplomacy, found/join/leave, program, run, design.
 export const ROUTINE_ACTIONS = new Set(["gather", "craft", "eat", "goto", "follow", "explore", "attack", "flee", "sleep", "hide",
-  "deposit", "withdraw", "give", "build", "sign", "read", "chat", "whisper", "post", "claim", "wait"]);
+  "deposit", "withdraw", "give", "build", "sign", "read", "chat", "whisper", "post", "claim", "wait", "gearup", "mine", "smelt"]);
 
 const LIMITS = { steps: 30, depth: 3, repeat: 10, until: 20 };
 const cleanName = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9_-]/g, "_").replace(/_+/g, "_").slice(0, 24);

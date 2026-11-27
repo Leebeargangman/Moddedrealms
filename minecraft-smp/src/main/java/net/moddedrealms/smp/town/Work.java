@@ -47,8 +47,11 @@ public final class Work implements Listener {
         String biz;
         Location target;
         Biz deliverTo;
-        long deadline, nextTask;
-        int done;
+        Walker customer;
+        long deadline, nextTask, lastHarvest;
+        int done, missed, harvested;
+        double earned;
+        boolean struck;
     }
 
     private final TownManager t;
@@ -57,10 +60,58 @@ public final class Work implements Listener {
     private final Map<UUID, String> offers = new HashMap<>();
     private final Random r = new Random();
     private int tick;
+    final Dining dining;
+    final Careers careers;
 
     Work(TownManager t, Businesses bz) {
         this.t = t;
         this.bz = bz;
+        this.dining = new Dining(t, bz, this);
+        this.careers = new Careers(t);
+    }
+
+    /** A strike for the worker on this shift (and remember the shift wasn't clean). */
+    private void strike(Player p, Shift s, Biz b, String why) {
+        s.struck = true;
+        careers.strike(p.getUniqueId(), b, why);
+    }
+
+    /** Two slips in a row (a task left to go cold, a customer left waiting) make a strike. */
+    private void slip(Player p, Shift s, Biz b, String why) {
+        if (++s.missed >= 2) {
+            s.missed = 0;
+            strike(p, s, b, why);
+        }
+    }
+
+    /** Is this block the worker's current station task? */
+    boolean isTarget(UUID u, Block b) {
+        Shift s = shifts.get(u);
+        return s != null && s.target != null && s.target.getBlock().equals(b);
+    }
+
+    /** What the worker's current station task is ("composter"), or null. */
+    String targetName(UUID u) {
+        Shift s = shifts.get(u);
+        return s == null || s.target == null ? null : s.target.getBlock().getType().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+    }
+
+    /** The business this player is clocked in at, or null. */
+    Biz shiftBiz(UUID u) {
+        Shift s = shifts.get(u);
+        return s == null ? null : bz.get(s.biz);
+    }
+
+    private boolean isShiftCustomer(Walker w) {
+        for (Shift s : shifts.values()) if (s.customer == w) return true;
+        return false;
+    }
+
+    /** Pay a worker for a job done outside the task queue (seating, serving and clearing at an eatery). */
+    void credit(Player p, Biz b, int mult) {
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null || !b.id.equals(s.biz)) return;
+        earn(p, s, b, mult);
     }
 
     private org.bukkit.configuration.file.FileConfiguration cfg() {
@@ -97,6 +148,8 @@ public final class Work implements Listener {
                 Biz b = a.length > 1 ? bz.get(a[1]) : null;
                 if (b == null || b.rival) return say(p, "<yellow>/job apply <business> <gray>(see /jobs)");
                 if (p.getUniqueId().equals(b.owner)) return say(p, "<gray>That's your own business. Owners work it too: /job clockin works for you there.");
+                String barred = careers.barred(p.getUniqueId(), b);
+                if (barred != null) return say(p, "<red>" + barred);
                 if (!b.playerOwned()) {
                     hire(b, p);
                     return true;
@@ -128,6 +181,7 @@ public final class Work implements Listener {
                 if (b == null) return say(p, "<gray>You need a job first. <white>/jobs");
                 if (!b.open()) return say(p, "<red>" + b.name + " is closed (" + b.closedWhy + ").");
                 if (here != b) return say(p, "<gray>Go to " + b.name + " to clock in.");
+                if (t.data(p).stars >= 2 && !p.getUniqueId().equals(b.owner)) return say(p, "<red>Nobody will put you on shift while the Watch is after you.");
                 Shift s = new Shift();
                 s.biz = b.id;
                 s.nextTask = System.currentTimeMillis() + 3000;
@@ -138,19 +192,28 @@ public final class Work implements Listener {
                 Shift s = shifts.get(p.getUniqueId());
                 if (s == null) return say(p, "<gray>You're not clocked in.");
                 clockOut(p.getUniqueId());
-                say(p, "<gray>Clocked out after " + s.done + " task" + (s.done == 1 ? "" : "s") + ". Good work.");
+                say(p, "<gray>Clocked out after " + s.done + " task" + (s.done == 1 ? "" : "s") + (s.harvested > 0 ? " and " + s.harvested + " crops harvested" : "")
+                        + ". <green>Earned " + Money.fmt(s.earned) + "</green> this shift." + (s.struck ? "" : " Good work."));
+                Biz sb = bz.get(s.biz);
+                if (sb != null && !s.struck) careers.cleanShift(p, sb, s.done);
             }
             default -> {
                 if (mine == null) return say(p, "<gray>You don't have a job. <white>/jobs</white> lists who's hiring.");
                 Shift s = shifts.get(p.getUniqueId());
-                say(p, "<gold>You work at " + mine.name + " <gray>(" + mine.kind.label + ") for " + Money.fmt(wage(mine)) + " a task. "
+                say(p, "<gold>You work at " + mine.name + " <gray>(" + mine.kind.label + ") for " + Money.fmt(wage(mine) * careers.payFactor(p.getUniqueId(), mine)) + " a task. "
                         + (s == null ? "<white>/job clockin</white> there to start." : "<green>Clocked in, " + s.done + " tasks done."));
+                for (String l : careers.card(p.getUniqueId(), mine)) say(p, " " + l);
             }
         }
         return true;
     }
 
     void hire(Biz b, Player p) {
+        String barred = careers.barred(p.getUniqueId(), b);
+        if (barred != null) {
+            say(p, "<red>" + barred);
+            return;
+        }
         Biz old = bz.employerOf(p.getUniqueId());
         if (old != null && old != b) {
             old.workers.remove(p.getUniqueId());
@@ -170,7 +233,9 @@ public final class Work implements Listener {
     }
 
     void clockOut(UUID u) {
-        shifts.remove(u);
+        Shift s = shifts.remove(u);
+        if (s != null && s.customer != null) t.unregister(s.customer, false);
+        if (s != null) dining.clockOut(u);
     }
 
     private static boolean say(Player p, String m) {
@@ -179,6 +244,16 @@ public final class Work implements Listener {
     }
 
     // ------------------------------------------------------------------ shifts
+
+    private static String workerSkin(Biz b) {
+        return switch (b.kind) {
+            case FARM -> "farmer";
+            case BAKERY, RESTAURANT -> "chef";
+            case HOTEL -> "bellhop";
+            case TAVERN, SPEAKEASY -> "bartender";
+            default -> net.moddedrealms.smp.Pack.pick("worker");
+        };
+    }
 
     private boolean atWork(Player p, Biz b) {
         Biz here = bz.at(p.getLocation());
@@ -209,26 +284,71 @@ public final class Work implements Listener {
         World w = c.getWorld();
         for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) for (int y = y0; y <= y1; y++) {
             Block bl = w.getBlockAt(x, y, z);
-            if (STATIONS.contains(bl.getType()) || bl.getType() == b.kind.station) out.add(bl);
+            // only what counts as this business's ground: a worker standing there is "at work", and isn't told it's not theirs
+            if (!(STATIONS.contains(bl.getType()) || bl.getType() == b.kind.station) || bz.at(bl.getLocation()) != b) continue;
+            // a business without a plot is a circle round its anchor: keep stations well inside, so the worker standing at one is still there
+            if (p == null && bl.getLocation().add(0.5, 0.5, 0.5).distance(c) > 9.5) continue;
+            out.add(bl);
         }
         return out;
     }
 
+    /** What the job at this station is, in words. */
+    static String verb(Material m) {
+        String n = m.name();
+        if (n.endsWith("_BED")) return "Make up the room";
+        return switch (m) {
+            case COMPOSTER -> "Compost the scraps";
+            case LOOM -> "Weave a bolt of cloth";
+            case STONECUTTER -> "Saw planks";
+            case SMOKER -> "Mind the oven";
+            case BARREL -> "Stock the barrels";
+            case CRAFTING_TABLE -> "Make up an order";
+            case FURNACE, BLAST_FURNACE -> "Stoke the furnace";
+            case BREWING_STAND -> "Brew a batch";
+            case CARTOGRAPHY_TABLE -> "Draw up a map";
+            case LECTERN -> "Do the books";
+            case FLETCHING_TABLE -> "Fletch arrows";
+            case SMITHING_TABLE -> "Smith a fitting";
+            case GRINDSTONE -> "Sharpen the tools";
+            case CAULDRON -> "Fetch water";
+            case ANVIL -> "Hammer out repairs";
+            case HAY_BLOCK -> "Bale the hay";
+            case CHEST -> "Sort the stores";
+            case BOOKSHELF, CHISELED_BOOKSHELF -> "Tidy the shelves";
+            case WHEAT -> "Tend the wheat";
+            case OAK_LOG -> "Split logs";
+            default -> "Work";
+        };
+    }
+
     void second() {
         tick++;
+        if (tick % 60 == 0) careers.save();
         long now = System.currentTimeMillis();
         for (UUID u : new ArrayList<>(shifts.keySet())) {
             Player p = Bukkit.getPlayer(u);
             Shift s = shifts.get(u);
             Biz b = bz.get(s.biz);
             if (p == null || b == null || !b.open() || !(b.workers.contains(u) || u.equals(b.owner)) || t.data(p).jailed()) {
-                shifts.remove(u);
+                clockOut(u);
+                continue;
+            }
+            if (p.getIdleDuration().toSeconds() > cfg().getLong("town.business.afk-clockout-seconds", 180)) {
+                strike(p, s, b, "dozed off on shift");
+                clockOut(u);
+                p.sendMessage(SmpPlugin.mm("<gray>You dozed off on the job, so you've been clocked out of " + b.name + ". <white>/job clockin</white> when you're back."));
+                continue;
+            }
+            if (t.data(p).stars >= 3 && !u.equals(b.owner)) {
+                careers.fire(u, b, "wanted by the Watch");
                 continue;
             }
             if (s.deliverTo != null) {
                 Location dest = bz.anchor(s.deliverTo);
                 if (dest == null || now > s.deadline) {
                     p.sendMessage(SmpPlugin.mm("<red>The delivery to " + (s.deliverTo == null ? "?" : s.deliverTo.name) + " ran out of time."));
+                    strike(p, s, b, "a delivery never arrived");
                     s.deliverTo = null;
                     s.nextTask = now + 5000;
                     continue;
@@ -247,9 +367,33 @@ public final class Work implements Listener {
                 if (s.target != null && now > s.deadline) s.target = null;
                 continue;
             }
+            if (s.customer != null) {
+                if (!s.customer.valid() && now <= s.deadline) {
+                    // the customer couldn't get here (despawned): no harm done, another task comes along
+                    s.customer = null;
+                    s.nextTask = now + 2000;
+                    continue;
+                }
+                if (now > s.deadline) {
+                    if (s.customer.valid()) {
+                        s.customer.say(p, "Forget it, I'll go elsewhere.");
+                        t.unregister(s.customer, false);
+                    }
+                    s.customer = null;
+                    b.rating = Math.max(0, b.rating - 0.05);
+                    p.sendActionBar(SmpPlugin.mm("<red>The customer gave up waiting. <gray>(-rating)"));
+                    slip(p, s, b, "customers left waiting");
+                    s.nextTask = now + 4000;
+                    continue;
+                }
+                if (!s.customer.moving() && s.customer.dist(p.getLocation()) > 2.5) s.customer.moveTo(p, 0.9);
+                if (tick % 2 == 0) p.sendActionBar(SmpPlugin.mm("<gold>A customer is waiting: <white>right-click " + s.customer.name + "<white> to serve them <gray>(" + (s.deadline - now) / 1000 + "s)"));
+                continue;
+            }
             if (s.target != null) {
                 if (now > s.deadline) {
                     p.sendActionBar(SmpPlugin.mm("<gray>Too slow, that one's done by someone else."));
+                    slip(p, s, b, "tasks left undone");
                     s.target = null;
                     s.nextTask = now + 4000;
                     continue;
@@ -259,8 +403,26 @@ public final class Work implements Listener {
                 continue;
             }
             if (now < s.nextTask) continue;
-            // New task: a delivery now and then, otherwise a station.
-            if (r.nextInt(5) == 0) {
+            // New task: diners at eateries, customers to serve at shops, a delivery now and then, otherwise a station.
+            if (Dining.handles(b)) {
+                if (dining.spawnFor(p, b)) {
+                    s.nextTask = now + 15_000 + r.nextInt(10_000);
+                    continue;
+                }
+            } else if (b.kind.output.consumer && r.nextInt(5) < 2 && t.canSpawnWalkers(p.getWorld())) {
+                Location at = t.spawnSpot(p, 3, 7);
+                if (at != null && bz.at(at) == b) {
+                    Walker c = Walker.spawn(t.key, at, Walker.Role.CUSTOMER, "<white>" + pickName(), "<gray>Waiting to be served", 0.22, 12, outfit(null));
+                    c.gang = b.id;
+                    t.register(c);
+                    c.moveTo(p, 0.9);
+                    s.customer = c;
+                    s.deadline = now + 25_000;
+                    p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 0.7f, 1.4f);
+                    continue;
+                }
+            }
+            if (r.nextInt(5) == 0 && !Dining.handles(b)) { // waiters stay in the dining room
                 Biz dest = deliveryTarget(b);
                 if (dest != null) {
                     s.deliverTo = dest;
@@ -277,10 +439,56 @@ public final class Work implements Listener {
             Block pick = st.get(r.nextInt(st.size()));
             s.target = pick.getLocation();
             s.deadline = now + 20_000;
-            p.sendActionBar(SmpPlugin.mm("<green>Task: work the glowing " + pick.getType().name().toLowerCase().replace('_', ' ') + "!"));
+            p.sendActionBar(SmpPlugin.mm("<green>Task: " + verb(pick.getType()) + " at the glowing " + pick.getType().name().toLowerCase().replace('_', ' ') + "! <gray>(right-click or hit it)"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
         }
         if (tick % 4 == 0) activity();
+        dining.second();
+    }
+
+    /** A worker right-clicked a customer: if it's theirs, sell to them now (a sale and a tip). Returns true if handled. */
+    boolean serve(Player p, Walker w) {
+        if (dining.clicked(p, w)) return true;
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null || s.customer != w) return false;
+        Biz b = bz.get(s.biz);
+        s.customer = null;
+        if (b == null) {
+            t.unregister(w, false);
+            return true;
+        }
+        Econ.Good g = b.kind.output;
+        double have = Math.floor(b.stock.getOrDefault(g, 0.0));
+        if (have < 1) {
+            w.say(p, "Nothing left? Shame.");
+            b.rating = Math.max(0, b.rating - 0.1);
+            p.sendActionBar(SmpPlugin.mm("<red>Out of " + g.label.toLowerCase() + "! <gray>The business makes more each cycle (when it's worked)."));
+            t.unregister(w, false);
+            s.nextTask = System.currentTimeMillis() + 4000;
+            return true;
+        }
+        if (b.price > g.ref * 1.6) {
+            w.say(p, "How much?! That's daylight robbery.");
+            b.rating = Math.max(0, b.rating - 0.1);
+            p.sendActionBar(SmpPlugin.mm("<red>Too dear: customers won't pay more than " + Money.fmt(g.ref * 1.6) + " for " + g.label.toLowerCase() + "."));
+            t.unregister(w, false);
+            s.nextTask = System.currentTimeMillis() + 4000;
+            return true;
+        }
+        int n = (int) Math.min(have, 1 + r.nextInt(2));
+        double sale = n * b.price;
+        double tip = Math.round(sale * (0.1 + r.nextDouble() * 0.15));
+        b.stock.merge(g, (double) -n, Double::sum);
+        b.cash += sale;
+        b.revenue += sale;
+        b.sold += n;
+        b.rating = Math.min(5, b.rating + 0.03);
+        t.money.give(p, tip);
+        w.say(p, r.nextBoolean() ? "Lovely, thank you!" : "Just what I was after.");
+        p.sendMessage(SmpPlugin.mm("<green>Served: " + n + " " + g.label.toLowerCase() + " for " + Money.fmt(sale) + " <gray>(to the business) <yellow>+ " + Money.fmt(tip) + " tip"));
+        complete(p, s, b, 1);
+        t.unregister(w, false);
+        return true;
     }
 
     private Biz deliveryTarget(Biz b) {
@@ -296,7 +504,18 @@ public final class Work implements Listener {
     }
 
     private void complete(Player p, Shift s, Biz b, int mult) {
-        double pay = wage(b) * mult;
+        double pay = earn(p, s, b, mult);
+        s.target = null;
+        s.nextTask = System.currentTimeMillis() + 6000 + r.nextInt(8000);
+        p.sendActionBar(SmpPlugin.mm("<green>Task done!" + (pay > 0 ? " <yellow>+" + Money.fmt(pay) : "") + " <gray>(" + s.done + " this shift)"));
+        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
+    }
+
+    /** The wage for a job and the business's productivity for it. Returns what the worker was paid. */
+    private double earn(Player p, Shift s, Biz b, int mult) {
+        double pay = Math.round(wage(b) * mult * careers.payFactor(p.getUniqueId(), b));
+        s.missed = 0;
+        if (!p.getUniqueId().equals(b.owner)) careers.taskDone(p, b);
         if (b.playerOwned() && !p.getUniqueId().equals(b.owner)) {
             if (b.cash < pay) {
                 p.sendMessage(SmpPlugin.mm("<red>" + b.name + " can't afford to pay you right now. Talk to the owner."));
@@ -308,13 +527,11 @@ public final class Work implements Listener {
             pay = 0; // owners don't pay themselves
         }
         if (pay > 0) t.money.give(p, pay);
+        s.earned += Math.max(0, pay);
         b.tasks += mult;
         s.done++;
-        s.target = null;
-        s.nextTask = System.currentTimeMillis() + 6000 + r.nextInt(8000);
-        p.sendActionBar(SmpPlugin.mm("<green>Task done!" + (pay > 0 ? " <yellow>+" + Money.fmt(pay) : "") + " <gray>(" + s.done + " this shift)"));
-        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
         if (s.done % 10 == 0) t.addRep(p, 1);
+        return pay;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -328,9 +545,79 @@ public final class Work implements Listener {
         if (b != null) complete(e.getPlayer(), s, b, 1);
     }
 
+    /**
+     * Hitting or breaking the glowing station does the task too: a farmhand harvests by breaking the wheat, a
+     * sawyer swings at the log. The block itself stays (it's the business's fitting), and the town's plot rules,
+     * which forbid breaking what isn't yours, never get to say no to the task.
+     */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onHitStation(PlayerInteractEvent e) {
+        if (e.getAction() != Action.LEFT_CLICK_BLOCK || e.getClickedBlock() == null) return;
+        if (doTarget(e.getPlayer(), e.getClickedBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onBreakStation(org.bukkit.event.block.BlockBreakEvent e) {
+        if (doTarget(e.getPlayer(), e.getBlock())) e.setCancelled(true);
+    }
+
+    /**
+     * Real farm work: a farmhand on shift breaks a ripe crop on the farm's ground; it's harvested into the business's
+     * stock and replanted (the plant goes back to a seedling), and the hand is paid by the piece. Unripe crops stay.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onHarvest(org.bukkit.event.block.BlockBreakEvent e) {
+        Player p = e.getPlayer();
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null) return;
+        Block bl = e.getBlock();
+        if (!(bl.getBlockData() instanceof org.bukkit.block.data.Ageable ag) || !CROPS.contains(bl.getType())) return;
+        Biz b = bz.get(s.biz);
+        if (b == null || b.kind.output != Econ.Good.WHEAT && b.kind != Econ.Kind.FARM || bz.at(bl.getLocation()) != b) return;
+        e.setCancelled(true);
+        if (ag.getAge() < ag.getMaximumAge()) {
+            p.sendActionBar(SmpPlugin.mm("<gray>Not ripe yet. <white>Harvest the golden, fully grown crops</white>, or work the glowing station."));
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - s.lastHarvest < 400) return; // one plant at a time
+        s.lastHarvest = now;
+        ag.setAge(0);
+        bl.setBlockData(ag, false);
+        b.stock.merge(Econ.Good.WHEAT, 1.0, Double::sum);
+        b.made += 1;
+        s.harvested++;
+        double piece = Math.round(wage(b) * careers.payFactor(p.getUniqueId(), b) * cfg().getDouble("town.business.harvest-piece-rate", 0.25) * 100) / 100.0;
+        boolean paid = piece > 0 && !p.getUniqueId().equals(b.owner) && (!b.playerOwned() || b.cash >= piece);
+        if (paid) {
+            b.cash -= piece;
+            t.money.give(p, piece);
+            s.earned += piece;
+        }
+        bl.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, bl.getLocation().add(0.5, 0.5, 0.5), 4, 0.3, 0.2, 0.3);
+        p.playSound(bl.getLocation(), Sound.BLOCK_CROP_BREAK, 0.8f, 1.1f);
+        if (s.harvested % 4 == 0) {
+            b.tasks += 1;
+            s.done++;
+            s.missed = 0;
+            if (!p.getUniqueId().equals(b.owner)) careers.taskDone(p, b);
+        }
+        p.sendActionBar(SmpPlugin.mm("<green>Harvested and replanted" + (paid ? " <yellow>+" + Money.fmt(piece).replace("$0", "$" + piece) : "") + " <gray>(" + s.harvested + " this shift)"));
+    }
+
+    private static final Set<Material> CROPS = EnumSet.of(Material.WHEAT, Material.CARROTS, Material.POTATOES, Material.BEETROOTS);
+
+    private boolean doTarget(Player p, Block bl) {
+        Shift s = shifts.get(p.getUniqueId());
+        if (s == null || s.target == null || !bl.getLocation().equals(s.target)) return false;
+        Biz b = bz.get(s.biz);
+        if (b != null) complete(p, s, b, 1);
+        return true;
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        shifts.remove(e.getPlayer().getUniqueId());
+        clockOut(e.getPlayer().getUniqueId());
     }
 
     // ------------------------------------------------------------------ NPC staff and customers
@@ -341,7 +628,7 @@ public final class Work implements Listener {
         int staffNow = 0, custNow = 0;
         for (Walker x : t.walkers()) {
             if (x.role == Walker.Role.WORKER) staffNow++;
-            if (x.role == Walker.Role.CUSTOMER) custNow++;
+            if (x.role == Walker.Role.CUSTOMER && !"market".equals(x.gang) && !dining.owns(x)) custNow++;
         }
         long now = System.currentTimeMillis();
         // staff: up to 2 per business with a plot, near players
@@ -357,7 +644,7 @@ public final class Work implements Listener {
             if (have >= Math.min(2, b.npcStaff)) continue;
             Location spot = floor(pw, p);
             if (spot == null) continue;
-            Walker wk = Walker.spawn(t.key, spot, Walker.Role.WORKER, "<white>" + pickName(), "<gray>Works at " + b.name, 0.2, 12, outfit(b));
+            Walker wk = Walker.spawn(t.key, spot, Walker.Role.WORKER, "<white>" + pickName(), "<gray>Works at " + b.name, 0.2, 12, outfit(b), workerSkin(b));
             wk.gang = b.id;
             t.register(wk);
             staffNow++;
@@ -396,6 +683,7 @@ public final class Work implements Listener {
                     if (r.nextInt(3) == 0) x.swing();
                 }
             } else if (x.role == Walker.Role.CUSTOMER) {
+                if ("market".equals(x.gang) || dining.owns(x) || isShiftCustomer(x)) continue; // the market hall and the dining room run their own
                 Biz b = bz.get(x.gang);
                 if (b == null || now - x.modeSince > 90_000 || t.nearestPlayer(x.loc(), 64) == null) {
                     t.unregister(x, false);
@@ -417,6 +705,17 @@ public final class Work implements Listener {
                 }
             }
         }
+    }
+
+    /** A free floor spot inside a business: on its plot, or near its door for a town building. */
+    Location floorIn(Biz b) {
+        if (b.plot != null) {
+            Plots.Plot p = t.plots().get(b.plot);
+            World w = p == null ? null : Bukkit.getWorld(p.world);
+            return w == null ? null : floor(w, p);
+        }
+        Location a = bz.anchor(b);
+        return a == null ? null : t.surface(a.getWorld(), a.getBlockX() + r.nextInt(7) - 3, a.getBlockZ() + r.nextInt(7) - 3, a.getY(), 4);
     }
 
     private Location floor(World w, Plots.Plot p) {

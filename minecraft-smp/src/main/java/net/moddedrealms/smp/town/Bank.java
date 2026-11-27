@@ -168,7 +168,7 @@ public final class Bank implements Listener {
         if (!t.enabled) return;
         if (t.heists().vaultClicked(p)) return;
         if (t.exempt(p)) {
-            p.sendMessage(SmpPlugin.mm("<gray>You can't rob the bank right now."));
+            p.sendMessage(SmpPlugin.mm("<gray>You can't rob the counting house right now."));
             return;
         }
         if (robbery == null) {
@@ -183,10 +183,10 @@ public final class Bank implements Listener {
             }
             robbery = new Robbery();
             for (Player o : Bukkit.getOnlinePlayers()) {
-                o.sendMessage(SmpPlugin.mm("<red><bold>⚠ ALARM!</bold> The Moddedrealms Bank is being robbed! <gray>Police are on their way."));
+                o.sendMessage(SmpPlugin.mm("<red><bold>⚠ ALARM!</bold> The Moddedrealms Counting House is being robbed! <gray>The Watch is on their way."));
                 o.playSound(o.getLocation(), Sound.BLOCK_BELL_USE, 0.6f, 0.6f);
             }
-            t.news("Someone tried to rob the Moddedrealms Bank!");
+            t.news("Someone tried to rob the Moddedrealms Counting House!");
         }
         if (robbery.robbers.add(p.getUniqueId())) {
             p.showBossBar(robbery.bar);
@@ -247,8 +247,8 @@ public final class Bank implements Listener {
         if (!cracked) {
             lastRobbery = System.currentTimeMillis() - cfg().getLong("town.bank.cooldown-minutes", 180) * 60_000L + 10 * 60_000L;
             save();
-            for (Player o : Bukkit.getOnlinePlayers()) o.sendMessage(SmpPlugin.mm("<green>The bank robbery failed. The vault holds!"));
-            t.news("The bank robbers were driven off before they cracked the vault.");
+            for (Player o : Bukkit.getOnlinePlayers()) o.sendMessage(SmpPlugin.mm("<green>The counting house robbery failed. The vault holds!"));
+            t.news("The counting house robbers were driven off before they cracked the vault.");
             updateStatus();
             return;
         }
@@ -270,21 +270,21 @@ public final class Bank implements Listener {
         lastRobbery = System.currentTimeMillis();
         save();
         String who = String.join(" and ", names);
-        for (Player o : Bukkit.getOnlinePlayers()) o.sendMessage(SmpPlugin.mm("<red><bold>The bank has been robbed!</bold> <white>" + who + "</white> got away with " + Money.fmt(total) + "."));
-        t.news(who + " robbed the bank of " + Money.fmt(total) + "!");
+        for (Player o : Bukkit.getOnlinePlayers()) o.sendMessage(SmpPlugin.mm("<red><bold>The counting house has been robbed!</bold> <white>" + who + "</white> got away with " + Money.fmt(total) + "."));
+        t.news(who + " robbed the counting house of " + Money.fmt(total) + "!");
         updateStatus();
     }
 
     private ItemStack stolenGold(int n) {
         ItemStack it = new ItemStack(Material.GOLD_INGOT, n);
         ItemMeta meta = it.getItemMeta();
-        meta.displayName(SmpPlugin.mm("<gold>Bank Gold Bar").decoration(TextDecoration.ITALIC, false));
+        meta.displayName(SmpPlugin.mm("<gold>Counting House Gold Bar").decoration(TextDecoration.ITALIC, false));
         int value = cfg().getInt("town.bank.gold-bar-value", 400);
-        meta.lore(List.of(SmpPlugin.mm("<gray>Stolen goods. Stamped with the bank's mark.").decoration(TextDecoration.ITALIC, false),
+        meta.lore(List.of(SmpPlugin.mm("<gray>Stolen goods. Stamped with the counting house's mark.").decoration(TextDecoration.ITALIC, false),
                 SmpPlugin.mm("<dark_gray>A fence would pay " + Money.fmt(value) + " for this").decoration(TextDecoration.ITALIC, false)));
         meta.getPersistentDataContainer().set(t.stolenKey, PersistentDataType.INTEGER, value);
         it.setItemMeta(meta);
-        return it;
+        return net.moddedrealms.smp.Pack.model(it, "gold_bar");
     }
 
     private void updateStatus() {
@@ -326,7 +326,7 @@ public final class Bank implements Listener {
 
     public String info() {
         long left = cooldownLeft();
-        return "Bank: " + (vault == null ? "no vault" : "vault at " + vault.getBlockX() + " " + vault.getBlockY() + " " + vault.getBlockZ())
+        return "Counting House: " + (vault == null ? "no vault" : "vault at " + vault.getBlockX() + " " + vault.getBlockY() + " " + vault.getBlockZ())
                 + ", generated building: " + (built() ? "yes" : "no") + ", " + (robbery != null ? "robbery in progress"
                 : left > 0 ? "restocked in " + left / 60_000 + " min" : "ready to be robbed") + ".";
     }
@@ -339,6 +339,11 @@ public final class Bank implements Listener {
 
     private File metaFile() {
         return new File(t.plugin().getDataFolder(), "bank-undo.yml");
+    }
+
+    /** True when the spot is inside the bank building (anyone may do their banking there). */
+    public boolean inside(org.bukkit.Location l) {
+        return box != null && l.getWorld() != null && l.getWorld().getName().equals(boxWorld) && box.clone().expand(2).contains(l.toVector());
     }
 
     public boolean built() {
@@ -401,13 +406,13 @@ public final class Bank implements Listener {
                 hi = Math.max(hi, top);
             }
         }
-        return "Bank area " + a[0] + ".." + a[3] + ", " + a[2] + ".." + a[5] + ": " + tiles + " block entities, " + built
+        return "Counting House area " + a[0] + ".." + a[3] + ", " + a[2] + ".." + a[5] + ": " + tiles + " block entities, " + built
                 + " built-looking blocks under the building, " + ents + " entities. Ground relative to the floor: " + lo + " to +" + hi + ".";
     }
 
     /** Centre = the floor block in the middle; the front door faces north (towards -z). */
     public String build(World world, int x, int y, int z) throws IOException {
-        if (built()) throw new IOException("A bank is already built. Run /mrtown bank undo first.");
+        if (built()) throw new IOException("A counting house is already built. Run /mrtown bank undo first.");
         this.w = world;
         this.cx = x;
         this.cy = y;
@@ -435,7 +440,7 @@ public final class Bank implements Listener {
         boxWorld = w.getName();
         save();
         updateStatus();
-        return "Bank built at " + w.getName() + " " + x + " " + y + " " + z + (gate != null ? " with a path to the plaza's south gate" : "")
+        return "Counting House built at " + w.getName() + " " + x + " " + y + " " + z + (gate != null ? " with a path to the plaza's south gate" : "")
                 + ". The vault is the block behind the counter. Undo with /mrtown bank undo (if the jail is also built, undo in reverse order).";
     }
 
@@ -487,7 +492,7 @@ public final class Bank implements Listener {
         }
         for (int dx : new int[]{-6, 6}) for (int dy = 2; dy <= 3; dy++) pane(dx, dy, -HZ, Material.GLASS_PANE);
         for (int side : new int[]{-HX, HX}) for (int dz = -4; dz <= -2; dz++) for (int dy = 2; dy <= 3; dy++) pane(side, dy, dz, Material.GLASS_PANE);
-        hologram(cx + 0.5, cy + 11.6, cz - HZ + 0.5, "<gold><bold>$ MODDEDREALMS BANK $</bold>\n<gray>Est. 2026");
+        hologram(cx + 0.5, cy + 11.6, cz - HZ + 0.5, "<gold><bold>$ MODDEDREALMS COUNTING HOUSE $</bold>\n<gray>Est. 2026");
     }
 
     private void lobby() {
@@ -506,7 +511,7 @@ public final class Bank implements Listener {
             ((Directional) s).setFacing(BlockFace.WEST);
             at(-7, 1, dz).setBlockData(s, false);
         }
-        npc("banker", "<gold>Banker Ellis", "<gray>Moddedrealms Bank", cx - 4.5, cz + 1.5, 180);
+        npc("banker", "<gold>Moneylender Ellis", "<gray>Moddedrealms Counting House", cx - 4.5, cz + 1.5, 180);
     }
 
     private void vaultRoom() {
@@ -595,7 +600,7 @@ public final class Bank implements Listener {
     }
 
     public String undo() throws IOException {
-        if (!built()) throw new IOException("No generated bank to undo. (A vault set by hand stays; it's only a marked block.)");
+        if (!built()) throw new IOException("No generated counting house to undo. (A vault set by hand stays; it's only a marked block.)");
         shutdown();
         YamlConfiguration meta = YamlConfiguration.loadConfiguration(metaFile());
         w = Bukkit.getWorld(meta.getString("world", ""));
@@ -618,7 +623,7 @@ public final class Bank implements Listener {
         boxWorld = null;
         status = null;
         save();
-        return "Bank removed and the area restored exactly as before. Snapshot kept as " + done.getName() + ".";
+        return "Counting House removed and the area restored exactly as before. Snapshot kept as " + done.getName() + ".";
     }
 
     // ------------------------------------------------------------------ helpers

@@ -19,6 +19,8 @@ public final class TownData {
     /** Which town's jail they're in ("spawn" or another town's id). */
     public String jailTown = "spawn";
     public int offences;
+    /** Newcomer warnings used up: a newcomer's first minor offences are only a warning. */
+    public int graceWarnings;
     public int arrests;
     public boolean warnedContraband;
     /** Money other players added to this player's bounty (the town adds its own per wanted star). */
@@ -44,6 +46,8 @@ public final class TownData {
     public long lastPickpocketTry;
     public long lastRobTry;
     public long lastTip;
+    /** Runtime only: when they last fought a monster, when the Watch last let them off, when they were last told off for a stray hit. */
+    public long lastMobFight, lastGraceAt, lastAccidentNote;
     public UUID tippedBy;
     public long tippedAt;
     public long nextAmbush;
@@ -74,6 +78,8 @@ public final class TownData {
     public int rides;
     public long dayPassUntil;
     public boolean firstTicketBought;
+    /** Told that money turned into metal coins. */
+    public boolean seenCoinNotice;
     public long lastGangHome;
     public int pickpocketsThisHour;
     public long pickpocketHour;
@@ -93,6 +99,7 @@ public final class TownData {
         d.cell = s.getInt("cell", -1);
         d.jailTown = s.getString("jail-town", "spawn");
         d.offences = s.getInt("offences");
+        d.graceWarnings = s.getInt("grace-warnings");
         d.arrests = s.getInt("arrests");
         d.cop = s.getBoolean("police", s.getBoolean("deputy"));
         d.onDuty = s.getBoolean("on-duty");
@@ -113,13 +120,14 @@ public final class TownData {
         d.rides = s.getInt("rail.rides");
         d.dayPassUntil = s.getLong("rail.day-pass-until");
         d.firstTicketBought = s.getBoolean("rail.first-ticket");
+        d.seenCoinNotice = s.getBoolean("coin-notice");
         var ng = s.getConfigurationSection("npc-gangs");
         if (ng != null) for (String k : ng.getKeys(false)) d.npcGangRep.put(k, ng.getInt(k));
         return d;
     }
 
     boolean worthSaving() {
-        return loanOwed > 0 || loanDefaults > 0 || rides > 0 || firstTicketBought || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
+        return loanOwed > 0 || loanDefaults > 0 || rides > 0 || firstTicketBought || seenCoinNotice || !npcGangRep.isEmpty() || rep != 0 || stars != 0 || jailLeft > 0 || offences > 0 || graceWarnings > 0 || cop || warnedContraband || bountyPlayers > 0 || caseOpen || serviceLeft > 0;
     }
 
     void save(ConfigurationSection s) {
@@ -131,6 +139,7 @@ public final class TownData {
         s.set("cell", jailLeft > 0 ? cell : null);
         s.set("jail-town", jailLeft > 0 && !"spawn".equals(jailTown) ? jailTown : null);
         s.set("offences", offences);
+        s.set("grace-warnings", graceWarnings > 0 ? graceWarnings : null);
         s.set("arrests", arrests);
         s.set("police", cop ? true : null);
         s.set("on-duty", cop && onDuty ? true : null);
@@ -154,6 +163,7 @@ public final class TownData {
         }
         if (dayPassUntil > System.currentTimeMillis()) s.set("rail.day-pass-until", dayPassUntil);
         if (firstTicketBought) s.set("rail.first-ticket", true);
+        if (seenCoinNotice) s.set("coin-notice", true);
         if (serviceLeft > 0) {
             s.set("service.left", serviceLeft);
             s.set("service.fallback", serviceFallback);

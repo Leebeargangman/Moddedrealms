@@ -70,7 +70,7 @@ public final class PoliceForce {
         }
         int need = cfg().getInt("town.reputation.respected", 100);
         if (!atStation(p)) {
-            p.sendMessage(SmpPlugin.mm("<gray>Sign up at the police station, with Chief Warden Holt. <dark_gray>(south-east of the fountain)"));
+            p.sendMessage(SmpPlugin.mm("<gray>Sign up at the guardhouse, with Chief Warden Holt. <dark_gray>(south-east of the fountain)"));
         } else if (d.rep < need) {
             p.sendMessage(SmpPlugin.mm("<red>The Watch only takes respected townsfolk (reputation " + need + "+, you have " + d.rep + "). <gray>Quests and good deeds raise it."));
         } else if (d.stars > 0 || d.jailed() || d.caseOpen) {
@@ -144,7 +144,7 @@ public final class PoliceForce {
 
     public void radar(Player p) {
         if (!onDuty(p)) {
-            p.sendMessage(SmpPlugin.mm("<gray>Only officers on duty have the radio."));
+            p.sendMessage(SmpPlugin.mm("<gray>Only guards on duty have the radio."));
             return;
         }
         List<Player> wanted = t.wantedOnline();

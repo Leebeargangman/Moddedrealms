@@ -248,6 +248,7 @@ public final class NpcManager implements Listener {
                 }
                 eq.setItem(en.getKey(), it);
             }
+            net.moddedrealms.smp.Pack.skin(e, d.texture != null ? d.texture : net.moddedrealms.smp.Pack.npcSkin(d.id));
         });
         entities.put(d.id, m.getUniqueId());
         return m;

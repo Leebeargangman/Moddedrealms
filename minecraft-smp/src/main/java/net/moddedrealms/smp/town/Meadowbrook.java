@@ -216,16 +216,17 @@ public final class Meadowbrook {
             case HOME -> {
                 b.set(-hx + 1, 1, depth - 2, Material.CRAFTING_TABLE);
                 b.facing(-hx + 1, 1, depth - 3, Material.FURNACE, BlockFace.EAST);
-                b.set(-hx + 1, 1, 1, Material.BARREL);
+                b.set(-hx + 1, 1, 4, Material.BARREL);
                 b.set(1, 1, depth / 2, Material.OAK_FENCE);
                 b.set(1, 2, depth / 2, Material.WHITE_CARPET);
                 b.stair(2, 1, depth / 2, Material.OAK_STAIRS, BlockFace.EAST, false);
                 b.set(hx - 1, 1, 1, Material.POTTED_POPPY);
                 int by = floors > 1 ? 5 : 1;
-                b.bed(-hx + 1, by, 1, Material.RED_BED, BlockFace.NORTH);
-                b.bed(-hx + 2, by, 1, Material.RED_BED, BlockFace.NORTH);
+                // foot at z=2, head against the front wall at z=1
+                b.bed(-hx + 1, by, 2, Material.RED_BED, BlockFace.NORTH);
+                b.bed(-hx + 2, by, 2, Material.RED_BED, BlockFace.NORTH);
                 if (floors > 1) {
-                    b.bed(hx - 3, by, 1, Material.LIGHT_BLUE_BED, BlockFace.NORTH);
+                    b.bed(hx - 3, by, 2, Material.LIGHT_BLUE_BED, BlockFace.NORTH);
                     b.set(0, by, depth - 2, Material.CHEST);
                 } else {
                     b.bed(hx - 2, by, 1, Material.LIGHT_BLUE_BED, BlockFace.SOUTH);
@@ -775,7 +776,7 @@ public final class Meadowbrook {
         bk.fill(-1, 1, 8, 1, 3, 8, Material.IRON_BLOCK);
         bk.finish();
         hologram(-42.5, 11.5, 5.5, "<gold><bold>$ MEADOWBROOK SAVINGS & LOANS $", 1f);
-        npc("mb_banker", "<gold>Banker Oakes", "<gray>Loans · Savings", cx - 42.5, cz + 6 + 6.5, 180, "#2E4A2E",
+        npc("mb_banker", "<gold>Moneylender Oakes", "<gray>Loans · Savings", cx - 42.5, cz + 6 + 6.5, 180, "#2E4A2E",
                 Map.of(EquipmentSlot.HAND, Material.GOLD_INGOT, EquipmentSlot.CHEST, Material.LEATHER_CHESTPLATE), "command:loan");
 
         // Sheriff's office with three cells: west outer lot, south half, facing south onto the ring street.
@@ -799,7 +800,7 @@ public final class Meadowbrook {
         d.set("jail.release", str(out.getX() + 0.5, out.getY(), out.getZ() + 0.5, 0));
         hologram(-49.5, 7.5, 31.5, "<blue><bold>★ SHERIFF ★</bold>\n<gray>Meadowbrook Watch", 1f);
         Block sheriffSpot = sh.block(6, 1, 4);
-        npc("mb_sheriff", "<blue>Sheriff Calloway", "<gray>Meadowbrook Watch", sheriffSpot.getX() + 0.5, sheriffSpot.getZ() + 0.5, 0, "#1F2A44",
+        npc("mb_sheriff", "<blue>Reeve Calloway", "<gray>Meadowbrook Watch", sheriffSpot.getX() + 0.5, sheriffSpot.getZ() + 0.5, 0, "#1F2A44",
                 Map.of(EquipmentSlot.HEAD, Material.IRON_HELMET, EquipmentSlot.CHEST, Material.LEATHER_CHESTPLATE, EquipmentSlot.HAND, Material.IRON_SWORD), null);
 
         // Grand Hotel: south-west lot (4 floors).
@@ -812,8 +813,8 @@ public final class Meadowbrook {
         }
         ht.fill(-3, 1, 4, 3, 1, 4, Material.DARK_OAK_PLANKS);
         ht.finish();
-        hologram(-16.5, 20.5, 36.5, "<gold><bold>THE GRAND MEADOW HOTEL", 1.1f);
-        npc("mb_hotel", "<gold>Concierge Ivy", "<gray>The Grand Meadow Hotel (town business)", cx - 16.5, cz + 37 + 6.5, 180, "#7A1F1F",
+        hologram(-16.5, 20.5, 36.5, "<gold><bold>THE GRAND MEADOW INN", 1.1f);
+        npc("mb_hotel", "<gold>Concierge Ivy", "<gray>The Grand Meadow Inn (town business)", cx - 16.5, cz + 37 + 6.5, 180, "#7A1F1F",
                 Map.of(EquipmentSlot.CHEST, Material.LEATHER_CHESTPLATE, EquipmentSlot.HAND, Material.BELL), null);
 
         // Town hall with a little park beside it.

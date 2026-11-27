@@ -63,7 +63,7 @@ public final class Gangs implements Listener, TabExecutor {
             "bribes", "+15% chance officers take your bribes",
             "safecracker", "Vaults and heist drills crack 30% faster",
             "fence", "The Fence pays 20% more",
-            "lookouts", "15s warning before casino raids, wanted stars fade 25% faster",
+            "lookouts", "15s warning before gambling den raids, wanted stars fade 25% faster",
             "crew", "+4 member slots");
     private static final int[] LEVEL_XP = {0, 1000, 3000, 7000, 15000};
     private static final String[] COLORS = {"<red>", "<gold>", "<yellow>", "<green>", "<aqua>", "<blue>", "<light_purple>", "<dark_red>", "<dark_aqua>"};
@@ -209,7 +209,7 @@ public final class Gangs implements Listener, TabExecutor {
         double cut = Math.floor(amount * cfg().getDouble("town.gangs.crime-tax", 0.1));
         if (cut > 0 && t.money.take(p, cut) > 0) {
             g.bank += cut;
-            p.sendActionBar(SmpPlugin.mm(g.label() + " <gray>" + Money.fmt(cut) + " to the gang bank"));
+            p.sendActionBar(SmpPlugin.mm(g.label() + " <gray>" + Money.fmt(cut) + " to the gang coffers"));
         }
         g.xp += xp;
         save();
@@ -255,7 +255,7 @@ public final class Gangs implements Listener, TabExecutor {
                 double pay = g.chunks.size() * cfg().getDouble("town.gangs.income-per-chunk", 25);
                 g.bank += pay;
                 g.xp += g.chunks.size();
-                broadcast(g, "<gray>Turf income: <yellow>+" + Money.fmt(pay) + "</yellow> to the gang bank.");
+                broadcast(g, "<gray>Turf income: <yellow>+" + Money.fmt(pay) + "</yellow> to the gang coffers.");
             }
             save();
         }
@@ -392,7 +392,7 @@ public final class Gangs implements Listener, TabExecutor {
             }
             case "disband" -> {
                 if (rank != Rank.LEADER) return say(p, "<red>Only the leader can disband.");
-                broadcast(g, "<red>The gang has been disbanded. The bank (" + Money.fmt(g.bank) + ") goes to the leader.");
+                broadcast(g, "<red>The gang has been disbanded. The coffers (" + Money.fmt(g.bank) + ") go to the leader.");
                 t.money.give(p, g.bank);
                 gangs.remove(id(g.name));
                 for (Gang o : gangs.values()) o.wars.remove(id(g.name));
@@ -404,20 +404,20 @@ public final class Gangs implements Listener, TabExecutor {
                 if (n <= 0 || !t.money.pay(p, n)) return say(p, "<red>You can't deposit that.");
                 g.bank += n;
                 save();
-                broadcast(g, "<gray>" + p.getName() + " deposited " + Money.fmt(n) + ". Bank: " + Money.fmt(g.bank));
+                broadcast(g, "<gray>" + p.getName() + " deposited " + Money.fmt(n) + ". Coffers: " + Money.fmt(g.bank));
             }
             case "withdraw" -> {
                 if (!boss || a.length < 2) return say(p, "<red>Only the leader and officers can withdraw: /gang withdraw <amount>");
                 double n = num(a[1]);
-                if (n <= 0 || n > g.bank) return say(p, "<red>The bank has " + Money.fmt(g.bank) + ".");
+                if (n <= 0 || n > g.bank) return say(p, "<red>The coffers hold " + Money.fmt(g.bank) + ".");
                 g.bank -= n;
                 t.money.give(p, n);
                 save();
-                broadcast(g, "<gray>" + p.getName() + " withdrew " + Money.fmt(n) + ". Bank: " + Money.fmt(g.bank));
+                broadcast(g, "<gray>" + p.getName() + " withdrew " + Money.fmt(n) + ". Coffers: " + Money.fmt(g.bank));
             }
             case "perks" -> {
                 if (g == null) return say(p, "<gray>You're not in a gang.");
-                say(p, g.label() + " <gold>Perks <gray>(bank " + Money.fmt(g.bank) + ")");
+                say(p, g.label() + " <gold>Perks <gray>(coffers " + Money.fmt(g.bank) + ")");
                 for (var e : PERKS.entrySet()) {
                     boolean has = g.perks.contains(e.getKey());
                     p.sendMessage(Component.text().append(SmpPlugin.mm((has ? " <green>✔ " : " <gray>• ") + "<white>" + e.getKey() + " <gray>" + PERK_TEXT.get(e.getKey()) + " "))
@@ -425,12 +425,12 @@ public final class Gangs implements Listener, TabExecutor {
                 }
             }
             case "buy" -> {
-                if (!boss) return say(p, "<red>Only the leader and officers can spend the bank.");
+                if (!boss) return say(p, "<red>Only the leader and officers can spend the coffers.");
                 String perk = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "";
                 Double cost = PERKS.get(perk);
                 if (cost == null) return say(p, "<red>Perks: " + String.join(", ", PERKS.keySet()));
                 if (g.perks.contains(perk)) return say(p, "<gray>You already have that.");
-                if (g.bank < cost) return say(p, "<red>The bank needs " + Money.fmt(cost) + " (has " + Money.fmt(g.bank) + ").");
+                if (g.bank < cost) return say(p, "<red>The coffers need " + Money.fmt(cost) + " (has " + Money.fmt(g.bank) + ").");
                 g.bank -= cost;
                 g.perks.add(perk);
                 save();
@@ -447,7 +447,7 @@ public final class Gangs implements Listener, TabExecutor {
                 if (owner(l) != null) return say(p, "<red>This chunk belongs to " + owner(l).label() + "<red>. Take it in a war.");
                 if (g.chunks.size() >= maxChunks(g)) return say(p, "<red>Level " + level(g) + " gangs can hold " + maxChunks(g) + " chunks.");
                 double cost = cfg().getDouble("town.gangs.claim-cost", 1000);
-                if (g.bank < cost) return say(p, "<red>Claiming costs " + Money.fmt(cost) + " from the gang bank.");
+                if (g.bank < cost) return say(p, "<red>Claiming costs " + Money.fmt(cost) + " from the gang coffers.");
                 g.bank -= cost;
                 g.chunks.add(chunkKey(l));
                 save();
@@ -482,7 +482,7 @@ public final class Gangs implements Listener, TabExecutor {
                 if (o == null || o == g) return say(p, "<yellow>/gang war <gang>");
                 if (g.wars.contains(id(o.name))) return say(p, "<gray>You're already at war with them.");
                 double cost = cfg().getDouble("town.gangs.war-cost", 2000);
-                if (g.bank < cost) return say(p, "<red>Declaring war costs " + Money.fmt(cost) + " from the gang bank.");
+                if (g.bank < cost) return say(p, "<red>Declaring war costs " + Money.fmt(cost) + " from the gang coffers.");
                 g.bank -= cost;
                 g.wars.add(id(o.name));
                 o.wars.add(id(g.name));
@@ -531,7 +531,7 @@ public final class Gangs implements Listener, TabExecutor {
                     names.add((m.getValue() == Rank.LEADER ? "★" : m.getValue() == Rank.OFFICER ? "☆" : "") + o.getName());
                 }
                 say(p, " <gray>Members: <white>" + String.join(", ", names));
-                say(p, " <gray>Bank: <gold>" + Money.fmt(x.bank) + "</gold> · Turf: <white>" + x.chunks.size() + "/" + maxChunks(x) + "</white> · Perks: <white>"
+                say(p, " <gray>Coffers: <gold>" + Money.fmt(x.bank) + "</gold> · Turf: <white>" + x.chunks.size() + "/" + maxChunks(x) + "</white> · Perks: <white>"
                         + (x.perks.isEmpty() ? "none" : String.join(", ", x.perks)));
                 if (!x.wars.isEmpty()) say(p, " <red>At war with: " + String.join(", ", x.wars) + " <gray>(kills " + x.kills + ", deaths " + x.deaths + ")");
             }

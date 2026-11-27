@@ -208,7 +208,7 @@ public final class Casino implements Listener {
             for (Player p : in) {
                 Gangs.Gang g = t.gangs().of(p);
                 if (g != null && g.perks.contains("lookouts")) {
-                    p.sendMessage(SmpPlugin.mm("<gold>[" + g.tag + "] <yellow>Lookout: the Watch is heading for the casino! You have 15 seconds."));
+                    p.sendMessage(SmpPlugin.mm("<gold>[" + g.tag + "] <yellow>Lookout: the Watch is heading for the gambling den! You have 15 seconds."));
                     p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1f, 0.5f);
                 }
             }
@@ -301,7 +301,7 @@ public final class Casino implements Listener {
                     cop.foe = p.legs.getUniqueId();
                     cop.modeSince = now;
                     if (cop.health <= 0) {
-                        cop.shout("<red>Officer down!", 24);
+                        cop.shout("<red>Guard down!", 24);
                         t.unregister(cop, true);
                     }
                 }
@@ -381,7 +381,7 @@ public final class Casino implements Listener {
         }
         int i = 0;
         for (Player p : in) {
-            p.showTitle(Title.title(SmpPlugin.mm("<red><bold>RAID!"), SmpPlugin.mm("<white>The Town Watch is raiding the casino!"),
+            p.showTitle(Title.title(SmpPlugin.mm("<red><bold>RAID!"), SmpPlugin.mm("<white>The Town Watch is raiding the gambling den!"),
                     Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2000), Duration.ofMillis(400))));
             p.playSound(p.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 0.6f, 1.6f);
             p.sendMessage(SmpPlugin.mm("<red><bold>RAID!</bold> <gray>Everyone in here is going down. Run for the shaft or the emergency tunnel at the back!"));
@@ -402,7 +402,7 @@ public final class Casino implements Listener {
                 p.shout("<yellow>It's a raid! Run!", 20);
             }
         }
-        t.news("The Town Watch raided the underground casino!");
+        t.news("The Town Watch raided the underground gambling den!");
     }
 
     private void endRaid() {
@@ -456,13 +456,13 @@ public final class Casino implements Listener {
         for (int dx = -HX - 1; dx <= HX + 1; dx++) for (int dz = -HZ - 1; dz <= HZ + 1; dz++) for (int dy = 0; dy <= 8; dy++) if (at(dx, dy, dz).isLiquid()) water++;
         for (Entity e : w.getNearbyEntities(boxOf(a))) if (!(e instanceof Player) && !t.isOurs(e)) ents++;
         double dist = Math.sqrt(Math.pow(x - t.cx, 2) + Math.pow(z - t.cz, 2));
-        return "Casino site " + x + " " + floorY + " " + z + " (" + (int) dist + " blocks from the fountain" + (dist > t.policeRadius ? ", OUTSIDE the police zone: no raids" : "")
+        return "Gambling Den site " + x + " " + floorY + " " + z + " (" + (int) dist + " blocks from the fountain" + (dist > t.policeRadius ? ", OUTSIDE the Watch zone: no raids" : "")
                 + "): surface " + top + " at the entrance, " + exit + " at the emergency exit, hall " + (top - floorY) + " blocks down; "
                 + tiles + " block entities, " + water + " liquid blocks in the hall space, " + ents + " entities in the area.";
     }
 
     public String build(World world, int x, int floorY, int z) throws IOException {
-        if (built()) throw new IOException("A casino is already built. Run /mrtown casino undo first.");
+        if (built()) throw new IOException("A gambling den is already built. Run /mrtown casino undo first.");
         this.w = world;
         this.cx = x;
         this.cy = floorY;
@@ -492,7 +492,7 @@ public final class Casino implements Listener {
         hall = new BoundingBox(cx - HX, cy, cz - HZ - 3, cx + HX + 1, cy + 7, cz + HZ + 1);
         area = boxOf(a);
         save();
-        return "Casino built: hall at " + cx + " " + cy + " " + cz + " (" + (top - cy) + " blocks under the shack at " + cx + " " + top + " " + (cz - 13)
+        return "Gambling Den built: hall at " + cx + " " + cy + " " + cz + " (" + (top - cy) + " blocks under the shack at " + cx + " " + top + " " + (cz - 13)
                 + "), emergency exit at " + cx + " " + exit + " " + (cz + TUNNEL) + ". Undo with /mrtown casino undo.";
     }
 
@@ -609,7 +609,7 @@ public final class Casino implements Listener {
         hologram(cx - 7.5, cy + 3.6, cz + 8.5, "<dark_red><bold>BACK ROOM</bold>\n<gray>Heists", 0.7f);
         npc("bouncer", "<dark_gray>Bruno", "<gray>Bouncer", cx + 1.5, cz - HZ + 0.5, 0, "#111111",
                 Map.of(EquipmentSlot.CHEST, Material.LEATHER_CHESTPLATE, EquipmentSlot.LEGS, Material.LEATHER_LEGGINGS), null);
-        hologram(cx + 0.5, cy + 5.2, cz - HZ + 1.0, "<gold><bold>♣ THE GOLDEN RAT ♣</bold>\n<gray>Underground casino · No cops", 1f);
+        hologram(cx + 0.5, cy + 5.2, cz - HZ + 1.0, "<gold><bold>♣ THE GOLDEN RAT ♣</bold>\n<gray>Underground gambling den · No guards", 1f);
     }
 
     /** Corridor north out of the hall, ladder shaft up to a ruined shack. */
@@ -692,7 +692,7 @@ public final class Casino implements Listener {
             }
             if ((dz - HZ) % 7 == 0) hanging(0, 3, dz);
         }
-        hologram(cx + 0.5, cy + 3.3, cz + HZ + 0.6, "<red><bold>EMERGENCY EXIT</bold>\n<gray>for when the cops come", 0.7f);
+        hologram(cx + 0.5, cy + 3.3, cz + HZ + 0.6, "<red><bold>EMERGENCY EXIT</bold>\n<gray>for when the guards come", 0.7f);
         int ez = TUNNEL;
         for (int y = cy + 1; y < exitTop; y++) {
             for (int dx = -1; dx <= 1; dx++) for (int dz = ez - 1; dz <= ez + 1; dz++) {
@@ -726,7 +726,7 @@ public final class Casino implements Listener {
     }
 
     public String undo() throws IOException {
-        if (!built()) throw new IOException("No generated casino to undo.");
+        if (!built()) throw new IOException("No generated gambling den to undo.");
         YamlConfiguration meta = YamlConfiguration.loadConfiguration(metaFile());
         World uw = Bukkit.getWorld(meta.getString("world", ""));
         if (uw == null) throw new IOException("World not loaded.");
@@ -757,7 +757,7 @@ public final class Casino implements Listener {
         slotPrice.clear();
         rouletteBoard = null;
         file.delete();
-        return "Casino removed and the area restored exactly as before. Snapshot kept as " + done.getName() + ".";
+        return "Gambling Den removed and the area restored exactly as before. Snapshot kept as " + done.getName() + ".";
     }
 
     // ------------------------------------------------------------------ helpers

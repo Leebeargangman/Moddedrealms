@@ -64,6 +64,9 @@ public final class Businesses implements Listener, TabExecutor {
         public double revenue, costs, made, sold, imported;
         public int tasks;
         public String anchor; // world,x,y,z where there's no plot (town buildings)
+        // worked out each cycle, not saved
+        Premises.Report premises;
+        double labour, staffLabour;
 
         boolean open() {
             return System.currentTimeMillis() >= closedUntil;
@@ -78,6 +81,7 @@ public final class Businesses implements Listener, TabExecutor {
     private final File file;
     private final Map<String, Biz> all = new LinkedHashMap<>();
     private final Map<String, Integer> dominance = new HashMap<>();
+    private int activeTick;
     private final Random r = new Random();
     private long nextCycle;
     final Work work;
@@ -254,7 +258,7 @@ public final class Businesses implements Listener, TabExecutor {
         String w = d.getString("world", "world");
         if (c.size() == 3) {
             townBiz("Meadowbrook Farms", Kind.FARM, null, w + "," + (c.get(0) - 17) + "," + (c.get(1) + 1) + "," + (c.get(2) - 17));
-            townBiz("The Grand Meadow Hotel", Kind.HOTEL, null, w + "," + (c.get(0) - 17) + "," + (c.get(1) + 1) + "," + (c.get(2) + 45));
+            townBiz("The Grand Meadow Inn", Kind.HOTEL, null, w + "," + (c.get(0) - 17) + "," + (c.get(1) + 1) + "," + (c.get(2) + 45));
             townBiz("The Rusty Tankard", Kind.TAVERN, null, w + "," + (c.get(0) + 9) + "," + (c.get(1) + 1) + "," + (c.get(2) + 9));
             townBiz("Thistle & Thread Tailors", Kind.TAILOR, null, w + "," + (c.get(0) - 9) + "," + (c.get(1) + 1) + "," + (c.get(2) + 9));
             townBiz("Oakheart Furniture", Kind.FURNITURE, null, w + "," + (c.get(0) - 9) + "," + (c.get(1) + 1) + "," + (c.get(2) - 9));
@@ -282,7 +286,7 @@ public final class Businesses implements Listener, TabExecutor {
         Biz b = atPlot(p);
         if (b == null || !b.playerOwned()) return;
         OfflinePlayer o = Bukkit.getOfflinePlayer(b.owner);
-        t.money.give(o, Math.max(0, b.cash));
+        t.money.bankGive(o, Math.max(0, b.cash));
         for (UUID w : b.workers) {
             Player pl = Bukkit.getPlayer(w);
             if (pl != null) pl.sendMessage(SmpPlugin.mm("<gray>" + b.name + " has closed down. You're out of a job."));
@@ -295,8 +299,47 @@ public final class Businesses implements Listener, TabExecutor {
     // ------------------------------------------------------------------ the cycle
 
     private double capacity(Biz b) {
-        double staff = 1 + 0.25 * b.npcStaff + Math.min(1.0, 0.05 * b.tasks);
-        return b.kind.capacity * b.level * staff * (1 - b.damage);
+        if (!b.playerOwned()) {
+            double staff = 1 + 0.25 * b.npcStaff + Math.min(1.0, 0.05 * b.tasks) + t.residents().bonus(b);
+            return b.kind.capacity * b.level * staff * (1 - b.damage);
+        }
+        // a player's business makes what its building can hold and its people can do: nothing on an empty plot,
+        // nothing with nobody working
+        if (b.premises == null) b.premises = premises(b);
+        labour(b);
+        return Math.floor(Math.min(b.premises.capacity(), b.labour) * (1 - b.damage));
+    }
+
+    /** What's built on the business's plot. */
+    Premises.Report premises(Biz b) {
+        Plots.Plot p = b.plot == null ? null : t.plots().get(b.plot);
+        World w = p == null ? null : Bukkit.getWorld(p.world);
+        if (p == null || w == null) return new Premises.Report(List.of(), 0, false);
+        return Premises.check(p, w, b.kind, b.level);
+    }
+
+    /**
+     * Work done this cycle: tasks by the owner and workers (/job clockin), plus hired NPC staff and residents. Staff
+     * only keep full pace while the owner has been active lately; left alone they do a quarter of the work.
+     */
+    private void labour(Biz b) {
+        double per = cfg().getDouble("town.business.labour-per-staff", 3);
+        double staff = (b.npcStaff + t.residents().employed(b)) * per;
+        if (!ownerActive(b)) staff *= cfg().getDouble("town.business.unsupervised-rate", 0.25);
+        b.staffLabour = staff;
+        b.labour = staff + b.tasks * cfg().getDouble("town.business.labour-per-task", 1.5);
+    }
+
+    Work work() {
+        return work;
+    }
+
+    private final Map<UUID, Long> activeAt = new HashMap<>();
+
+    /** The owner played (not AFK) within town.business.supervision-minutes. */
+    boolean ownerActive(Biz b) {
+        Long at = b.owner == null ? null : activeAt.get(b.owner);
+        return at != null && System.currentTimeMillis() - at < cfg().getLong("town.business.supervision-minutes", 15) * 60_000L;
     }
 
     /** Cheapest seller of a good with stock, other than the buyer. */
@@ -317,6 +360,9 @@ public final class Businesses implements Listener, TabExecutor {
     void second() {
         long now = System.currentTimeMillis();
         work.second();
+        if (++activeTick % 10 == 0) {
+            for (Player p : Bukkit.getOnlinePlayers()) if (p.getIdleDuration().toSeconds() < 120) activeAt.put(p.getUniqueId(), now);
+        }
         if (nextCycle == 0) nextCycle = now + cycleMs();
         if (now < nextCycle) return;
         nextCycle = now + cycleMs();
@@ -335,6 +381,7 @@ public final class Businesses implements Listener, TabExecutor {
         ensureTownBusinesses();
         long now = System.currentTimeMillis();
         for (Biz b : all.values()) {
+            b.premises = b.playerOwned() ? premises(b) : null;
             b.revenue = 0;
             b.costs = 0;
             b.made = 0;
@@ -407,7 +454,19 @@ public final class Businesses implements Listener, TabExecutor {
         }
         // 4. costs: staff, upkeep, insurance, tax; damage heals
         for (Biz b : all.values()) {
-            double staff = b.npcStaff * cfg().getDouble("town.business.npc-wage", 15);
+            double staff;
+            if (b.playerOwned()) {
+                // hired hands take most of the margin on what they make: staff-run businesses earn little
+                double share = b.labour <= 0 ? 0 : Math.min(1, b.staffLabour / b.labour);
+                double inputs = 0;
+                for (var in : b.kind.inputs.entrySet()) inputs += in.getValue() * in.getKey().ref;
+                double margin = Math.max(0, b.price - inputs);
+                staff = b.made * share * margin * cfg().getDouble("town.business.staff-share", 0.75)
+                        + (b.npcStaff + t.residents().employed(b)) * cfg().getDouble("town.business.staff-flat-wage", 5);
+            } else {
+                t.residents().pay(b);
+                staff = b.npcStaff * cfg().getDouble("town.business.npc-wage", 15);
+            }
             double upkeep = b.level * cfg().getDouble("town.business.upkeep-per-level", 25) + (b.insured ? b.level * 30 : 0) + b.security * 20;
             double tax = b.revenue * cfg().getDouble("town.business.tax", 0.05);
             double c = staff + upkeep + tax;
@@ -427,6 +486,14 @@ public final class Businesses implements Listener, TabExecutor {
             Player o = Bukkit.getPlayer(b.owner);
             if (o == null) continue;
             double profit = b.revenue - b.costs;
+            if (b.premises != null && !b.premises.ok()) {
+                o.sendMessage(SmpPlugin.mm("<gold>[" + b.name + "] <red>Not fitted out, so nothing was made. <gray>Still needs: <white>" + b.premises.missing()
+                        + "</white> <dark_gray>(under a roof, on the plot). /business"));
+                continue;
+            }
+            if (b.made <= 0 && b.labour <= 0) {
+                o.sendMessage(SmpPlugin.mm("<gold>[" + b.name + "] <red>Nobody worked this cycle, so nothing was made. <gray>Clock in (/job clockin), take on workers or hire staff."));
+            }
             o.sendMessage(SmpPlugin.mm("<gold>[" + b.name + "] <gray>made " + (int) b.made + " " + b.kind.output.label.toLowerCase() + ", sold " + (int) b.sold
                     + (b.imported > 0 ? ", imported inputs for " + Money.fmt(b.imported) : "") + ". " + (profit >= 0 ? "<green>Profit +" : "<red>Loss ") + Money.fmt(Math.abs(profit))
                     + " <gray>· cash " + Money.fmt(b.cash) + (b.cash < 0 ? " <red>(deposit money or it stops!)" : "")));
@@ -446,10 +513,42 @@ public final class Businesses implements Listener, TabExecutor {
         };
     }
 
+    /** The market ware a good is traded as (one unit = one item), or null. */
+    static org.bukkit.Material marketItem(Good g) {
+        return switch (g) {
+            case WHEAT -> org.bukkit.Material.WHEAT;
+            case WOOL -> org.bukkit.Material.WHITE_WOOL;
+            case PLANKS -> org.bukkit.Material.OAK_LOG;
+            case BREAD -> org.bukkit.Material.BREAD;
+            default -> null;
+        };
+    }
+
+    /** How many more units of an input this business will take in (players selling at the counter). */
+    double inputRoom(Biz b, Good g) {
+        Double per = b.kind.inputs.get(g);
+        if (per == null) return 0;
+        return Math.max(0, per * b.kind.capacity * b.level * 4 - b.stock.getOrDefault(g, 0.0));
+    }
+
     private void buy(Biz buyer, Good g, double need) {
         while (need > 0.01) {
             Biz s = cheapest(g, buyer);
             if (s == null) {
+                // nobody local makes it: buy what the market has (at its price, up to the import price), then import
+                org.bukkit.Material m = marketItem(g);
+                if (m != null && t.market() != null) {
+                    double want = buyer.playerOwned() ? Math.min(need, Math.floor(buyer.cash / (g.ref * 2))) : need;
+                    double[] got = t.market().supply(m, want, g.ref * 2);
+                    if (got[0] > 0) {
+                        buyer.cash -= got[1];
+                        buyer.costs += got[1];
+                        buyer.imported += got[1];
+                        buyer.stock.merge(g, got[0], Double::sum);
+                        need -= got[0];
+                        if (need <= 0.01) return;
+                    }
+                }
                 // nobody local has it: import at double the fair price
                 double cost = need * g.ref * 2;
                 if (buyer.playerOwned() && buyer.cash < cost) need = Math.max(0, Math.floor(buyer.cash / (g.ref * 2)));
@@ -590,8 +689,8 @@ public final class Businesses implements Listener, TabExecutor {
             double fine = Math.floor(Math.max(0, b.cash) * 0.2);
             b.cash -= fine;
             b.stock.clear();
-            close(b, now + 12 * cycleMs(), "raided by the police for selling moonshine (fine " + Money.fmt(fine) + ")");
-            t.news("Police raided " + b.name + " and found an illegal still!");
+            close(b, now + 12 * cycleMs(), "raided by the Watch for selling moonshine (fine " + Money.fmt(fine) + ")");
+            t.news("The Watch raided " + b.name + " and found an illegal still!");
             return;
         }
         if ((b.kind == Kind.RESTAURANT || b.kind == Kind.BAKERY || b.kind == Kind.HOTEL) && b.rating < 1.0 && r.nextDouble() < 0.3) {
@@ -640,7 +739,25 @@ public final class Businesses implements Listener, TabExecutor {
         return b.kind.startCost * b.level;
     }
 
+    /** The fittings checklist, one line each, for the panel and /business premises. */
+    List<String> premisesLines(Biz b) {
+        List<String> out = new ArrayList<>();
+        if (!b.playerOwned()) {
+            out.add("<gray>Run by the town.");
+            return out;
+        }
+        Premises.Report r = premises(b);
+        for (Premises.Line l : r.lines()) {
+            out.add((l.ok() ? "<green>✔ " : "<red>✘ ") + "<white>" + l.label() + " <gray>" + l.have() + (l.min() > 1 ? "/" + l.min() + " needed" : "")
+                    + (l.counted() < l.have() ? " <dark_gray>(" + l.counted() + " count at level " + b.level + ")" : ""));
+        }
+        out.add(r.ok() ? "<green>Can make up to " + (int) r.capacity() + " " + b.kind.output.label.toLowerCase() + " a cycle" : "<red>Not open for trade until it's fitted out");
+        out.add("<dark_gray>Fittings count on the plot, under a roof (crops and sheep outside).");
+        return out;
+    }
+
     void panel(Player p, Biz b) {
+        if (b.playerOwned()) b.premises = premises(b);
         Panel pn = new Panel(b);
         pn.inv = Bukkit.createInventory(pn, 54, SmpPlugin.mm("<dark_green>" + b.name));
         String stars = "★".repeat((int) Math.round(b.rating)) + "☆".repeat(5 - (int) Math.round(b.rating));
@@ -658,7 +775,8 @@ public final class Businesses implements Listener, TabExecutor {
         pn.inv.setItem(20, icon(Material.EMERALD, "<gold>Price: " + Money.fmt(b.price) + " each", "<gray>Fair price: " + Money.fmt(b.kind.output.ref), "<gray>Cheaper sells more"));
         pn.inv.setItem(21, icon(Material.LIME_CONCRETE, "<green>+10% price"));
         pn.inv.setItem(23, icon(Material.ANVIL, "<aqua>Upgrade to level " + (b.level + 1), "<gray>More capacity", "<gold>" + Money.fmt(upgradeCost(b)) + " <gray>(from business cash)"));
-        pn.inv.setItem(24, icon(Material.PLAYER_HEAD, "<white>NPC staff: " + b.npcStaff, "<gray>+25% output each, " + Money.fmt(cfg().getDouble("town.business.npc-wage", 15)) + " per cycle",
+        pn.inv.setItem(24, icon(Material.PLAYER_HEAD, "<white>NPC staff: " + b.npcStaff, "<gray>Each does " + (int) cfg().getDouble("town.business.labour-per-staff", 3)
+                        + " work a cycle (a quarter while you're away)", "<gray>and takes " + Math.round(cfg().getDouble("town.business.staff-share", 0.75) * 100) + "% of the margin on what they make",
                 "<green>Left-click: hire · <red>Right-click: let one go"));
         pn.inv.setItem(25, icon(Material.WRITABLE_BOOK, "<white>Jobs for players: " + (b.jobsOpen ? "<green>open" : "<red>closed"), "<gray>Pay per task: " + Money.fmt(b.wage),
                 "<gray>Workers: " + b.workers.size(), "<green>Left-click: open/close · <yellow>Right-click: +$5 wage · Shift: -$5"));
@@ -671,6 +789,16 @@ public final class Businesses implements Listener, TabExecutor {
             List<String> ap = new ArrayList<>();
             for (UUID u : b.applicants) ap.add(Bukkit.getOfflinePlayer(u).getName());
             pn.inv.setItem(31, icon(Material.BELL, "<yellow>Job applications: " + ap.size(), "<white>" + String.join(", ", ap), "<gray>/business accept <player>"));
+        }
+        if (b.playerOwned()) {
+            List<String> pl = premisesLines(b);
+            pn.inv.setItem(22, icon(b.premises.ok() ? Material.LIME_BANNER : Material.RED_BANNER, "<gold>The premises", pl.toArray(new String[0])));
+            labour(b);
+            double per = cfg().getDouble("town.business.labour-per-task", 1.5);
+            pn.inv.setItem(32, icon(Material.IRON_PICKAXE, "<gold>Work this cycle: " + (int) b.labour,
+                    "<gray>Tasks done: <white>" + b.tasks + "</white> (" + per + " each)",
+                    "<gray>Staff and residents: <white>" + (int) b.staffLabour + (ownerActive(b) ? "" : " <red>(a quarter: you've been away)"),
+                    "<gray>Output is the lower of work and premises.", "<gray>Clock in yourself: <white>/job clockin"));
         }
         pn.inv.setItem(30, icon(Material.NAME_TAG, "<white>Employees", "<gray>" + (ws.isEmpty() ? "none" : String.join(", ", ws)), "<gray>/business fire <player>"));
         p.openInventory(pn.inv);
@@ -756,6 +884,7 @@ public final class Businesses implements Listener, TabExecutor {
         if (cmd.equals("jobs")) return work.list(p);
         if (cmd.equals("job")) return work.command(p, a);
         String sub = a.length == 0 ? "" : a[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("shop") || sub.equals("counter")) return t.counter().command(p);
         switch (sub) {
             case "start" -> {
                 Plots.Plot plot = t.plots().at(p.getLocation());
@@ -763,15 +892,11 @@ public final class Businesses implements Listener, TabExecutor {
                 if (atPlot(plot) != null) return say(p, "<red>There's already a business here.");
                 if (a.length < 3) {
                     StringBuilder kinds = new StringBuilder();
-                    for (Kind k : Kind.values()) kinds.append(k.name().toLowerCase(Locale.ROOT)).append(k.legal ? "" : " (illegal)").append(" ").append(Money.fmt(k.startCost)).append(", ");
+                    for (Kind k : Kind.values()) kinds.append(k.id()).append(k.legal ? "" : " (illegal)").append(" ").append(Money.fmt(k.startCost)).append(", ");
                     return say(p, "<yellow>/business start <type> <name>  <gray>Types: " + kinds.substring(0, kinds.length() - 2));
                 }
-                Kind k;
-                try {
-                    k = Kind.valueOf(a[1].toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException e) {
-                    return say(p, "<red>Unknown type.");
-                }
+                Kind k = Kind.parse(a[1]);
+                if (k == null) return say(p, "<red>Unknown type.");
                 String name = String.join(" ", java.util.Arrays.copyOfRange(a, 2, a.length)).replace("<", "");
                 if (name.length() > 32) return say(p, "<red>Keep the name under 32 characters.");
                 if (!t.money.pay(p, k.startCost)) return say(p, "<red>Setting up a " + k.label.toLowerCase() + " costs " + Money.fmt(k.startCost) + ".");
@@ -791,8 +916,12 @@ public final class Businesses implements Listener, TabExecutor {
                 t.plots().save();
                 save();
                 say(p, "<green>" + name + " is open for business! <gray>It starts with " + Money.fmt(b.cash) + " in cash. <white>/business</white> to manage it. "
-                        + "Put a " + k.station.name().toLowerCase().replace('_', ' ') + " (or any job block) inside so workers have somewhere to work.");
-                if (!k.legal) say(p, "<red>This is illegal. Police raids will close it and take a fine.");
+                        + "Now build it out: it makes nothing until the premises are fitted.");
+                List<String> needs = new ArrayList<>();
+                for (Premises.Need n : Premises.needs(k)) needs.add(n.min() + " " + n.label());
+                say(p, "<gold>A " + k.label.toLowerCase() + " needs: <white>" + String.join(", ", needs) + "</white> <gray>(under a roof, on this plot). "
+                        + "Then work it: <white>/job clockin</white>, or hire staff in <white>/business</white>. Check with <white>/business premises</white>.");
+                if (!k.legal) say(p, "<red>This is illegal. Watch raids will close it and take a fine.");
                 t.news(p.getName() + " opened " + name + ", a new " + k.label.toLowerCase() + " in " + Plots.cap(plot.town) + ".");
             }
             case "deposit", "withdraw" -> {
@@ -833,12 +962,39 @@ public final class Businesses implements Listener, TabExecutor {
             }
             case "fire" -> {
                 Biz b = mine(p);
+                if (b != null && a.length > 1 && t.residents().fire(b, String.join(" ", java.util.Arrays.copyOfRange(a, 1, a.length)))) {
+                    return say(p, "<gray>" + a[1] + " no longer works at " + b.name + ".");
+                }
                 OfflinePlayer o = a.length > 1 ? Bukkit.getOfflinePlayer(a[1]) : null;
-                if (b == null || o == null || !b.workers.remove(o.getUniqueId())) return say(p, "<yellow>/business fire <employee>");
-                work.clockOut(o.getUniqueId());
-                save();
+                if (b == null || o == null || !b.workers.contains(o.getUniqueId())) return say(p, "<yellow>/business fire <employee> [reason]");
+                String why = a.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(a, 2, a.length)) : "let go by the owner";
+                work.careers.fire(o.getUniqueId(), b, why.length() > 60 ? why.substring(0, 60) : why);
                 say(p, "<gray>" + o.getName() + " no longer works at " + b.name + ".");
-                if (o.getPlayer() != null) o.getPlayer().sendMessage(SmpPlugin.mm("<red>You were let go from " + b.name + "."));
+            }
+            case "warn" -> {
+                Biz b = mine(p);
+                OfflinePlayer o = a.length > 1 ? Bukkit.getOfflinePlayer(a[1]) : null;
+                if (b == null || o == null || !b.workers.contains(o.getUniqueId())) return say(p, "<yellow>/business warn <employee> <reason> <gray>(a strike; three and they're fired)");
+                String why = a.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(a, 2, a.length)) : "a warning from the owner";
+                work.careers.strike(o.getUniqueId(), b, why.length() > 60 ? why.substring(0, 60) : why);
+                say(p, "<gray>Warned " + o.getName() + ".");
+            }
+            case "staff", "employees" -> {
+                Biz b = mine(p);
+                if (b == null) return say(p, "<gray>Stand in your business.");
+                say(p, "<gold>Staff of " + b.name + ":");
+                if (b.workers.isEmpty()) say(p, "<gray> nobody yet. <white>/business hire <player>");
+                for (UUID u : b.workers) {
+                    OfflinePlayer o = Bukkit.getOfflinePlayer(u);
+                    var c = work.careers.card(u, b);
+                    say(p, " <white>" + o.getName() + " <gray>" + work.careers.rank(u, b).label + " · " + c.get(1).replace("<gray>", ""));
+                }
+            }
+            case "premises", "check" -> {
+                Biz b = mine(p);
+                if (b == null) return say(p, "<gray>You don't own a business.");
+                say(p, "<gold>" + b.name + "'s premises:");
+                for (String l : premisesLines(b)) say(p, " " + l);
             }
             case "market" -> {
                 say(p, "<gold><bold>Meadowbrook market</bold> <gray>(price · stock · rating)");
@@ -887,9 +1043,9 @@ public final class Businesses implements Listener, TabExecutor {
         }
         if (cmd.equals("jobs")) return out;
         if (args.length == 1) {
-            for (String s : List.of("start", "market", "list", "deposit", "withdraw", "hire", "fire", "accept")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
+            for (String s : List.of("start", "premises", "market", "list", "deposit", "withdraw", "hire", "fire", "accept")) if (s.startsWith(args[0].toLowerCase())) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("start")) {
-            for (Kind k : Kind.values()) out.add(k.name().toLowerCase(Locale.ROOT));
+            for (Kind k : Kind.values()) out.add(k.id());
         } else if (args.length == 2) {
             return null;
         }

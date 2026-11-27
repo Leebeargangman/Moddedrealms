@@ -13,6 +13,7 @@ import { Brain } from "./brain.js";
 import { installEdgeGap } from "./edgegap.js";
 import { SKILLS, eat, flee, escape } from "./skills.js";
 import { VILLAGE_SKILLS, murder } from "./skills-village.js";
+import { PROGRESS_SKILLS } from "./skills-progress.js";
 import { snapshot, isHostile, isNight, isProtected, isVillager } from "./state.js";
 import { describe, parseAction } from "../ai/actions.js";
 import * as routines from "../village/routines.js";
@@ -27,7 +28,7 @@ import { village, onDeath, exile, announce, positions, centreFor, areEnemies, ci
 import * as roster from "../village/roster.js";
 
 // Every plain-code skill, by action name.
-const ALL_SKILLS = { ...SKILLS, ...VILLAGE_SKILLS, build: builder.build, kill: murder };
+const ALL_SKILLS = { ...SKILLS, ...VILLAGE_SKILLS, ...PROGRESS_SKILLS, build: builder.build, kill: murder };
 
 const { pathfinder, Movements } = pf;
 
@@ -244,8 +245,10 @@ export class CivBot {
         this.brain.notify(`${attacker.username} (${kind}) ATTACKED ME! ${doing}. Health ${Math.round(bot.health)}/20.`, "attacked", { urgent: true });
       } else if (attacker) {
         this.brain.notify(`I was attacked by ${who}! Health ${Math.round(bot.health)}/20.`, "attacked");
-      } else if (bot.health <= 10) {
+      } else if (bot.health <= 6) {
         this.brain.notify(`I got hurt (no attacker: a fall, fire, drowning or hunger). Health ${Math.round(bot.health)}/20.`, "health");
+      } else if (bot.health <= 12) {
+        this.brain.note(`I got hurt (no attacker: a fall, fire, drowning or hunger). Health ${Math.round(bot.health)}/20.`, "health");
       }
     }
   }
@@ -257,7 +260,10 @@ export class CivBot {
   onBreath() {
     const bot = this.bot;
     if (!this.ready || bot.oxygenLevel === undefined) return;
-    if (bot.oxygenLevel <= 12 && !this.surfacing) {
+    // Only when the head is really under water (the air value alone gave a false alarm on dry land).
+    const head = bot.entity?.position && bot.blockAt(bot.entity.position.offset(0, 1.62, 0));
+    const underwater = head && (head.name === "water" || head.name === "bubble_column" || head.getProperties?.().waterlogged);
+    if (bot.oxygenLevel <= 12 && underwater && !this.surfacing) {
       this.surfacing = true;
       this.cancelTask();
       log.warn(this.def.name, `running out of air (${bot.oxygenLevel}/20): swimming up and out`);
@@ -338,6 +344,11 @@ export class CivBot {
       let a;
       if (facts.food <= 14 && facts.hasFood) a = { action: "eat" };
       else if (facts.isNight) a = facts.bedNear ? { action: "sleep" } : { action: "hide" };
+      else if (!this.flags.gearedAt || Date.now() - this.flags.gearedAt > 10 * 60000) {
+        // Every 10 minutes at most: make better tools/armour if the chests have the materials.
+        this.flags.gearedAt = Date.now();
+        a = { action: "gearup" };
+      }
       else if (facts.food <= 12 && hasMeatNearby) a = { action: "attack", target: ["cow", "pig", "chicken", "sheep"].find((n) => Object.values(this.bot.entities).some((e) => e.name === n && e.position?.distanceTo(this.bot.entity.position) < 24)) };
       else a = { action: "gather", target: "wood", amount: 8 };
       log.info(this.def.name, `keeping busy while the AI waits: ${describe(a)}`);
@@ -434,6 +445,7 @@ export class CivBot {
     const cur = this.currentTask?.action;
     if (cur && cur.action === action.action && (cur.target || "") === (action.target || "")) return;
     this.cancelTask();
+    this.bot.civGen = (this.bot.civGen || 0) + 1; // a new task: older tasks may no longer stop our walking
     const task = { action, started: Date.now(), cancelled: false };
     this.currentTask = task;
     this.lastActivity = Date.now();
@@ -447,6 +459,11 @@ export class CivBot {
       withdraw: (target, amount) => VILLAGE_SKILLS.withdraw(this.bot, { target, amount }, task, ctx),
       announce: (text) => announce(text, "news"),
       attackedBy: this.attackedBy,
+      // How much of something the village chests hold ("wood" = all logs).
+      storedCount: (target) => {
+        const t = chests.totals(roster.factionOf(me));
+        return Object.entries(t).filter(([n]) => n === target || (["wood", "log", "logs"].includes(target) && n.endsWith("_log"))).reduce((s, [, c]) => s + c, 0);
+      },
     };
 
     skill(this.bot, action, task, ctx)

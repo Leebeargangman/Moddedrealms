@@ -54,7 +54,7 @@ public final class Loans {
         switch (sub) {
             case "take" -> {
                 if (!atBank(p)) {
-                    say(p, "<gray>Loans are arranged in person: Banker Oakes in Meadowbrook, or the banker at the Old Town bank.");
+                    say(p, "<gray>Loans are arranged in person: Moneylender Oakes in Meadowbrook, or the moneylender at the Old Town counting house.");
                     return;
                 }
                 if (d.loanOwed > 0) {
@@ -83,13 +83,13 @@ public final class Loans {
                 d.loanDefaulted = false;
                 t.money.give(p, amt);
                 t.markDirty();
-                say(p, "<green>The bank lends you " + Money.fmt(amt) + ". <gray>You owe " + Money.fmt(d.loanOwed) + ", repaid " + Money.fmt(d.loanInstalment)
+                say(p, "<green>The counting house lends you " + Money.fmt(amt) + ". <gray>You owe " + Money.fmt(d.loanOwed) + ", repaid " + Money.fmt(d.loanInstalment)
                         + " a day from your balance for " + days + " days. <red>Miss two payments in a row and it's a crime.");
-                t.news(p.getName() + " took out a loan at the bank.");
+                t.news(p.getName() + " took out a loan at the counting house.");
             }
             case "repay" -> {
                 if (d.loanOwed <= 0) {
-                    say(p, "<gray>You don't owe the bank anything.");
+                    say(p, "<gray>You don't owe the counting house anything.");
                     return;
                 }
                 double amt = a.length > 1 && !a[1].equalsIgnoreCase("all") ? num(a[1]) : d.loanOwed;
@@ -112,7 +112,7 @@ public final class Loans {
                     return;
                 }
                 double lim = limit(p);
-                say(p, "<gold>Savings & Loans: <gray>you can borrow up to <white>" + Money.fmt(lim) + "</white> at " + Math.round(rate * 100) + "% interest, repaid over " + days + " days.");
+                say(p, "<gold>Counting House: <gray>you can borrow up to <white>" + Money.fmt(lim) + "</white> at " + Math.round(rate * 100) + "% interest, repaid over " + days + " days.");
                 var line = Component.text().append(SmpPlugin.mm("<gray>Borrow: "));
                 for (double amt : new double[]{5000, 20000, 50000, 100000, 250000}) {
                     if (amt > lim) break;
@@ -136,7 +136,7 @@ public final class Loans {
         d.loanMissed = 0;
         d.loanDefaulted = false;
         t.addRep(p, 5);
-        say(p, "<green>Loan paid off in full. The bank thanks you. <gray>(+5 reputation, a bigger limit next time)");
+        say(p, "<green>Loan paid off in full. The counting house thanks you. <gray>(+5 reputation, a bigger limit next time)");
     }
 
     private static void say(Player p, String m) {
@@ -154,7 +154,7 @@ public final class Loans {
             Player p = o.getPlayer();
             double inst = Math.min(d.loanInstalment, d.loanOwed);
             d.loanNextDue += 86_400_000L;
-            if (t.money.pay(o, inst)) {
+            if (t.money.bankPay(o, inst)) {
                 d.loanOwed -= inst;
                 d.loanMissed = 0;
                 if (p != null) p.sendMessage(SmpPlugin.mm("<gray>Loan payment: <white>-" + Money.fmt(inst) + "</white>, " + Money.fmt(Math.max(0, d.loanOwed)) + " left."));
@@ -169,7 +169,7 @@ public final class Loans {
                     d.loanDefaulted = true;
                     d.loanDefaults++;
                     if (p != null) t.wanted(p, Crime.LOAN_DEFAULT, null);
-                    t.news((o.getName() == null ? "Someone" : o.getName()) + " defaulted on a bank loan. The watch is looking for them.");
+                    t.news((o.getName() == null ? "Someone" : o.getName()) + " defaulted on a counting house loan. The watch is looking for them.");
                 }
             }
             t.markDirty();
@@ -196,7 +196,7 @@ public final class Loans {
         d.loanDefaulted = false;
         d.loanMissed = 0;
         d.loanNextDue = System.currentTimeMillis() + 86_400_000L;
-        p.sendMessage(SmpPlugin.mm("<red>The bank seized " + Money.fmt(got) + " towards your debt." + (d.loanOwed > 0 ? " You still owe " + Money.fmt(d.loanOwed) + ": keep paying." : " The loan is closed.")));
+        p.sendMessage(SmpPlugin.mm("<red>The counting house seized " + Money.fmt(got) + " towards your debt." + (d.loanOwed > 0 ? " You still owe " + Money.fmt(d.loanOwed) + ": keep paying." : " The loan is closed.")));
         t.markDirty();
         return true;
     }
