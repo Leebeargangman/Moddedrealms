@@ -1,0 +1,689 @@
+=====================================================================
+                 COLONYSMP 2  -  THE NEW PLAYER'S GUIDE
+        Found a colony, feed your people, grow, trade and defend
+=====================================================================
+
+This guide takes you from nothing to a working town. Part 1 gets you
+started in ten minutes; dip into the later parts when you need them.
+There is a cheat sheet at the end.
+
+Every command starts with /colony (or /col). /colony help shows them
+all in game, and /colony help <topic> explains one area.
+
+CONTENTS
+  Part 1   Your first ten minutes
+  Part 2   The Town Hall and your land
+  Part 3   Buildings: build, register, order
+  Part 4   Your citizens and their jobs
+  Part 5   Food
+  Part 6   Storage and carrying
+  Part 7   Money and trade
+  Part 8   Keeping people happy
+  Part 9   Growing the colony
+  Part 10  Members and roles
+  Part 11  Guards, soldiers and squads
+  Part 12  Other colonies: diplomacy and war
+  Part 13  Prisoners
+  Part 14  Research, requests, raids and other happenings
+  Part 15  When nobody is around
+  Part 16  Troubleshooting
+  Part 17  Cheat sheet
+
+
+=====================================================================
+PART 1 - YOUR FIRST TEN MINUTES
+=====================================================================
+
+STEP 1 - Found the colony
+  Type:   /colony create <name>
+  You get a Town Hall Core (a lodestone), a Building Marker (a light
+  blue banner) and a Blueprint Book.
+
+STEP 2 - Place the Town Hall Core
+  Walk to where your town should stand and place the core. Pick flat,
+  open ground with room around it: everything else is built nearby.
+
+  * The 3 x 3 chunks around the core become your land.
+  * A storage chest appears next to the core. It is the colony's
+    storage, shared by everyone.
+  * Four settlers arrive: a Farmer, a Builder, a Forester and one
+    without a job yet. They bring bread, seeds and saplings to last
+    a few days.
+  * You get a 72-hour peace shield: nobody can declare war on you.
+
+  A boss bar shows your first steps. Finishing them sends tools,
+  seeds and food to storage.
+
+STEP 3 - A Roof Overhead (house your settlers)
+  Build a small closed room: walls, a roof, a wooden door and 2 beds.
+  At least 3 x 3 inside is enough. Light it with a torch.
+
+  Place the Building Marker anywhere inside it. It works out that the
+  room is a house and registers it:
+
+  "Detected a House! Registered House #2 with 2 beds." Two settlers
+  now have a home. Break the marker again and keep it for the next
+  building: the house stays registered.
+
+  (The Blueprint Book does the same: stand inside, book on House,
+  SHIFT + RIGHT-CLICK the floor, or /colony building register house.)
+
+STEP 4 - Break Ground (a farm)
+  Till a patch of farmland, 3 x 3 or bigger, with water nearby.
+  Place the Building Marker on the farmland: it registers a Farm.
+  Or look at it and type:
+      /colony building register farm
+
+  Your Farmer takes the job straight away and starts sowing with the
+  seeds from storage.
+
+STEP 5 - Stock the Stores
+  Have 32 food in storage. The settlers' bread may already be enough.
+  To add more, open the storage chest and click food in your own
+  inventory to put it in.
+
+That's it: you have a colony. Right-click the Town Hall Core to open
+the Town Hall menu, where you can reach almost everything else.
+
+
+=====================================================================
+PART 2 - THE TOWN HALL AND YOUR LAND
+=====================================================================
+
+The Town Hall menu (right-click the core, or /colony menu):
+  Citizens, Jobs, Buildings, Storage, Economy, Policies, Military,
+  Diplomacy, Construction, History, Statistics, Members, Recruit a
+  settler, Upgrade the Town Hall, and your first steps.
+
+/colony info is the short version: population, beds, food in days,
+treasury, daily costs, stability, mood, storage, and the colony's
+biggest problems.
+
+LAND
+  Stand in a chunk next to your land and type /colony claim. Each
+  claim costs a little more than the last. How many chunks you can
+  hold depends on the settlement level. /colony map shows the land
+  around you. Colonies keep a gap of 2 chunks between them.
+
+  On your land, outsiders can't build or open your doors and chests.
+  Creepers and fire don't damage it, and nobody can trample your
+  farmland.
+
+THE SETTLEMENT LEVEL
+  The Town Hall's level is the colony's level (1 to 5). No building
+  can be a higher level than the Town Hall. Upgrade it from the menu
+  (the beacon) when you have enough people and materials: level 2
+  needs 5 citizens, 500 worth of valuables, 64 stone bricks, 64 planks, 8 iron
+  ingots and 16 glass.
+
+
+=====================================================================
+PART 3 - BUILDINGS: BUILD, REGISTER, ORDER
+=====================================================================
+
+A building only works once it is registered and passes inspection.
+
+BUILD IT YOURSELF, THEN REGISTER
+  1. Build it: a closed room with what the type needs (a door, the
+     right workstation, beds...). Fields, pens and yards are fenced or
+     made of farmland instead.
+  2. Place the Building Marker inside it (on the farmland for a farm,
+     inside the fence for a pen or yard, on top for a watchtower). It
+     works out what the building is from what's in it - a bed makes
+     a House, a lectern a School, an anvil and furnace a Blacksmith -
+     and registers it. If the room could be more than one thing (a
+     furnace suits a Kitchen and a Bakery), a menu asks which. If it
+     isn't anything yet, it says what's missing for the closest type.
+       Right-click the marker      inspect it again
+       Shift + right-click it      choose another type
+       Break it                    the building stays registered;
+                                   the marker drops for next time
+     Lost it? /colony marker gives another (or craft one: any
+     banner, paper and a gold nugget makes 2).
+  3. Or do it by hand with the Blueprint Book: turn it to the type
+     (right-click to turn pages, or /colony book <type>) and
+     Shift + right-click inside (or /colony building register <type>).
+
+  Examples of what level 1 needs:
+    House         bed, wooden door, 9 floor tiles
+    Farm          9 farmland
+    Forestry Hut  door, chest or barrel
+    Bakery        door, furnace / smoker / campfire, 9 floor
+    Trading Post  door, cartography table, chest or barrel
+    School        door, lectern
+    Clinic        door, bed, brewing stand
+    Warehouse     door, 2 chests or barrels
+    Prison        iron door, bed
+  /colony help buildings, the book's pages and /colony building <id>
+  show the rest.
+
+LET THE BUILDERS BUILD IT
+  House, Farm, Warehouse, School, Prison and Watchtower have standard
+  plans. Turn the book to one, look at the ground where it should
+  stand, and SHIFT + LEFT-CLICK, or type:
+      /colony construction order <type>
+  It's built facing the way you look. The book shows an outline:
+  green fits, red doesn't. Your builders fetch every block from
+  storage and tell you what's missing. /colony construction shows the
+  orders, and you can pause, resume, cancel or move one to the front.
+
+COPY YOUR OWN DESIGNS
+  The Copy Wand (/colony wand) copies a building you built into a
+  plan. Your builders can then build copies of it anywhere.
+
+CHECKS AND UPGRADES
+  Buildings are inspected every day. One that fails stops working
+  and says why. Fix it, or it is unregistered after 2 days.
+  /colony validate checks now. /colony upgrade <id> raises a building
+  a level once it has what that level needs.
+
+
+=====================================================================
+PART 4 - YOUR CITIZENS AND THEIR JOBS
+=====================================================================
+
+Right-click a citizen (or /colony citizen <name>) to see who they are:
+job, home, needs, mood and why, skills, education, trait, family,
+and their history. /colony citizens lists everyone.
+
+GIVING JOBS
+  /colony assign <citizen> <job> [building id]
+  e.g.  /colony assign Rhea Pike farmer
+  Most jobs need a workplace with a free place: farmers need a farm,
+  bakers a bakery. /colony jobs lists the open places.
+
+  An Administrator at the Town Hall (it needs someone with some
+  schooling) finds work for the unemployed every morning.
+
+WHAT THE JOBS DO
+  Food:    Farmer, Animal Keeper, Fisher, Miller, Baker, Butcher,
+           Cook, Restaurant Worker, Food Distributor
+  Wood and stone:  Forester, Miner, Carpenter, Mason
+  Crafts:  Blacksmith, Craftsworker, Engineer
+  Town:    Builder, Warehouse Worker, Merchant, Shopkeeper,
+           Administrator, Treasurer, Innkeeper
+  People:  Teacher, Doctor, Warden, Bard
+  Learning and craft:  Researcher, Enchanter
+  Nature:  Druid, Beekeeper
+  Defence: Guard, Soldier
+  Students and children go to school; the Unemployed wait for work.
+
+  Citizens get better at the work they do. Some jobs need schooling:
+  Administrator 35, Teacher 30, Doctor 40, Enchanter 45,
+  Researcher 50.
+
+A CITIZEN'S DAY
+  They work during working hours (a policy), have free time in the
+  evening and sleep at night. If they get hungry they fetch a meal,
+  if they're exhausted they nap, and if they're hurt they go to the
+  clinic. When danger comes they shelter, run or fight, depending on
+  your emergency policy.
+
+
+=====================================================================
+PART 5 - FOOD
+=====================================================================
+
+Everyone eats about two loaves of bread a day. /colony info shows how
+many days of food you have, and the daily report warns you when it
+runs low.
+
+  Farms    grow wheat, carrots, potatoes or beetroots. Choose with
+           /colony building crop <id> <crop|auto>.
+  Mill     grinds wheat into flour.   Bakery   bakes bread and more.
+  Pens     raise cows, sheep, pigs and chickens. Lead the animals in.
+  Fishery  needs open water nearby.   Kitchen  cooks fish and meals.
+  Butcher  turns surplus animals into meat.
+  Restaurant  better meals: happier people, and income.
+
+Better and more varied food makes people happier. Rationing (a
+policy) stretches the food at the cost of mood. Starving citizens get
+weak and then die.
+
+
+=====================================================================
+PART 6 - STORAGE AND CARRYING
+=====================================================================
+
+Storage is counted in slots like a chest: one stack of one good per
+slot. The Town Hall gives 27 slots per level. A Warehouse adds 27 for
+every chest or barrel inside it, and a Granary holds food and crops.
+
+Open the chest next to the core to put goods in (click them in your
+own inventory) or take them out. /colony resources lists everything.
+
+Workers carry what they need from storage and bring back what they
+make. Until you have Warehouse Workers or Food Distributors, everyone
+does their own carrying, which takes time away from their work.
+
+Stock targets tell the colony what to keep:
+    /colony storage target bread 64 256
+Workshops make goods below the minimum first, and merchants sell
+anything above the maximum.
+
+
+=====================================================================
+PART 7 - VALUABLES AND TRADE
+=====================================================================
+
+There is no money. The treasury is the valuables in your storage:
+iron, gold and copper (nuggets, ingots, blocks), emeralds, diamonds
+and netherite. Costs are a worth counted in iron nuggets: an iron
+ingot is 9, a gold ingot 18, an emerald 10, a diamond 60. Payments
+take the real items and break ingots into nuggets for change.
+
+The treasury pays wages (tax is taken off) and building upkeep every
+day. Workers spend their wages at the market and on meals, so much of
+it comes back. If the treasury runs dry, unpaid workers lose heart and
+then strike, and buildings fall into disrepair. /colony economy shows
+the books.
+
+  Trading Post + Merchant:  /colony trade  sells surplus and buys
+      what you lack. Prices drop when you sell a lot and recover over
+      time. Food below your food-reserve policy is never sold.
+  Market + Shopkeeper:  citizens spend wages there, and other players
+      can buy from your colony with /colony shop <colony>.
+  /colony deposit <worth|all>  hands valuables from your inventory
+      to the treasury. /colony withdraw <worth> takes them out.
+  Auto-sell and auto-buy (policies) let merchants trade by your stock
+  targets every day.
+
+
+=====================================================================
+PART 8 - KEEPING PEOPLE HAPPY
+=====================================================================
+
+Mood comes from needs: food, rest, health, a home (a good house beats
+a crowded one), company, safety and work. Wages, taxes, working
+hours, food variety, illness and grief move it too. The citizen menu
+says exactly why someone is happy or not.
+
+Stability is the colony's mood over time. When it's low, people
+steal, quarrel, protest, strike and riot, and the miserable leave.
+Guards and a staffed prison keep crime down.
+
+Health: hurt citizens heal in bed and faster at a clinic with a
+doctor. Illness spreads where people are crowded or hungry, and
+doctors cure it with medicine. Quarantine (a policy) slows an
+outbreak but keeps the ill at home.
+
+Policies (/colony policies or the Town Hall) set wages, tax, working
+hours, recruitment, births, military service, the defence posture,
+the emergency response, production priority, the food reserve,
+rationing, quarantine and trade. Each one says what it costs.
+
+
+=====================================================================
+PART 9 - GROWING THE COLONY
+=====================================================================
+
+Every new citizen needs a free bed and a day's food.
+
+  Recruit a settler from the Town Hall menu (/colony settler). It
+      costs valuables, and more as you grow.
+  Travellers stop by the Town Hall now and then. Right-click one, or
+      /colony traveller recruit, to take them in. An inn makes them
+      stay longer. Attacking them ruins your reputation.
+  Children: couples with a home, enough food and a good mood have
+      children. Children grow up in a few days and go to school if
+      there is one.
+
+Schools: a teacher educates children and students. Bookshelves make
+lessons better. Education makes people better workers and opens up
+skilled jobs.
+
+
+=====================================================================
+PART 10 - MEMBERS AND ROLES
+=====================================================================
+
+  /colony invite <player>       they type /colony join <colony>
+  /colony promote <player> [role], /colony demote <player> [role]
+  /colony members, /colony kick <player>, /colony leave
+
+Roles: Owner, Co-owner, Manager, Resident. Allies (members of allied
+colonies) may use your doors. /colony settings shows who may do what,
+and /colony settings perm <role> <permission> on|off changes it.
+
+
+=====================================================================
+PART 11 - GUARDS, SOLDIERS AND SQUADS
+=====================================================================
+
+GUARDS
+  Build a Watchtower (a tower at least 5 blocks tall, or order the
+  plan) and assign guards to it. They watch the land, fight monsters
+  and intruders, and keep crime down.
+
+SOLDIERS
+  /colony recruit <citizen> <class>
+  /colony recruit lists the 28 classes and what each needs: militia
+  need nothing, swordsmen a Training Ground, archers an Archery Range,
+  bows and arrows, and cavalry Stables and a war horse. Gear comes from
+  the armoury. Soldiers train daily, cost upkeep and sleep in
+  Barracks (4 can serve without them).
+
+  Classes counter each other: spears and pikes stop cavalry, shields
+  stop arrows from the front, axes break shields, maces beat armour,
+  cavalry wreck archers and flanks.
+
+SQUADS
+  /colony squad create <name>
+  /colony squad add <squad id> <citizen>
+  /colony orders <squad id> <order>        e.g. follow, hold, charge
+  Orders: defend, hold, follow, patrol, charge, shield wall, spear
+  wall, volley, focus, flank, retreat, protect, hold fire.
+  Formations: line, column, wedge, square, loose
+  (/colony squad formation <id> <formation>).
+
+  The Command Baton (/colony baton):
+    right-click a block          rally the squad there
+    Shift + right-click          next order
+    left-click an enemy          everyone attacks it
+    Shift + left-click           next squad
+
+  A squad with broken morale runs. Standard bearers and commanders
+  steady them, and losing badly shakes everyone.
+
+  /colony mobilize stands everyone to arms for 10 minutes, at a cost
+  in stability.
+
+
+=====================================================================
+PART 12 - OTHER COLONIES: DIPLOMACY AND WAR
+=====================================================================
+
+/colony diplomacy (or the Town Hall) lists the other colonies and how
+you stand with them, from allied to at war.
+
+  /colony diplomacy ally <colony>              propose an alliance
+  /colony diplomacy treaty <colony> <treaty>   non_aggression,
+        trade_agreement, defensive_pact, open_borders
+  /colony diplomacy gift <colony> ...          valuables or goods
+  /colony diplomacy trade <colony> ...         a trade offer
+  /colony diplomacy offers                     what's waiting for you
+  /colony diplomacy accept <colony>            (or click [Accept])
+
+WAR
+  /colony declarewar <colony> raid     a short raid: stand at their
+        storage to loot it, and defeat their people for points.
+        The higher score wins.
+  /colony declarewar <colony> siege    raise a War Camp with the War
+        Banner (/colony banner) near their land. Win by destroying
+        their Town Hall Core or cutting them off from their stores.
+        They win by holding out or tearing down your camp.
+
+  War costs valuables, needs one of their members online, and ends your
+  own peace shield. There's a warm-up first so both sides can get
+  ready: stock the armoury, because guards and soldiers draw arms when
+  it starts. Blocks broken in a war are put back afterwards, and the
+  loser gets a peace shield.
+
+  /colony peace <colony> offers a truce. /colony surrender gives up.
+
+
+=====================================================================
+PART 13 - PRISONERS
+=====================================================================
+
+In a fight, enemies (and travellers) may go DOWN instead of dying.
+Hit a downed body again and they die.
+
+  1. Craft Rope: 3 string in a column (makes 2).
+  2. Right-click the downed enemy with Rope to bind them. They follow
+     you.
+  3. Lead them to the door of one of your Prisons. They're locked in.
+     (Or Shift + right-click them to leave them for your wardens.)
+
+Wardens feed prisoners and wear down their resistance each day. When
+it breaks, the prisoner joins your colony. Prisoners from another
+colony can be ransomed or exchanged instead:
+  /colony prison                        list them
+  /colony prison ransom <name> [price]
+  /colony prison exchange <ours> <theirs>
+  /colony prison release <name>
+
+
+=====================================================================
+PART 14 - RESEARCH, REQUESTS, RAIDS AND OTHER HAPPENINGS
+=====================================================================
+
+Once the colony feeds itself, there is plenty to do. /colony today
+shows what is going on right now.
+
+REQUESTS
+  Citizens ask you for things from time to time: "Could someone
+  bring me 8 cookies?" /colony requests lists them. Fetch what they
+  ask for, hold it, and right-click the citizen. They pay you from
+  their own purse, cheer up, and work harder for a couple of days.
+  Nothing bad happens if you don't, but they notice.
+
+RESEARCH
+  Build a University: a room with a lectern and 8 bookshelves. Put a
+  Building Marker in it and choose University. Assign a Researcher
+  (education 50 or more), then pick a project with /colony research.
+  Projects cost valuables and goods (mostly paper and books) and take the
+  researchers a few days. Each one changes the colony for good:
+  faster farmers, bigger stores, tougher citizens, smaller raids.
+  Bigger universities unlock the later projects.
+
+THE RARER TRADES
+  Tavern (seats, a barrel, a note block or jukebox) and a Bard:
+    music in the evening, and everyone is happier.
+  Library (6 bookshelves and 2 seats): adults read and learn.
+  Druid's Grove (a fenced garden with a gate and 2 mossy stones)
+    and a Druid: crops grow faster.
+  Enchanter's Tower (an enchanting table and 4 bookshelves) and an
+    Enchanter: your people's tools and weapons get enchanted. Keep
+    lapis lazuli in storage.
+  Apiary (a fenced yard with a gate and 2 beehives) and a
+    Beekeeper: honeycomb, and honey if there are glass bottles in
+    storage. You bring the bees.
+
+VISITORS AND WINDFALLS
+  Every few days something happens: a festival with fireworks, a
+  spell of good growing weather, a lucky strike in the mine, stray
+  animals, a travelling scholar. A merchant's caravan sometimes
+  stops at the Town Hall for a few minutes: right-click the merchant
+  to buy animals (they come on a lead: walk them home), bees, and
+  things you can't make. Refugees may ask for shelter:
+  /colony refugees accept (they need beds and food) or refuse.
+
+RAIDS
+  When the colony has 6 citizens and is 5 days old, raiders start to
+  take an interest. You are warned in the morning: "Scouts report a
+  band of barbarians... They will attack at nightfall."
+
+  Barbarians want your stores. Any who reach the storage chest carry
+  goods away. Kill them all and you get everything back, plus a
+  bounty. You can pay them off before they come:
+  /colony raid tribute.
+
+  The undead want your people. A Necromancer leads them and keeps
+  raising more. Kill the Necromancer and the rest fall down.
+
+  Get ready during the day: post guards on watchtowers, recruit and
+  arm soldiers, /colony mobilize when it starts, and be there. The
+  raid ends at sunrise whatever happens. You can't sleep through
+  it. Raids never come while you're offline.
+
+MILESTONES
+  /colony milestones lists goals with rewards: 10 citizens, a first
+  raid beaten, a first discovery, and more.
+
+LISTEN TO YOUR PEOPLE
+  Citizens speak to you as you walk past. Mostly they tell you what
+  is wrong: "I'm stuck: waiting for 6 flour", "I haven't been paid
+  in 2 days", "I slept on the ground again". It's the quickest way
+  to find out what the colony needs. /colony chatter off if you'd
+  rather they kept quiet.
+
+CHRISTMAS (1 December to 6 January)
+  /colony christmas gives the colony a Christmas Tree Sapling (or
+  craft one: spruce sapling + gold nugget + red dye). Plant it on
+  grass under open sky in your land and it grows into a tree with
+  lanterns and a star. While it stands everyone is merrier, the
+  bard plays carols, the children throw snowballs, and Father
+  Christmas visits every few days: right-click him for a present,
+  then right-click the present to unwrap it.
+
+
+=====================================================================
+PART 15 - WHEN NOBODY IS AROUND
+=====================================================================
+
+Your colony doesn't stop when you log off. Citizens near players
+walk around as villagers; everyone else is simulated: they eat,
+sleep, work, get paid, fall ill, have children. Farms, pens,
+fisheries, apiaries and workshops keep producing from real inputs,
+and researchers keep researching. Foresters,
+miners and builders need someone nearby to work, because they change
+the world.
+
+Time follows the world's clock, so nothing happens while the server
+is off. Each morning there's a report of the day: /colony events and
+/colony stats.
+
+
+=====================================================================
+PART 16 - TROUBLESHOOTING
+=====================================================================
+
+"Registered" but nobody works there
+  Is there a free worker? /colony jobs. Assign one, or get an
+  Administrator.
+
+The building "failed its inspection"
+  /colony building <id> says what's missing. Doors and beds must be
+  inside the room, and the room must be closed.
+
+Builders aren't building
+  /colony construction: they're probably waiting for a material.
+  Put it in storage.
+
+"No free bed" when recruiting
+  Soldiers need beds too. Build or extend a house.
+
+Nobody eats / food is gone
+  Food in a farm's own stock isn't in storage yet: workers carry it
+  over. Check /colony resources and /colony production.
+
+Can't sell food
+  The food-reserve policy keeps a few days of food back. Change it
+  in the policies.
+
+Research isn't moving
+  It needs a Researcher at work in a University big enough for the
+  project. /colony research shows both.
+
+The marker says School when I wanted a University
+  A room with a lectern and bookshelves can be either. Shift +
+  right-click the marker and choose.
+
+The beekeeper collects nothing
+  Hives fill only when bees live in them and flowers grow nearby.
+
+Citizens are standing around at night
+  They have free time in the evening and sleep after dusk. Check the
+  working-hours policy.
+
+
+=====================================================================
+PART 17 - CHEAT SHEET
+=====================================================================
+
+  /colony create <name>          found a colony
+  /colony menu                   the Town Hall (or right-click it)
+  /colony info | needs | stats   how things are going
+  /colony marker                 a Building Marker
+  /colony book <type>            turn the book to a building type
+  /colony building register <t>  register the building you're in
+  /colony construction order <t> have the builders build a plan
+  /colony citizens | jobs        people and work
+  /colony assign <who> <job>     give a job
+  /colony resources | storage    what you have
+  /colony trade | economy        valuables
+  /colony policies               how the colony is run
+  /colony recruit <who> <class>  enlist a soldier
+  /colony squad | orders         command the army
+  /colony diplomacy              other colonies
+  /colony today                  what's happening
+  /colony requests               what citizens are asking for
+  /colony research               the research tree
+  /colony raid [tribute]         what the scouts know; pay raiders off
+  /colony milestones             goals and rewards
+  /colony chatter [on|off]       citizens talking to you
+  /colony christmas              the season, the tree, a sapling
+  /colony help <topic>           everything else
+
+  Building Marker  place inside a building to register it
+  Blueprint Book   right-click: next page; Shift + right-click a
+                   block: register; Shift + left-click: order
+  Copy Wand        copy a building into a plan
+  Command Baton    rally, order, focus, switch squads
+  Rope             bind a downed enemy
+
+
+==================================================================
+  NEW IN 2.3: TOOLS, AND THE WORLD BEYOND YOUR WALLS
+==================================================================
+
+  YOUR PEOPLE NEED TOOLS
+
+  Settlers arrive with bread and seed, and empty hands. A farmer
+  does nothing without a hoe, a forester nothing without an axe, a
+  miner nothing without a pickaxe, a fisher nothing without a rod.
+  Nobody is handed one from nowhere. Either:
+
+    - put the tool in colony storage (the chest by the Town Hall),
+    - sneak and right-click the citizen with it in your hand, or
+    - have a Blacksmith or Workshop make it.
+
+  So on day one, craft a hoe and an axe before anything else.
+  Wood is slow, stone is steady, iron is a third faster and brings
+  in more, diamond better still. Tools wear out: keep spares.
+
+  YOUR ANIMALS STAY PUT
+
+  A keeper opens the gate only when no animal is near it, shuts it
+  the moment they are through, and fetches any animal that does get
+  out. To take an animal away yourself, put it on a lead.
+
+  OTHER PEOPLES
+
+  You are not alone. Villages, mining camps, trading towns and
+  kingdoms of other peoples appear across the land you explore, and
+  go about their lives whether you watch or not: they farm, send
+  caravans to each other, make friends and enemies, and go to war.
+
+    /civ map            what is near you
+    /civ list           every people and settlement
+    /civ info           about the nearest settlement
+
+  BARTER, NOT COIN
+
+  They have no money and want none. Walk into a settlement and
+  right-click its merchant:
+
+    1. Click something in your own inventory: that is what you
+       are offering.
+    2. Click what you want. Left-click for one, right-click for
+       eight, shift-click for a stack.
+
+  A mining town gives a great deal for bread and little for coal;
+  a farm the other way round. Carry each what the other lacks and
+  you will do well. Merchants only take plain goods: nothing
+  named, enchanted or worn.
+
+  CONTRACTS
+
+  A settlement that runs short asks for help. /civ contracts shows
+  what is wanted and what is offered. Take one at the merchant,
+  bring the goods back before the day it falls due, and collect.
+  Finishing contracts and trading fairly earns their trust
+  (/civ reputation), and with it better rates.
+
+    /civ economy        what a place makes, lacks and has spare
+    /civ relations      who is friends, rivals, or at war
+    /civ history        a people's chronicle
+    /civ help           everything else

@@ -1,0 +1,194 @@
+name: ModdedrealmsSMP
+version: '${project.version}'
+main: net.moddedrealms.smp.SmpPlugin
+api-version: '1.21'
+author: Moddedrealms
+description: NPC-driven survival - quest givers, story, quests, crates, the spawn plaza, and a town with a Watch, townsfolk and a jail.
+softdepend: [Essentials, MythicDepths, ColonySMP]
+commands:
+  quests:
+    description: Open your quests.
+    aliases: [quest, q, dailies]
+    permission: mrsmp.quests
+  crates:
+    description: Open your crates and see your keys.
+    aliases: [keys, crate]
+    permission: mrsmp.quests
+  mrsmp:
+    description: ModdedrealmsSMP admin and NPC dialogue.
+    usage: /mrsmp <reload|spawn|talk|quest>
+    permission: mrsmp.use
+  mrnpc:
+    description: Manage the server's NPCs.
+    usage: /mrnpc <list|create|move|skin|name|title|action|remove|tp>
+    permission: mrsmp.admin
+  mrtown:
+    description: Town admin - Watch, townsfolk, reputation and the jail.
+    usage: /mrtown <status|spawn|wanted|pardon|release|arrest|rep|jail|toggle|clear>
+    permission: mrsmp.admin
+  rep:
+    description: Your standing in town, wanted level and record.
+    aliases: [reputation, record]
+    permission: mrsmp.quests
+  bail:
+    description: Pay to get out of jail early.
+    permission: mrsmp.quests
+  surrender:
+    description: Give yourself up to a nearby guard.
+    permission: mrsmp.quests
+  police:
+    description: Join the Town Watch, go on duty, radar, cuff.
+    aliases: [deputy, cop]
+    usage: /police <join|duty|radar|cuff|quit>
+    permission: mrsmp.quests
+  tip:
+    description: Tip off the Watch about a wanted player (or a bandit) you can see.
+    permission: mrsmp.quests
+  bounty:
+    description: Add your money to a wanted player's bounty.
+    permission: mrsmp.quests
+  bounties:
+    description: Every bounty in town.
+    aliases: [bountyboard]
+    permission: mrsmp.quests
+  bribe:
+    description: Try to bribe the guard arresting you.
+    permission: mrsmp.quests
+  service:
+    description: Swap your jail time for community service.
+    permission: mrsmp.quests
+  casino:
+    description: Gambling Den games (the dealers run this for you).
+    permission: mrsmp.quests
+  dice:
+    description: Challenge a player to dice in the gambling den.
+    usage: /dice <player> <stake> | /dice accept
+    permission: mrsmp.quests
+  heist:
+    description: Plan and run crew heists (with the Planner in the gambling den).
+    usage: /heist <invite|join|start|status|leave|cancel>
+    permission: mrsmp.quests
+  plot:
+    description: Plots in Meadowbrook - buy, rent, trust, list.
+    aliases: [plots]
+    usage: /plot <info|buy|rent|leave|trust|untrust|list|mine>
+    permission: mrsmp.quests
+  business:
+    description: Start and run a business.
+    aliases: [biz]
+    usage: /business <start|market|list|deposit|withdraw|hire|fire|accept>
+    permission: mrsmp.quests
+  market:
+    description: The market exchange - prices for everything, trade at the market hall.
+    aliases: [exchange]
+    usage: /market [price <item>]
+    permission: mrsmp.quests
+  stall:
+    description: Rent and run a market stall.
+    aliases: [stalls]
+    usage: /stall [rent|extend|name|leave|claim]
+    permission: mrsmp.quests
+  jobs:
+    description: Who is hiring.
+    permission: mrsmp.quests
+  job:
+    description: Your job - apply, accept, clockin, clockout, quit.
+    usage: /job <apply|accept|clockin|clockout|quit>
+    permission: mrsmp.quests
+  ticket:
+    description: Train tickets for the Meadowbrook Line.
+    aliases: [tickets, train]
+    permission: mrsmp.quests
+  herald:
+    description: The Meadowbrook Herald.
+    aliases: [news, newspaper]
+    permission: mrsmp.quests
+  trial:
+    description: Appeal your jail sentence to the Meadowbrook court (once per sentence).
+    aliases: [appeal]
+    permission: mrsmp.quests
+  census:
+    description: The families of Meadowbrook - who lives where, and who works.
+    permission: mrsmp.quests
+  loan:
+    description: Loans from Meadowbrook Counting House.
+    aliases: [loans]
+    permission: mrsmp.quests
+  gang:
+    description: Gangs - create, invite, coffers, perks, turf, wars.
+    aliases: [gangs]
+    usage: /gang <create|invite|join|leave|deposit|perks|claim|hideout|war|peace|list>
+    permission: mrsmp.quests
+  gc:
+    description: Gang chat.
+    aliases: [gangchat]
+    permission: mrsmp.quests
+  wanted:
+    description: Who the Watch is after.
+    permission: mrsmp.quests
+  start:
+    description: What to do on Moddedrealms (a menu).
+    aliases: [guide, begin]
+    permission: mrsmp.quests
+  poll:
+    description: Answer the poll about what Moddedrealms adds next.
+    aliases: [survey]
+    permission: mrsmp.quests
+  suggest:
+    description: Send the staff an idea.
+    usage: /suggest <your idea>
+    aliases: [idea, feedback]
+    permission: mrsmp.quests
+  daily:
+    description: Claim your daily login reward and keep your streak going.
+    aliases: [streak, login]
+    permission: mrsmp.quests
+  duel:
+    description: Challenge a nearby player to a 1v1 duel (nobody dies, nothing drops).
+    usage: /duel <player> [wager] | accept | decline | forfeit | stats
+    aliases: [1v1]
+    permission: mrsmp.quests
+  drop:
+    description: Where the current supply drop is.
+    aliases: [supplydrop, airdrop, drops]
+    permission: mrsmp.quests
+  ah:
+    description: The auction house.
+    usage: /ah | /ah sell <price> | /ah mine | /ah collect
+    aliases: [auction, auctionhouse, auctions]
+    permission: mrsmp.quests
+  leaderboard:
+    description: Leaderboards (/top works too).
+    usage: /leaderboard [money|playtime|duels|streak|colonies]
+    aliases: [leaderboards, lb, ranks]
+    permission: mrsmp.quests
+  bank:
+    description: Your bank account; deposit and withdraw coin at the Old Town bank.
+    usage: /bank [deposit|withdraw|send|rates]
+    aliases: [account, atm]
+    permission: mrsmp.quests
+  purse:
+    description: The coin you carry.
+    aliases: [wallet, cash, coins]
+    permission: mrsmp.quests
+  stocks:
+    description: The stock exchange.
+    usage: /stocks [buy|sell <ticker> <n>|portfolio]
+    aliases: [stock, shares]
+    permission: mrsmp.quests
+  report:
+    description: Report a bug or a player to the staff.
+    usage: /report <what happened>
+    aliases: [bug, bugreport]
+    permission: mrsmp.quests
+permissions:
+  mrsmp.quests:
+    default: true
+  mrsmp.use:
+    description: Talking to NPCs (the NPCs run /mrsmp talk for the player).
+    default: true
+  mrsmp.admin:
+    default: op
+  mrsmp.lawless:
+    description: The Watch ignores this player (for staff who are building or testing). Not given to ops.
+    default: false

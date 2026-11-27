@@ -1,0 +1,89 @@
+name: ColonySMP
+version: '${version}'
+main: com.colonysmp.ColonySMP
+api-version: '1.21'
+author: ModdedRealms
+description: Colonies of simulated citizens for SMP servers, in a living world of NPC civilisations that farm, mine, barter, make treaties and go to war whether or not anyone is watching.
+
+commands:
+  colony:
+    description: Everything about colonies
+    usage: /colony help
+    aliases: [col, colonies]
+  civ:
+    description: The living world - NPC civilisations, their settlements, trade and wars
+    usage: /civ help
+    aliases: [civs, civilisations, civilizations]
+
+permissions:
+  colonysmp.play:
+    description: Create, join and run colonies
+    default: true
+  colonysmp.admin:
+    description: Admin tools, the protection bypass and item spawning (includes every permission below)
+    default: op
+    children:
+      colonysmp.admin.audit: true
+      colonysmp.admin.audit.resolve: true
+      colonysmp.admin.civ.list: true
+      colonysmp.admin.civ.status: true
+      colonysmp.admin.civ.inspect: true
+      colonysmp.admin.civ.tp: true
+      colonysmp.admin.civ.create: true
+      colonysmp.admin.civ.remove: true
+      colonysmp.admin.civ.setstock: true
+      colonysmp.admin.civ.pop: true
+      colonysmp.admin.civ.relation: true
+      colonysmp.admin.civ.war: true
+      colonysmp.admin.civ.peace: true
+      colonysmp.admin.civ.event: true
+      colonysmp.admin.civ.step: true
+      colonysmp.admin.civ.generate: true
+  colonysmp.admin.audit:
+    description: Read the transaction journal and audit notes (/colony audit, /colony admin investigate)
+    default: op
+  colonysmp.admin.audit.resolve:
+    description: Settle a transaction left in doubt by a crash, by hand (/colony audit resolve)
+    default: op
+  colonysmp.admin.civ.list:
+    description: List every civilisation and settlement
+    default: op
+  colonysmp.admin.civ.status:
+    description: See the state and cost of the world simulation
+    default: op
+  colonysmp.admin.civ.inspect:
+    description: Inspect a settlement's books
+    default: op
+  colonysmp.admin.civ.tp:
+    description: Teleport to a settlement
+    default: op
+  colonysmp.admin.civ.create:
+    description: Found a settlement
+    default: op
+  colonysmp.admin.civ.remove:
+    description: Remove a settlement
+    default: op
+  colonysmp.admin.civ.setstock:
+    description: Change what a settlement holds (noted in the audit log)
+    default: op
+  colonysmp.admin.civ.pop:
+    description: Change a settlement's population
+    default: op
+  colonysmp.admin.civ.relation:
+    description: Change how two civilisations stand
+    default: op
+  colonysmp.admin.civ.war:
+    description: Start a war between two civilisations
+    default: op
+  colonysmp.admin.civ.peace:
+    description: End a war between two civilisations
+    default: op
+  colonysmp.admin.civ.event:
+    description: Bring an event on a settlement
+    default: op
+  colonysmp.admin.civ.step:
+    description: Move the world on by whole days
+    default: op
+  colonysmp.admin.civ.generate:
+    description: Ask the generator to consider a new settlement now
+    default: op

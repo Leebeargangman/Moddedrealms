@@ -1,0 +1,130 @@
+# ============================================================================
+#  ModdedrealmsGuard
+#
+#  Built around one rule: a legit player must never be banned.
+#   - Only "certain" flags (things a vanilla client physically cannot do, with
+#     wide safety margins) can lead to a ban, and only after they repeat.
+#   - Everything else ("suspect" flags) only alerts staff and saves a replay.
+#   - Nothing counts towards a ban while the server lags (TPS below
+#     min-tps), while the player's ping is above max-ping, or for Bedrock
+#     (Geyser) players and old-version clients (alerts only for them).
+# ============================================================================
+
+# shadow  = log, alert staff ([SHADOW]) and save replays, but never set back, kick or ban.
+#           Use this while comparing against Vulcan.
+# enforce = set back blatant fly/speed and ban players who reach a ban threshold.
+mode: shadow
+
+safety:
+  min-tps: 18.0
+  max-ping: 300
+  # Seconds after joining, respawning, teleporting or changing world in which nothing is checked.
+  grace-seconds: 5
+  # Geyser/Floodgate players move differently: alert only, never ban.
+  ban-bedrock: false
+  # Clients older than 1.21.2 (via ViaVersion): alert only, never ban.
+  ban-old-clients: false
+
+bans:
+  # Ban length for the 1st, 2nd, 3rd... offence. The last entry repeats.
+  # Never longer than max (the hard cap).
+  ladder: [6h, 1d, 3d]
+  max: 3d
+  message: |-
+    <red><bold>Moddedrealms Guard</bold></red>
+    <gray>You were banned from this server for <white><check></white>.</gray>
+    <gray>Expires in <white><duration></white>. Replay ID: <white><replay></white></gray>
+    <gray>Think this is wrong? Appeal on our Discord: <aqua>discord.gg/PKFUSnXHxA</aqua></gray>
+
+# Per check:
+#   ban:        whether certain flags of this check can ban at all
+#   threshold:  certain flags needed within window-seconds before a ban
+checks:
+  fly:
+    enabled: true
+    ban: true
+    threshold: 6
+    window-seconds: 60
+    # Blocks a player may rise above the last block they stood on (before jump boost).
+    max-rise: 2.3
+    # Ticks in the air with almost no height change before it counts as hovering.
+    hover-ticks: 80
+  speed:
+    enabled: true
+    ban: true
+    threshold: 4
+    window-seconds: 60
+    # Average distance per move compared to the vanilla maximum.
+    # suspect at 1.6x, certain at 2.2x, sustained over several windows.
+    suspect-multiplier: 1.6
+    certain-multiplier: 2.2
+  reach:
+    enabled: true
+    ban: true
+    threshold: 6
+    window-seconds: 60
+    # Blocks beyond the player's interaction range (3.0 in survival).
+    suspect-extra: 0.6
+    certain-extra: 1.1
+  multi-aura:
+    # Hitting two different entities in the same client tick (impossible in vanilla).
+    enabled: true
+    ban: true
+    threshold: 5
+    window-seconds: 60
+  bad-packets:
+    # Pitch beyond 90 degrees and attacking yourself.
+    enabled: true
+    ban: true
+    threshold: 3
+    window-seconds: 60
+  timer:
+    # The client running its game faster than 20 ticks a second.
+    enabled: true
+    ban: false
+    threshold: 4
+    window-seconds: 120
+    # Milliseconds of extra game time before a flag.
+    max-balance-ms: 2500
+  killaura:
+    # Hitting entities far outside the player's view. A fast flick can do this, so alert only.
+    enabled: true
+    ban: false
+    threshold: 10
+    window-seconds: 60
+    max-angle: 115
+  autoclicker:
+    # Sustained very high click rates. Drag clicking is allowed, so alert only.
+    enabled: true
+    ban: false
+    threshold: 10
+    window-seconds: 60
+    max-cps: 22
+  xray:
+    # Unusually many enclosed ores mined. Alert only; staff review the replay.
+    enabled: true
+    ban: false
+    threshold: 1
+    window-seconds: 600
+    # Enclosed diamond/debris/emerald ores within 10 minutes before an alert.
+    hidden-ores: 14
+
+alerts:
+  # Seconds between alerts for the same player and check.
+  cooldown-seconds: 3
+
+replays:
+  # Seconds of every player's movement kept in memory.
+  buffer-seconds: 120
+  # A flag or /report saves this much before and after it.
+  seconds-before: 60
+  seconds-after: 20
+  # Players and mobs within this radius of the subject are included.
+  radius: 48
+  # Saved replays are deleted after this many days.
+  keep-days: 14
+  # Seconds between automatic replays of the same player.
+  auto-cooldown-seconds: 90
+
+report:
+  cooldown-seconds: 60

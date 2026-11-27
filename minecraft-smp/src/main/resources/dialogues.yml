@@ -1,0 +1,134 @@
+# What each NPC says when clicked (when the player's story doesn't give them something else to say).
+# MiniMessage formatting. choices actions: quests, story, close, command:<player command>, console:<console command with {player}>
+elder:
+  lines:
+    - "Welcome, traveller, to the square at the heart of Moddedrealms."
+    - "Colonies rise and fall out there, and older things than colonies sleep beneath the stone."
+  choices:
+    - {text: "<green>[My story]", action: story}
+    - {text: "<yellow>[Daily quests]", action: quests}
+    - {text: "<gray>[Goodbye]", action: close}
+questmaster:
+  lines:
+    - "Work's never done round here! Fresh jobs every day, bigger ones every week."
+    - "Finish all your dailies and keep a streak going: the rewards grow."
+  choices:
+    - {text: "<yellow>[Show my quests]", action: quests}
+    - {text: "<gray>[Later]", action: close}
+cratekeeper:
+  lines:
+    - "Keys, keys, keys! You earn them from quests, bosses and time spent in our world."
+    - "Bring them to me and see what fortune holds."
+  choices:
+    - {text: "<light_purple>[Open crates]", action: crates}
+    - {text: "<gray>[Just looking]", action: close}
+enchanter:
+  lines:
+    - "Over sixty enchantments the old world never knew... all waiting for you at the enchanting table."
+    - "Fish them up, trade for them, find them in ruins. Each is stranger than the last."
+  choices:
+    - {text: "<aqua>[Browse enchantments]", action: "command:eenchants list"}
+    - {text: "<gray>[Goodbye]", action: close}
+herald:
+  lines:
+    - "The depths are restless. Bosses walk the land, stronger with every one you defeat."
+    - "Bosses are a big part of this world. <white>/boss help</white> tells you what's out there."
+  choices:
+    - {text: "<red>[About the bosses]", action: "command:boss"}
+    - {text: "<green>[My story]", action: story}
+    - {text: "<gray>[Goodbye]", action: close}
+envoy:
+  lines:
+    - "I speak for the colonies. They farm, they mine, they trade... and sometimes they march to war."
+    - "Want your own? Craft a colony wand from a stick and a gold nugget."
+    - "Select the first corner, then the second, like WorldEdit, and do <white>/colony create [name]</white>. <gray>/colony help</gray> for more."
+  choices:
+    - {text: "<gold>[About the colonies]", action: "command:colony"}
+    - {text: "<gray>[Goodbye]", action: close}
+captain:
+  lines:
+    - "Ready to set out? I'll send you somewhere safe, 1000 to 3000 blocks from spawn. Cooldowns apply."
+  choices:
+    - {text: "<green>[Warp me to the wilds]", action: "command:warp"}
+    - {text: "<gray>[Not yet]", action: close}
+townsfolk_1:
+  lines:
+    - "Lovely day for it, isn't it? The cherry trees are in bloom again."
+townsfolk_2:
+  lines:
+    - "I heard someone saw Herobrine near the old mines. Nonsense, surely..."
+townsfolk_3:
+  lines:
+    - "The fountain? Built the day the first colony was founded, or so they say."
+warden:
+  lines:
+    - "Welcome to the Town Watch station. We keep the peace within 500 blocks of the fountain."
+    - "Fighting, theft, fires, explosives... if the watch sees it, you do time. If we're after you, crouch next to a guard."
+    - "Respected folk can join the Watch: a uniform, a radio, and pay for every outlaw they bring in."
+  choices:
+    - {text: "<gold>[My record]", action: "command:rep"}
+    - {text: "<blue>[Join the Watch]", action: "command:police join"}
+    - {text: "<red>[Bounties]", action: "command:bounties"}
+    - {text: "<gray>[Goodbye]", action: close}
+jailguard:
+  lines:
+    - "Visiting hours are whenever I say they are."
+    - "The cells are through the bars. Don't get any ideas."
+  choices:
+    - {text: "<red>[Who's wanted?]", action: "command:wanted"}
+    - {text: "<gray>[Goodbye]", action: close}
+bartender:
+  lines:
+    - "What'll it be? Don't answer that, everything here's watered down."
+    - "Word of advice: when the siren goes, the emergency tunnel at the back comes up in the bushes. The guards never check there."
+  choices:
+    - {text: "<gold>[Gambling Den games]", action: "command:casino"}
+    - {text: "<gray>[Goodbye]", action: close}
+bouncer:
+  lines:
+    - "You didn't see this place. Nobody sees this place."
+    - "Gamble all you like. Bring trouble and you leave through the wall."
+banker:
+  lines:
+    - "Welcome to the Moddedrealms Counting House. Your coin has never been safer."
+    - "That vault door? Finest iron in the land. And the Town Watch is just down the road. Not that anyone would try..."
+  choices:
+    - {text: "<gold>[Bounty board]", action: "command:bounties"}
+    - {text: "<gray>[Goodbye]", action: close}
+mb_crier:
+  lines:
+    - "Hear ye! Welcome to Meadowbrook, the market city of the north!"
+    - "Plots for sale and rent at the Land Agent, just south of the clock tower. Build a shop, a home, a factory!"
+    - "The train from the old town arrives at the south gate. The Herald, the courthouse and the counting house are west of the square."
+mb_shop1:
+  lines:
+    - "Welcome to the Copper Kettle! Best stew north of the sea."
+    - "Business is good... but I hear new cookhouses are opening on every street. Competition, eh?"
+mb_shop2:
+  lines:
+    - "General Store! A bit of everything. Well, it will be once the wagons start running."
+mb_shop3:
+  lines:
+    - "Fresh bread every morning! The wheat comes from the fields north of the square."
+mb_millowner:
+  lines:
+    - "The Wool Mill keeps the whole town in blankets, carpets and beds. The inn buys more than anyone."
+    - "If someone opens a mill of their own, I'll have to cut my prices. That's business."
+mb_lumber:
+  lines:
+    - "Every house, shop and table in Meadowbrook starts here. Planks, beams, you name it."
+mb_judge:
+  lines:
+    - "Order. This is the Meadowbrook Courthouse. Soon anyone arrested may appeal, and be heard by this court."
+    - "The evidence will speak for itself. So will you, if you're wise."
+mb_sheriff:
+  lines:
+    - "Meadowbrook's my town. Same laws as the old town, my own cells."
+    - "Keep the peace, and we'll get along."
+mb_hotel:
+  lines:
+    - "Welcome to the Grand Meadow Inn! Our beds are the finest wool in the north."
+mb_mayor:
+  lines:
+    - "Welcome, welcome! Meadowbrook grows by the day. Rent a plot, start a business, raise a family!"
+    - "There'll be elections one day, mark my words."

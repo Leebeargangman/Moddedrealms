@@ -1,0 +1,639 @@
+# ============================================================================
+#  ModdedrealmsSMP
+# ============================================================================
+
+# Lets root/AMP send console commands by appending lines to
+# plugins/ModdedrealmsSMP/console.in (checked every second). Only people who
+# can already write the server's files can use it.
+console-bridge: true
+
+rewards:
+  # How reward lines are turned into console commands. {player} {amount} {crate}
+  money-command: "eco give {player} {amount}"
+  xp-command: "xp add {player} {amount} points"
+
+# Everyone within 48 blocks when a MythicDepths boss dies gets these.
+boss-kill-rewards: ["key:mythic:1", "money:1000"]
+
+quests:
+  daily-count: 3
+  weekly-count: 2
+  # Bonus for finishing every daily quest N days in a row.
+  streak-rewards:
+    3: ["key:rare:1", "money:500"]
+    7: ["key:mythic:1", "money:1500"]
+    14: ["key:mythic:2", "money:4000"]
+
+playtime:
+  # Every N minutes online a player gets these rewards.
+  every-minutes: 60
+  rewards: ["key:common:1", "money:100"]
+  message: "<gold>⌛ <yellow>Thanks for playing! You earned <white><rewards></white> for an hour online."
+
+welcome:
+  enabled: true
+  title: "<gradient:#f6d365:#fda085><bold>Moddedrealms</bold></gradient>"
+  subtitle: "<gray>A living world of colonies, bosses and quests"
+  first-join-message:
+    - ""
+    - "<gold><bold>Welcome to Moddedrealms, <white><player></white>!</bold>"
+    - "<gray>A medieval survival world: found a <aqua>colony</aqua> of villagers with friends, work in the Old Town, trade at the market, hunt bosses."
+    - "<click:run_command:'/start'><hover:show_text:'<gray>What you can do here'><yellow><u>[What to do]</u></yellow></hover></click>  <click:run_command:'/quests'><yellow><u>[Quests]</u></yellow></click>  <click:run_command:'/warp'><hover:show_text:'<gray>A random spot in the wild'><yellow><u>[Into the wild]</u></yellow></hover></click>  <gray>· Elder Rowan by the fountain starts your story."
+    - ""
+  join-message:
+    - "<gray>Welcome back, <white><player></white>! <yellow>/quests</yellow> has your daily quests. <dark_gray>(<online> online)"
+  # Opens the /start menu a few seconds after a first join.
+  open-guide-on-first-join: true
+  guide-delay-ticks: 80
+  # Given once, on a first join.
+  starter-kit: ["STONE_SWORD:1", "STONE_PICKAXE:1", "STONE_AXE:1", "STONE_SHOVEL:1", "BREAD:16", "TORCH:16", "WHITE_BED:1", "GOLD_INGOT:5"]
+
+# ---- Daily login rewards (/daily): claim once a day (UTC); come back the next day to keep the streak. Day 7 is the
+# big one, then the week repeats. Reward lines as in quests: money:N, item:MATERIAL:N, key:<crate>:N, xp:N.
+daily:
+  enabled: true
+  rewards:
+    day-1: ["money:100"]
+    day-2: ["money:150", "item:COOKED_BEEF:16"]
+    day-3: ["money:200", "key:common:1"]
+    day-4: ["money:250", "item:IRON_INGOT:12"]
+    day-5: ["money:300", "key:rare:1"]
+    day-6: ["money:400", "item:GOLDEN_APPLE:2"]
+    day-7: ["money:600", "key:rare:1", "item:DIAMOND:3"]
+
+# ---- Duels (/duel <player> [wager]): 1v1 inside a ring that forms around the two; the hit that would kill ends it,
+# nobody dies, nothing drops. Exempt from the town's assault laws and colony no-PvP land.
+duels:
+  enabled: true
+  challenge-range: 30
+  ring-radius: 14
+  max-seconds: 180
+  max-wager: 100000
+  announce-range: 80
+  truce-seconds: 8      # after a duel the two can't hurt each other for this long
+
+# ---- Supply drops: a crate falls in the wilds (min..max blocks from the fountain, never in a town or on colony
+# land), announced warning-seconds before it lands. First to open it gets first-reward. /drop shows the way.
+supply-drops:
+  enabled: true
+  every-minutes: 45
+  first-after-minutes: 20
+  min-players: 1
+  min-distance: 600
+  max-distance: 1600
+  warning-seconds: 60
+  lasts-minutes: 15
+  items: 6
+  first-reward: ["key:rare:1"]
+  # MATERIAL:min-max:weight
+  loot: ["DIAMOND:2-5:10", "GOLDEN_APPLE:2-4:10", "IRON_INGOT:8-24:14", "GOLD_INGOT:4-12:10", "ENDER_PEARL:2-6:8", "EXPERIENCE_BOTTLE:8-24:10",
+    "COOKED_BEEF:12-32:12", "ARROW:16-48:8", "EMERALD:4-12:8", "NETHERITE_SCRAP:1-1:2", "ENCHANTED_GOLDEN_APPLE:1-1:1", "TOTEM_OF_UNDYING:1-1:2",
+    "OBSIDIAN:8-16:5", "SADDLE:1-1:3", "NAME_TAG:1-2:4"]
+
+# ---- Auction house (/ah): fixed-price listings between players, paid even when the seller is offline.
+auction:
+  enabled: true
+  hours: 48
+  max-listings: 6
+  max-price: 10000000
+  tax: 0.05            # taken from the price on sale (money leaves the economy)
+  listing-fee: 0
+  announce-over: 5000  # tell everyone about listings at or above this price
+
+# ---- Leaderboards (/top, /leaderboard): a board floats above the spawn fountain ("fountain"), or give
+# "world,x,y,z", or "off". Names in hide are left off every board.
+leaderboards:
+  board: fountain
+  board-height: 3.2
+  board-seconds: 8
+  hide: []
+
+# ---- Asking players what they want: /poll (offered once they've played a while) and /suggest. Results: /mrsmp poll,
+# /mrsmp suggestions. Change a question's id to ask it afresh. Rewards are in-game money only.
+poll:
+  enabled: true
+  ask-after-minutes: 15
+  reward: 100
+  questions:
+    - id: what-next-2026-11
+      question: "What should Moddedrealms add next?"
+      options: ["More colony features", "Bosses and dungeons", "PvP events and arenas", "Town jobs and money", "Building contests", "Quests and story"]
+    - id: first-hour-2026-11
+      question: "What was hardest when you first joined?"
+      options: ["Didn't know what to do", "Server felt empty", "Lag or got kicked", "The resource pack", "Expected mods", "Nothing, it was fine"]
+    - id: play-how-2026-11
+      question: "How do you like to play?"
+      options: ["With friends in a colony", "Solo survival", "Trading and money", "Fighting (PvP or bosses)", "Building", "Exploring"]
+
+# NPCs turn to look at players within this many blocks.
+npc-look-radius: 8
+
+# ============================================================================
+#  Town: police, townsfolk, reputation and the jail
+# ============================================================================
+town:
+  enabled: true
+  world: world
+  # The fountain. Police patrol within police-radius of it, townsfolk wander within townsfolk-radius.
+  center-x: -394
+  center-z: 463
+  police-radius: 500
+  townsfolk-radius: 160
+
+  officers-per-player: 2        # around each player in the police zone (+1 per wanted star, up to +3)
+  max-officers: 24
+  townsfolk-per-player: 3       # one fewer at night
+  max-townsfolk: 16
+  officer-health: 30
+  officer-damage: 4             # per hit, +0.5 per wanted star. The hit that would kill arrests instead ("busted").
+  officer-speed: 0.25
+  officer-uniform-color: "#1F2A44"
+  officer-sight: 24             # officers see crimes this far away (with line of sight)
+  townsfolk-health: 12
+  witness-range: 16             # townsfolk and plaza NPCs report crimes they see this close
+  hostile-at-stars: 3           # from this many stars officers use force straight away
+  wanted-decay-seconds: 60      # lose a star every N seconds no officer can see you
+  self-defence-seconds: 10      # hitting back within this long is not assault
+  # A newcomer's first minor offences only get a warning from the Watch (most new players hit a guard or a
+  # townsperson before they know the town has laws). Crime keys as in crimes: below.
+  newcomer-grace:
+    enabled: true
+    play-minutes: 120           # total play time under this counts as a newcomer
+    warnings: 3
+    crimes: [assault-officer, assault-npc, assault, arson, pet-killing]
+  # Stray hits on guards and townsfolk are no crime and do no harm: sweep attacks, and any swing within
+  # mob-fight-seconds of fighting a monster (guards come running to help players who are attacked).
+  accidents:
+    enabled: true
+    mob-fight-seconds: 4
+  bodycam: true                 # save a ModdedrealmsGuard replay of every arrest
+
+  arrest:
+    seconds-per-star: 60
+    max-seconds: 300
+    busted-extra-seconds: 60
+    fine-per-star: 100
+    bail-per-second: 4
+
+  # Visible in hand = officers search you. Confiscated; the first time is only a warning.
+  contraband: [TNT, TNT_MINECART, END_CRYSTAL]
+  contraband-fine: 50
+  random-search-chance: 0.006   # per half-second near an officer, at most once per random-search-minutes
+  random-search-minutes: 15
+
+  # Wanted stars when seen, reputation lost either way.
+  crimes:
+    assault: {stars: 2, reputation: 15}
+    murder: {stars: 4, reputation: 50}
+    robbery: {stars: 2, reputation: 20}
+    pickpocket: {stars: 1, reputation: 8}
+    arson: {stars: 2, reputation: 15}
+    explosives: {stars: 2, reputation: 20}
+    pet-killing: {stars: 2, reputation: 25}
+    assault-npc: {stars: 1, reputation: 10}
+    manslaughter: {stars: 3, reputation: 40}
+    resisting: {stars: 1, reputation: 10}
+    assault-officer: {stars: 2, reputation: 25}
+    cop-killing: {stars: 5, reputation: 80}
+
+  reputation:
+    hero: 300
+    respected: 100
+    rogue: -50
+    outlaw: -300
+    daily-quest: 3
+    weekly-quest: 8
+    story-chapter: 10
+    boss-kill: 5
+    catch-thief: 15
+    help-traveller: 3
+
+  deputy:
+    reward-per-star: 75
+    reputation: 10
+
+  # Robbing players: sneak + right-click someone with an empty hand, inside the police zone.
+  rob-players: true
+  rob:
+    chance-behind: 0.5
+    chance-front: 0.1
+    fraction: 0.05
+    max: 500
+    min-balance: 50
+    cooldown-minutes: 5
+    victim-protection-minutes: 20
+
+  # Pickpocketing townsfolk: sneak + right-click with an empty hand.
+  pickpocket:
+    chance-behind: 0.75
+    chance-front: 0.3
+    max-per-hour: 8
+    trinket-chance: 30
+
+  # NPC pickpockets who rob players (only coins, never items).
+  pickpockets: true
+  thief:
+    steal-fraction: 0.03
+    max-steal: 150
+    min-balance: 100
+    min-playtime-minutes: 30
+    victim-cooldown-minutes: 30
+    escape-seconds: 40
+    catch-reward: 25
+
+  fence:
+    disguise-price: 750
+    key-price: 1500
+    key-crate: blackmarket
+
+  # material:amount:price, or key:<crate>:<amount>:<price>. Each merchant brings merchant-offer-count of these.
+  merchant-offer-count: 5
+  merchant-offers:
+    - "GOLDEN_CARROT:16:150"
+    - "COOKED_BEEF:32:120"
+    - "EXPERIENCE_BOTTLE:16:400"
+    - "NAME_TAG:1:300"
+    - "SADDLE:1:350"
+    - "FIREWORK_ROCKET:32:250"
+    - "ENDER_PEARL:8:400"
+    - "BOOKSHELF:8:250"
+    - "LEAD:2:150"
+    - "SPYGLASS:1:200"
+    - "HONEY_BOTTLE:8:160"
+    - "GLOW_BERRIES:32:150"
+    - "AMETHYST_SHARD:16:200"
+    - "SHULKER_SHELL:2:2500"
+    - "key:common:1:750"
+
+  # material:name:value (what the Fence pays)
+  stolen-goods:
+    - "CLOCK:Silver Pocket Watch:120"
+    - "GOLD_NUGGET:Jewelled Ring:150"
+    - "PAPER:Love Letter:40"
+    - "EMERALD:Emerald Brooch:200"
+    - "RABBIT_FOOT:Lucky Rabbit's Foot:90"
+    - "AMETHYST_SHARD:Amethyst Earring:110"
+    - "BOOK:Someone's Diary:60"
+
+  gossip:
+    - "They say the deeper you dig, the angrier the bosses get. <white>/boss help</white> if you dare."
+    - "Colonies pay well for a helping hand. Envoy Mira by the fountain knows more."
+    - "Keep your purse close in the crowds. There are pickpockets about."
+    - "The Town Watch don't take kindly to explosives anywhere near the fountain."
+    - "If the watch is after you, crouch next to an officer. Running only makes it worse."
+    - "A shady figure walks the streets after dark... only talks to the wrong sort, I hear."
+    - "Help a hungry traveller and the whole town will think better of you."
+    - "Heroes get the best prices from merchants. Do some quests, earn some respect!"
+    - "The watch pays deputies for every outlaw they bring in. You have to be well respected first."
+    - "The jail's just south-east of the fountain. I hope you never see the inside."
+    - "Bandits out past the edge of town, I hear. There's good money on their heads, though."
+    - "Seen someone with a bounty? /tip the watch, or bring them in yourself and keep the lot."
+    - "Cross the watch badly enough and the Bureau takes over. They say you're only safe 2000 blocks out."
+    - "They say a third of the watch can be bought. The other two thirds take it very personally."
+    - "Nobody's robbed the bank in a while... not that I'm suggesting anything."
+    - "There's a casino out in the snow, they say. Under an old hunting shack. You didn't hear it from me."
+    - "The Crimson Vipers and the Iron Jackals hate each other more than they hate us. Pick a side, maybe."
+    - "A treasury wagon goes from the bank to the station now and then. Heavily guarded, of course."
+
+  # ---- Bounties: the town pays per wanted star; players can add more with /bounty.
+  bounty:
+    per-star: 250
+    tip-share: 0.5            # /tip that leads to an arrest within 10 minutes pays this share
+    announce-from-stars: 2
+    min-player-bounty: 100
+    citizens-arrest: true     # the blow that would kill a wanted player arrests them instead (within the Bureau's reach)
+
+  # ---- Players in the Town Watch (/police join at the station, Respected or better)
+  police:
+    pay-per-star: 75          # per arrest, x1.25 per rank: Cadet, Officer (5 arrests), Sergeant (15), Captain (30), Chief (50)
+    reputation-per-arrest: 10
+    salary: 50                # every salary-minutes on duty inside the police zone, also x rank
+    salary-minutes: 10
+
+  officers-fight-mobs: true
+  officer-mob-range: 24
+  officer-mob-damage: 7
+
+  # ---- Bribes: this share of officers take the money (per star) and forget you. The rest add a charge.
+  bribe:
+    chance: 0.3
+    per-star: 300
+
+  # ---- Bandits roam the wilds between min- and max-distance from the fountain.
+  bandits:
+    enabled: true
+    min-distance: 170
+    max-distance: 1500
+    max: 8
+    chance-day: 0.25          # per player every 30 seconds, when no bandit is near them
+    chance-night: 0.5
+    health: 24                # +6 per star
+    damage: 3                 # +0.5 per star
+    steal-per-hit: 40         # coins (1% of balance, up to this); given back when the bandit is caught
+    bounty-per-star: 200
+
+  # ---- The Bureau opens a case at from-stars and tracks you within reach of the fountain for case-days Minecraft days.
+  bureau:
+    enabled: true
+    from-stars: 3
+    reach: 2000
+    case-days: 3
+    agents: 3                 # per ambush, +1 at 4+ stars
+    ambush-minutes-min: 4
+    ambush-minutes-extra: 4
+    agent-minutes: 4          # agents give up after this long
+    health: 40
+    damage: 5
+    speed: 0.27
+
+  # ---- Community service instead of jail (offered for a minute after an arrest, up to max-stars).
+  service:
+    enabled: true
+    max-stars: 3
+    seconds-per-piece: 12     # one piece of litter per 12 s of sentence (at least 5)
+    radius: 30
+    reputation: 5
+
+  # ---- The bank (/mrtown bank build). One robbery per cooldown.
+  bank:
+    cooldown-minutes: 180
+    min-players-online: 2
+    crack-seconds: 60         # robber-seconds at the vault (up to 3 robbers work 3x faster)
+    loot-min: 4000
+    loot-max: 9000
+    gold-bars: 2
+    gold-bar-value: 400
+
+  # ---- The underground casino (/mrtown casino build). Raids while players are inside.
+  casino:
+    slot-price: 50
+    slot-price-high: 250
+    house-cut: 0.05             # dice: share of the pot the house keeps
+    roulette-seconds: 30
+    patrons: 8
+    patrons-who-fight: 0.5      # in a raid, the rest run for the exits
+    raid-minutes-min: 8
+    raid-minutes-max: 20
+    raid-seconds: 180
+    raid-officers-max: 8
+
+  # ---- Player gangs (/gang).
+  gangs:
+    create-cost: 5000
+    max-members: 10
+    crime-tax: 0.1              # share of members' crime income that goes to the gang bank
+    claim-cost: 1000
+    no-claim-radius: 200
+    income-per-chunk: 25
+    income-minutes: 60
+    war-cost: 2000
+
+  # ---- NPC gangs in the wilds (Crimson Vipers, Iron Jackals).
+  npc-gangs:
+    enabled: true
+    min-distance: 220
+    max-distance: 1500
+    max: 12
+    chance: 0.2
+    strength: 25                # members to take down to wipe a gang out
+    respawn-hours: 48
+    wipe-reward: 5000
+    bounty: 100
+    health: 30
+    damage: 3.5
+    ally-at: 50
+
+  # ---- Heists (planned with the Planner in the casino).
+  heists:
+    plan-cost: 1000
+    min-crew: 2
+    max-crew: 4
+    alarm-seconds: 20
+    alarm-delay-seconds: 60     # how long after the drill starts the police notice, if the alarm was cut
+    drill-seconds: 120          # crew-seconds at the vault (up to 3 at once)
+    bank-bags: 3
+    bank-bag-value: 2500
+    wagon-bags: 2
+    wagon-bag-value: 2000
+    courier-health: 60
+    getaway-min: 560
+    stage-minutes: 20
+    bank-cooldown-minutes: 360
+    wagon-cooldown-minutes: 180
+
+  # ---- Prison breaks (bolt cutters on a cell's back window, generated jail only).
+  prison-break:
+    cutter-price: 1500
+    seconds: 20
+    open-seconds: 40
+
+  # ---- Meadowbrook (/mrtown meadowbrook build) and its plots.
+  meadowbrook:
+    police-radius: 200
+    town-radius: 85
+  plots:
+    max-per-player: 3
+    sell-back: 0.5
+    business-built-price: 60000
+    business-built-rent: 1500
+    business-bare-price: 25000
+    business-bare-rent: 600
+    home-built-price: 35000
+    home-built-rent: 800
+    home-bare-price: 15000
+    home-bare-rent: 300
+    industry-built-price: 50000
+    industry-built-rent: 1200
+    industry-bare-price: 20000
+    industry-bare-rent: 500
+
+  # ---- The Meadowbrook Line (/mrtown railway build <x> <southZ> <northZ>).
+  railway:
+    single: 200
+    return: 350
+    day-pass: 600
+    first-discount: 0.6          # first ticket ever bought
+    board-seconds: 45
+    speed: 1.0                   # blocks per tick at full speed
+    max-cars: 10
+    npc-passengers: 3
+
+  # ---- Businesses (/business) and jobs (/jobs). The economy runs a cycle every cycle-seconds.
+  business:
+    cycle-seconds: 300
+    demand: 1.0                  # multiplies how much townspeople buy (more players online = more demand too)
+    tax: 0.05                    # of revenue, to the town treasury
+    npc-wage: 15                 # per NPC staff per cycle (each adds 25% output)
+    town-wage: 25                # per task for jobs at town businesses
+    upkeep-per-level: 25
+    raid-chance: 0.06            # per cycle, illegal businesses
+    dominance-share: 0.4         # a player business above this share of a market...
+    rival-after-cycles: 6        # ...for this many cycles attracts a rival company
+    delivery-seconds: 300
+    max-staff-walkers: 16
+    max-customers: 8
+    # Player businesses only make what their premises hold (fittings under a roof, see /business premises)
+    # and what gets worked: tasks by the owner and workers, plus hired NPC staff and residents.
+    labour-per-task: 1.5         # work from each task done (/job clockin)
+    labour-per-staff: 3          # work from each NPC staff or resident per cycle...
+    unsupervised-rate: 0.25      # ...times this when the owner hasn't been active lately
+    supervision-minutes: 15
+    staff-share: 0.75            # staff take this share of the margin on what they make
+    staff-flat-wage: 5           # plus this each per cycle
+    afk-clockout-seconds: 180    # idle this long on shift and you're clocked out
+    dining:                      # table service at cookhouses and taverns
+      max-diners: 2              # diners one worker looks after at once
+      seat-seconds: 45           # a diner waits this long to be seated
+      order-seconds: 90          # ...and this long for their food once they've ordered
+      cook-seconds: 4            # time at the stove per dish
+      ambient-per-place: 3       # NPC diners eating at town-run eateries when players are near
+
+  # ---- Bank loans (/loan, from Banker Oakes or the Old Town banker).
+  market:                        # the market hall exchange (/market) and stalls (/stall)
+    elasticity: 0.7              # how hard prices react to stock: price = base * (normal/stock)^elasticity
+    spread: 0.07                 # buy price this much over the middle, sell price this much under
+    floor: 0.15                  # prices never go under 15% of base...
+    ceiling: 4.0                 # ...or over 4x base
+    flood-factor: 12             # the market stops buying a ware at 12x its normal stock
+    drift-minutes: 5             # stock drifts back towards normal every 5 minutes...
+    drift-rate: 0.05             # ...by 5% of the gap...
+    drift-cap: 0.04              # ...but never more than 4% of normal stock a step
+    event-hours: 6               # a shortage or glut every 6 hours (Herald news)
+    news-units: 256              # a single sale this big makes the news
+    news-value: 5000
+    shoppers: 8                  # NPC shoppers in the hall when players are there
+    stall-rent: 400              # per day, paid in advance
+    keeper-fee: 100              # per day for a stall keeper (townsfolk then buy from the stall)
+    stall-fee: 0.05              # the market's cut of stall sales
+    max-stalls: 2                # stalls one player may rent
+    max-rent-days: 14
+    stall-sales-minutes: 5       # how often townsfolk buy from staffed stalls
+    npc-units-per-stall: 12      # the most they buy from one stall each time
+  loans:
+    base-limit: 10000
+    per-reputation: 100          # extra limit per reputation point
+    max: 500000
+    interest: 0.15
+    days: 7                      # repaid in daily instalments
+
+  names:
+    townsfolk: [Ada, Ben, Cora, Dell, Edda, Finn, Greta, Hugo, Ivy, Jory, Kit, Lark, Milo, Nell, Otto, Pia, Quinn, Rosa, Sid, Tess, Ulla, Vic, Wren, Yara, Bram, Elsie, Ned, Moll]
+    officers: [Reyes, Grant, Holloway, Marsh, Quill, Barrow, Finch, Stone, Avery, Doyle, Kerr, Lowe, Thorne, Vance, Wilde, Brennan]
+    bandits: [Grim, Scar, Rook, Vex, Jack, Crow, Mags, Snake, Red, Ash, Dutch, Viper, Slim, Patch]
+    agents: [Cole, Hart, Mercer, Lang, Shaw, Black, Price, Reed, Kade, Voss]
+
+  # What prisoners may still type.
+  jail-allowed-commands: [bail, service, trial, appeal, herald, census, rep, wanted, bounties, msg, tell, w, r, reply, m, helpop, report, rules, list, mail, surrender]
+
+  # ---- Protection: explosions, fire, mob griefing, trampling and liquids from outside can't damage the towns.
+  protection:
+    enabled: true
+    radius: 160                  # around each town centre (plus every generated building's own area)
+
+  # ---- Residents of Meadowbrook: families in the town's free homes, jobs, a daily routine (/census).
+  residents:
+    enabled: true
+    max: 80
+    max-walking: 24              # residents walking about at once (only near players)
+    wage: 20                     # per economy cycle, paid by the business they work at (each adds 25% output)
+    demand-each: 0.015           # extra shop demand per resident
+    birth-chance: 0.04           # per couple per day
+    wedding-chance: 0.25         # per day, for the whole town
+    childhood-days: 21           # real days until a child grows up
+    elder-days: 120
+
+
+
+  # ---- AI: the Herald broadsheet and the court, on OpenAI. Free for every player. The key goes in
+  # plugins/ModdedrealmsSMP/openai.key (never in chat or the console), then /mrtown ai reload. Without a key, or over
+  # budget, the Herald prints the headlines as they are and a scripted judge hears appeals.
+  ai:
+    enabled: true
+    model: auto                  # auto = the cheapest small model the key can use; or a model name
+    monthly-budget-usd: 6.0      # hard cap (about 5 pounds); requests stop when the next one could pass it
+    daily-budget-usd: 0.40
+    price-input-per-million: 0.50   # set these to OpenAI's real prices for the model; the defaults are high on purpose
+    price-output-per-million: 2.00
+    max-answer-tokens: 700
+    herald-hours: 6              # a new edition at most this often, when there's news
+    herald-min-stories: 3
+    court: true                  # /trial: appeal a jail sentence once
+    advocate-fee: 500            # in-game money for an advocate who argues the appeal
+
+  # ---- ColonySMP: colonies sell spare goods at the market hall (/market colony) and buy wares for their storage,
+  # colony news goes to the Herald, and no colony may hold land in the towns.
+  colonies:
+    keep-out-of-towns: true
+    old-town-radius: 320
+    meadowbrook-radius: 200
+    herald: true
+    herald-per-hour: 6
+
+  # ---- Jobs: ranks pay more; three live strikes (they wear off after strike-days) and you're fired.
+  # business:
+  #   strikes-to-fire: 3
+  #   strike-days: 7
+  #   rehire-hours: 24
+  #   clean-shift-tasks: 10       # a shift this busy with no strikes wipes one strike
+  #   harvest-piece-rate: 0.25    # a farmhand's pay per ripe crop, as a share of the task wage
+
+  # ---- The stock exchange (/stocks): a share in every business, traded from the bank account.
+  stocks:
+    enabled: true
+    update-minutes: 10
+    volatility: 0.02
+    fee: 0.01
+    dividend: 0.01               # of the share price, once a day
+    max-shares-per-business: 500
+
+  # ---- Disasters: they wreck part of a town, then every block is put back rebuild-after-minutes later.
+  # Never near the spawn (avoid-spawn-radius), the jail, bank, casino, railway, market or colony land.
+  disasters:
+    enabled: true
+    every-hours: 8
+    first-after-hours: 2
+    min-players: 2
+    warning-seconds: 30
+    rebuild-after-minutes: 4
+    avoid-spawn-radius: 80
+    tornado-seconds: 40
+    flood-radius: 22
+    stock-shock: 0.88            # the town's shares drop this much
+
+# ---- Money is metal. Cash in hand is coins (these worths are when the economy is balanced; each metal's worth
+# falls as more of it is spent and recovers over recover-hours). The Vault balance is your bank account (/bank),
+# which pays rent and loans, takes auction and stall takings and buys shares.
+currency:
+  physical: true
+  bank-anywhere: false           # false: deposit and withdraw only inside the Old Town bank
+  worth:
+    copper: 2
+    gold: 10
+    iron: 30
+    emerald: 60
+    diamond: 250
+    netherite: 2500
+  normal:                        # how many ingots spent make a metal worth about half
+    copper: 4000
+    gold: 3000
+    iron: 3000
+    emerald: 1500
+    diamond: 400
+    netherite: 40
+  elasticity: 1.0
+  floor: 0.3                     # never below 30% of its balanced worth
+  ceiling: 2.5
+  recover-hours: 24
+
+# ---- The server resource pack (NPC skins, the train, item art). Turn models off if the server doesn't send it.
+resource-pack:
+  models: true
+  # This plugin sends the pack while players join; leave resource-pack= empty in server.properties (AMP).
+  # It must sit on a host Minehut allows (raw.githubusercontent.com, mc-packs.net...), or Minehut drops it.
+  url: "https://raw.githubusercontent.com/Leebeargangman/Moddedrealms/71f1041cf0b21fa3f44797c1e437fcb0ee591ef6/minecraft-smp/resourcepack/hosted/moddedrealms-cbc6d2dd37.zip"
+  sha1: "cbc6d2dd3741dfb932ab11251fb849f02fa9cc55"
+  prompt: "<gold>The Moddedrealms pack adds townsfolk skins, the train and boss art."
+  required: true          # Java players must accept it (a decline gets them kicked with decline-message once in)
+  skip-bedrock: true      # Bedrock players never get it: Minehut can't send them packs
+  wait-seconds: 90        # longest a join waits for the pack before letting the player in anyway
+  decline-message: "<gold>This server needs its resource pack</gold> <gray>(townsfolk skins, the train, boss art).</gray>\n\n<white>In your server list, select this server, press <yellow>Edit</yellow> and set <yellow>Server Resource Packs: Enabled</yellow>, then join again.</white>"
