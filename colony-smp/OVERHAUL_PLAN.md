@@ -1,7 +1,8 @@
 # ColonySMP Overhaul + Season 1 "The Frozen Crown": plan
 
 Status: **in progress**. Written 25 Nov 2026. Release 1 (Phase 1 + season code, season off) live 25 Nov. Season switched on 27 Nov.
-Release 2 (Phase 2 onboarding) built and tested locally 27 Nov, waiting for the OK to deploy.
+Release 2 (Phase 2 onboarding: ColonySMP 2.7.0, SMP 1.15.0) live 27 Nov 17:33 CET, with onboarding, starter camps and
+the funnel switched on. Next: Phase 3 (colony core), then the new features in section 15.
 
 ## 1. What is there today
 
@@ -41,6 +42,9 @@ Release 2 (Phase 2 onboarding) built and tested locally 27 Nov, waiting for the 
     with the 6 Dec colony core.
 11. **Other spawn NPCs unlock after the choice with Rowan (owner, 27 Nov)**, so players who pick the Battles aren't
     locked out (open question 5).
+12. **Six new features (owner, 27 Nov), after Phase 3:** play with friends, bring-a-friend rewards, daily challenges,
+    bandit camps, a colony gear path and player blueprints (section 15). Phase 3 comes first. These follow before the
+    16 Dec freeze where there's time, each behind its own switch; anything not solid by then goes out after launch.
 
 ## 3. Timeline
 
@@ -212,6 +216,26 @@ The models and textures start on 26 Nov. I write the `.bbmodel` files and textur
 1. **Founder badge**: do the first 50 count from launch day (18 Dec) or from now?
 2. **Season end**: which parts of the SMP economy are wiped (coins, bank, businesses, stocks, plots)? Needed by early January.
 3. **Spark** on the live SMP: yes or no?
-4. **Siege weapon models**: item_display (recommended) or BetterModel? Needed by 27 Nov, since the models start now. I'll go with item_display unless you say otherwise.
+4. **Siege weapon models**: item_display (recommended) or BetterModel? On hold with the siege weapons (decision 7); item_display unless you say otherwise when they restart.
 5. ~~Other spawn NPCs~~: after the choice with Rowan (decided 27 Nov).
-6. **Advent rewards**: should I fill in the defaults, or do you have a list?
+6. ~~Advent rewards~~: the defaults are filled in for all 24 doors in `season.yml`. Change any door you like before its day.
+7. **Daily challenges**: one challenge a day, the same for every colony, with a board and a prize for the day's best (my reading of "challenges that happen every day", section 15). Say if you meant something else, such as daily challenges for each player.
+
+## 15. New features (owner, 27 Nov)
+
+Picked from a shortlist on 27 Nov. They come after Phase 3, each behind its own switch in `features:` (ColonySMP) or
+the SMP config, with all numbers in config and all text in `messages.yml`. Order below is the build order: the
+friends features first, because the players who stayed played in groups.
+
+| Feature | What it does | Builds on | Switch |
+|---|---|---|---|
+| **Play with friends** | Rowan's menu gets "Join a friend's colony": pick an online friend who has a colony and ask to join; they accept with one click and you land at their camp. `/colony invite` also works for a newcomer. The first time two people play in the same colony for 10 minutes, both get a reward. | `/colony invite` and `/colony join` already exist; the Rowan menu and starter camps from Release 2 | `features.friends` |
+| **Bring-a-friend rewards** | `/invite` gives you a short code. A new player types it (or picks you in Rowan's menu) in their first hour; when they've played 30 minutes, you both get coins and a crate key. One code per new player, a cap per day, and no reward when both players come from the same address. | SMP coins and crate keys | `referrals.enabled` (SMP) |
+| **Daily challenges** | A new colony challenge every day at midnight (Europe/London), the same for everyone: "Fell 200 logs", "Store 300 wheat", "Survive tonight's raid", "Get 3 new settlers". A board at spawn shows the challenge and today's top colonies; everyone who finishes gets a reward, and the best colony gets more. Challenge pool and rewards in config. Different from Rowan's daily quests (those are for one player). | The funnel's day counters, colony statistics | `features.daily-challenges` |
+| **Bandit camps** | Bandit camps appear out in the wild (not near spawn or colonies). Each has a few bandits, a leader and a loot chest. Clearing one pays the players, and the nearest member's colony gets resources. Camps respawn somewhere else after a while; a limited number at once, for performance. Later: bandits from an uncleared camp raid nearby colonies. | ColonySMP raid fighters, the SMP's bandit NPCs | `features.bandit-camps` |
+| **Colony gear path** | The Blacksmith settler makes tools and armour for the colony from its stores: stone and iron at Camp and Village, then better quality, then enchanted gear (via ExcellentEnchants, already installed) at Town and up. Settlers use it themselves and members can buy it from the colony store. Answers "where do I get gear?". | The Blacksmith job and recipes, tiers from Phase 3 | `features.gear-path` |
+| **Player blueprints** | A build copied with the blueprint wand can be put up for sale. Other colonies buy it from a blueprint market and their builders put it up from their own materials; the maker earns coins on every sale. A size cap and a staff check before a blueprint is listed. | The blueprint wand (`building/Copier.java`) and the builders already exist | `features.blueprint-market` |
+
+Not picked this time: a colony visits board at spawn, a Discord link (needs a bot token), weekly contests (replaced by
+daily challenges).
+
