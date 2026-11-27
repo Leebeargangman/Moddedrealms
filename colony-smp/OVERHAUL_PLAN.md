@@ -282,3 +282,19 @@ friends features first, because the players who stayed played in groups.
 Not picked this time: a colony visits board at spawn, a Discord link (needs a bot token), weekly contests (replaced by
 daily challenges).
 
+### Built so far (27 Nov, ColonySMP 2.9.0 + SMP 1.16.0, tested locally, not deployed)
+
+- **Play with friends** (`features.friends`, `onboard/Friends.java`): Rowan's menu has "Join a Friend's Colony" (slot
+  13), listing colonies with members online (tier, settlers, who's on). Picking one, or `/colony ask <colony>`, sends
+  members with the Members permission "[Let them in] [No thanks]" (`/colony letin|turnaway <player>`, the ask lasts
+  5 minutes, one ask a minute). Once let in (or after `/colony invite` + `/colony join`), the new member gets a Colony
+  Charter and is taken to the colony once. The SMP marks their choice as "joined a friend". The first time a player
+  spends 10 minutes on their colony's land with another member, both get `friends.together-rewards` ($50 and a
+  common key), once per player. Funnel steps: asked_friend, joined_friend, played_together.
+- **Bring a friend** (SMP `referrals.enabled`, `play/Referrals.java`): `/invite` (also /refer) shows a 5-letter code. A
+  new player types `/invite <code>`, or picks who invited them under "A friend invited me" in Rowan's menu (slot 4,
+  only in their first hour). After 30 minutes of play the newcomer gets $100 and a common key, and the friend $150
+  and a common key (paid on their next login if they're away). Checks: one referrer per new player, no inviting each
+  other, at most 5 paid referrals a day per player, and nothing when both play from the same address (addresses are
+  kept only as salted hashes). `/mrsmp onboarding` shows invited and paid.
+

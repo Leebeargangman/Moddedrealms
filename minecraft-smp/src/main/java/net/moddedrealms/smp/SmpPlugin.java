@@ -34,6 +34,7 @@ public final class SmpPlugin extends JavaPlugin {
     private Insights insights;
     private Guide guide;
     private net.moddedrealms.smp.play.DailyStreak streaks;
+    private net.moddedrealms.smp.play.Referrals referrals;
     private Reports reports;
     private net.moddedrealms.smp.play.Duels duels;
     private net.moddedrealms.smp.play.SupplyDrops drops;
@@ -84,6 +85,10 @@ public final class SmpPlugin extends JavaPlugin {
         streaks = new net.moddedrealms.smp.play.DailyStreak(this);
         pm.registerEvents(streaks, this);
         getCommand("daily").setExecutor(streaks);
+        referrals = new net.moddedrealms.smp.play.Referrals(this);
+        pm.registerEvents(referrals, this);
+        getCommand("invite").setExecutor(referrals);
+        getServer().getScheduler().runTaskTimer(this, referrals::tick, 1200L, 1200L);
         duels = new net.moddedrealms.smp.play.Duels(this);
         pm.registerEvents(duels, this);
         getCommand("duel").setExecutor(duels);
@@ -163,6 +168,7 @@ public final class SmpPlugin extends JavaPlugin {
         if (boards != null) boards.shutdown();
         if (feedback != null) feedback.save();
         if (insights != null) insights.save();
+        if (referrals != null) referrals.save();
         if (season != null) season.shutdown();
         if (town != null) town.stop();
         if (crates != null) crates.finishAll();
@@ -205,9 +211,10 @@ public final class SmpPlugin extends JavaPlugin {
     public net.moddedrealms.smp.onboard.Onboarding onboarding() { return onboarding; }
     public Feedback feedback() { return feedback; }
     public Reports reports() { return reports; }
-    public Insights insights() { return insights; }
     public Guide guide() { return guide; }
     public net.moddedrealms.smp.play.DailyStreak streaks() { return streaks; }
+    public net.moddedrealms.smp.play.Referrals referrals() { return referrals; }
+    public Insights insights() { return insights; }
     public net.moddedrealms.smp.play.Duels duels() { return duels; }
     public net.moddedrealms.smp.play.SupplyDrops drops() { return drops; }
     public net.moddedrealms.smp.play.AuctionHouse auctions() { return auctions; }

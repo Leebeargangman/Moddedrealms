@@ -58,7 +58,7 @@ import java.util.UUID;
 /** /colony: every player command, and the admin tools under /colony admin. */
 public final class ColonyCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBS = List.of("help", "start", "tasks", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "leave", "kick", "members",
+    private static final List<String> SUBS = List.of("help", "start", "tasks", "create", "info", "list", "map", "claim", "unclaim", "invite", "join", "ask", "letin", "turnaway", "leave", "kick", "members",
             "promote", "demote", "rename", "settings", "menu", "core", "book", "marker", "wand", "rope", "baton", "banner", "disband", "quests",
             "citizens", "citizen", "jobs", "assign", "home", "needs", "settler", "traveller", "exile", "release",
             "buildings", "building", "validate", "upgrade", "construction",
@@ -167,6 +167,16 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             }
             case "invite" -> invite(p, c, a);
             case "join" -> join(p, a);
+            case "ask" -> {
+                Colony t = a.length == 0 ? null : plugin.colonies().byName(String.join(" ", a));
+                String err = plugin.friends().ask(p, t);
+                if (err != null) Text.send(p, "<red>" + Text.esc(err));
+            }
+            case "letin", "turnaway" -> {
+                if (need(p, c)) return;
+                if (sub.equals("letin")) plugin.friends().letIn(p, c, a.length == 0 ? null : a[0]);
+                else plugin.friends().turnAway(p, c, a.length == 0 ? null : a[0]);
+            }
             case "leave" -> leave(p, c);
             case "kick" -> kick(p, c, a);
             case "members" -> members(p, c);
@@ -486,6 +496,7 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
         for (Player m : c.onlineMembers()) Text.send(m, "<green>" + Text.esc(p.getName()) + " joined " + Text.esc(c.name) + ".");
         plugin.quests().refresh(c);
         plugin.requestSave();
+        if (plugin.friends().on()) plugin.friends().welcome(p, c, plugin.getServer().getOfflinePlayer(c.owner).getName());
     }
 
     private void leave(Player p, Colony c) {

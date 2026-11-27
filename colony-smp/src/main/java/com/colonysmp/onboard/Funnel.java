@@ -42,8 +42,9 @@ import java.util.logging.Level;
 public final class Funnel implements Listener {
 
     /** The steps, in the order a new player meets them. SMP reports the Rowan steps through ColonyApi. */
-    public static final List<String> STEPS = List.of("first_join", "talked_to_rowan", "chose_colony", "chose_battles", "colony_founded", "opened_menu",
-            "first_job_assigned", "first_building", "reached_5_minutes", "left_server", "returned_next_day");
+    public static final List<String> STEPS = List.of("first_join", "talked_to_rowan", "chose_colony", "chose_battles", "asked_friend", "joined_friend",
+            "colony_founded", "opened_menu", "first_job_assigned", "first_building", "played_together", "reached_5_minutes", "left_server",
+            "returned_next_day");
 
     private static final List<Migrations.Step> SCHEMA = List.of(
             new Migrations.Step(1, "funnel steps, hints seen, logoff snapshots", List.of(

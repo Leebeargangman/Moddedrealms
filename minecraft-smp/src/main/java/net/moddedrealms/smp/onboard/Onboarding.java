@@ -278,7 +278,29 @@ public final class Onboarding implements Listener {
         }
     }
 
-    private static final int COLONY = 11, BATTLES = 15, STORY = 22;
+    private static final int COLONY = 11, FRIEND = 13, BATTLES = 15, STORY = 22, BACK = 22, INVITED = 4;
+
+    /** "A friend invited me": the players online, to name who brought you. */
+    static final class InviterMenu implements InventoryHolder {
+        Inventory inv;
+        final java.util.Map<Integer, UUID> players = new java.util.HashMap<>();
+
+        @Override
+        public Inventory getInventory() {
+            return inv;
+        }
+    }
+
+    /** Elder Rowan's list of colonies with players online, to ask to join. */
+    static final class FriendMenu implements InventoryHolder {
+        Inventory inv;
+        final java.util.Map<Integer, String> colonies = new java.util.HashMap<>();
+
+        @Override
+        public Inventory getInventory() {
+            return inv;
+        }
+    }
 
     public void openChoice(Player p) {
         if (!p.isOnline()) return;
@@ -291,6 +313,18 @@ public final class Onboarding implements Listener {
         if (!camps) colonyLore.add("<gray>(Rowan tells you how)");
         m.inv.setItem(COLONY, icon(Material.LODESTONE, str("colony-name", "<green><bold>Found a Colony"), colonyLore, true));
         m.inv.setItem(BATTLES, icon(Material.IRON_SWORD, str("battles-name", "<red><bold>Join the Battles"), list("battles-lore"), false));
+        if (plugin.referrals() != null && plugin.referrals().canClaim(p)) {
+            m.inv.setItem(INVITED, icon(Material.NAME_TAG, str("invited-name", "<light_purple>A friend invited me"), list("invited-lore"), false));
+        }
+        if (ColonyBridge.friends()) {
+            int n = ColonyBridge.joinable(p).size();
+            List<String> lore = new ArrayList<>(list("friend-lore"));
+            lore.add(n == 0 ? str("friend-none", "<dark_gray>Nobody with a colony is online right now")
+                    : str("friend-some", "<aqua>{n} colonies have players online").replace("{n}", String.valueOf(n)));
+            lore.add("");
+            lore.add("<yellow>Click to see them");
+            m.inv.setItem(FRIEND, icon(Material.PLAYER_HEAD, str("friend-name", "<aqua><bold>Join a Friend's Colony"), lore, false));
+        }
         m.inv.setItem(STORY, icon(Material.WRITABLE_BOOK, str("story-name", "<yellow>Talk with Rowan"),
                 List.of("<gray>His story and the daily quests"), false));
         p.openInventory(m.inv);
@@ -321,6 +355,10 @@ public final class Onboarding implements Listener {
         } else if (e.getRawSlot() == BATTLES) {
             p.closeInventory();
             chooseBattles(p);
+        } else if (e.getRawSlot() == FRIEND && ColonyBridge.friends()) {
+            openFriends(p);
+        } else if (e.getRawSlot() == INVITED && plugin.referrals() != null && plugin.referrals().canClaim(p)) {
+            openInviter(p);
         } else if (e.getRawSlot() == STORY) {
             p.closeInventory();
             NpcDef d = plugin.npcs().get(guideId());
@@ -328,9 +366,96 @@ public final class Onboarding implements Listener {
         }
     }
 
+    private void openFriends(Player p) {
+        FriendMenu m = new FriendMenu();
+        m.inv = Bukkit.createInventory(m, 27, SmpPlugin.mm(str("friends-title", "Elder Rowan · Join a friend")));
+        ItemStack glass = icon(Material.BROWN_STAINED_GLASS_PANE, " ", List.of(), false);
+        for (int i = 0; i < 27; i++) m.inv.setItem(i, glass);
+        var list = ColonyBridge.joinable(p);
+        int slot = 0;
+        for (var j : list) {
+            if (slot >= 18) break;
+            List<String> lore = new ArrayList<>();
+            lore.add("<gray>" + j.tier() + " · " + j.population() + " settlers");
+            lore.add("<gray>Online: <white>" + String.join(", ", j.online()));
+            lore.add("");
+            lore.add("<yellow>Click to ask to join");
+            ItemStack head = icon(Material.PLAYER_HEAD, "<aqua>" + SmpPlugin.MM.escapeTags(j.name()), lore, false);
+            Player first = j.online().isEmpty() ? null : Bukkit.getPlayerExact(j.online().get(0));
+            if (first != null && head.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta sm) {
+                sm.setOwningPlayer(first);
+                head.setItemMeta(sm);
+            }
+            m.inv.setItem(slot, head);
+            m.colonies.put(slot, j.id());
+            slot++;
+        }
+        if (list.isEmpty()) {
+            m.inv.setItem(13, icon(Material.BARRIER, str("friend-none", "<dark_gray>Nobody with a colony is online right now"),
+                    list("friend-none-lore"), false));
+        }
+        m.inv.setItem(BACK, icon(Material.ARROW, "<white>Back", List.of("<gray>To Elder Rowan's choices"), false));
+        p.openInventory(m.inv);
+    }
+
+    private void openInviter(Player p) {
+        InviterMenu m = new InviterMenu();
+        m.inv = Bukkit.createInventory(m, 27, SmpPlugin.mm(str("invited-title", "Who invited you?")));
+        ItemStack glass = icon(Material.BROWN_STAINED_GLASS_PANE, " ", List.of(), false);
+        for (int i = 0; i < 27; i++) m.inv.setItem(i, glass);
+        int slot = 0;
+        for (Player o : Bukkit.getOnlinePlayers()) {
+            if (o.equals(p) || slot >= 18) continue;
+            ItemStack head = icon(Material.PLAYER_HEAD, "<white>" + SmpPlugin.MM.escapeTags(o.getName()), List.of("<yellow>Click: they invited me"), false);
+            if (head.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta sm) {
+                sm.setOwningPlayer(o);
+                head.setItemMeta(sm);
+            }
+            m.inv.setItem(slot, head);
+            m.players.put(slot, o.getUniqueId());
+            slot++;
+        }
+        m.inv.setItem(13 + 9, icon(Material.ARROW, "<white>Back", List.of("<gray>To Elder Rowan's choices", "<gray>(or type <white>/invite <code></white>)"), false));
+        p.openInventory(m.inv);
+    }
+
+    @EventHandler
+    public void onInviterClick(InventoryClickEvent e) {
+        if (!(e.getInventory().getHolder() instanceof InviterMenu m)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getView().getTopInventory()) return;
+        if (e.getRawSlot() == BACK) {
+            openChoice(p);
+            return;
+        }
+        UUID by = m.players.get(e.getRawSlot());
+        if (by == null) return;
+        String err = plugin.referrals().claim(p, by);
+        if (err != null) p.sendMessage(SmpPlugin.mm("<red>" + SmpPlugin.MM.escapeTags(err)));
+        openChoice(p);
+    }
+
+    @EventHandler
+    public void onFriendClick(InventoryClickEvent e) {
+        if (!(e.getInventory().getHolder() instanceof FriendMenu m)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getView().getTopInventory()) return;
+        if (e.getRawSlot() == BACK) {
+            openChoice(p);
+            return;
+        }
+        String id = m.colonies.get(e.getRawSlot());
+        if (id == null) return;
+        p.closeInventory();
+        String err = ColonyBridge.askToJoin(p, id);
+        if (err != null) p.sendMessage(SmpPlugin.mm("<red>" + SmpPlugin.MM.escapeTags(err)));
+        else say(p, line("friend-asked", p));
+    }
+
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
-        if (e.getInventory().getHolder() instanceof Menu) e.setCancelled(true);
+        var h = e.getInventory().getHolder();
+        if (h instanceof Menu || h instanceof FriendMenu || h instanceof InviterMenu) e.setCancelled(true);
     }
 
     private void say(Player p, String text) {
@@ -405,6 +530,13 @@ public final class Onboarding implements Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID u = p.getUniqueId();
             if (!isNew(u)) {
+                hideBar(p);
+                continue;
+            }
+            // joined someone's colony (let in, or /colony invite): that's their choice made
+            if (ColonyBridge.hasColony(u)) {
+                set(u, "chose", "friend");
+                set(u, "chose-at", now);
                 hideBar(p);
                 continue;
             }
@@ -509,7 +641,7 @@ public final class Onboarding implements Listener {
 
     /** For /mrsmp onboarding: how many arrived, talked and chose what. */
     public List<String> stats() {
-        int first = 0, talked = 0, colony = 0, battles = 0;
+        int first = 0, talked = 0, colony = 0, battles = 0, friend = 0;
         ConfigurationSection s = data.getConfigurationSection("players");
         if (s != null) {
             for (String k : s.getKeys(false)) {
@@ -519,9 +651,10 @@ public final class Onboarding implements Listener {
                 if (c.contains("talked")) talked++;
                 if ("colony".equals(c.getString("chose"))) colony++;
                 if ("battles".equals(c.getString("chose"))) battles++;
+                if ("friend".equals(c.getString("chose"))) friend++;
             }
         }
         return List.of("<gold>Onboarding " + (enabled() ? "<green>on" : "<red>off") + "</gold> <gray>· " + first + " arrived, " + talked + " talked to Rowan, "
-                + colony + " chose a colony, " + battles + " chose the Battles");
+                + colony + " chose a colony, " + battles + " chose the Battles, " + friend + " joined a friend");
     }
 }

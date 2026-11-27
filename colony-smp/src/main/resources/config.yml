@@ -18,6 +18,7 @@ features:
   siege-weapons: false     # ballista, catapult, cannon
   siege-block-damage: false # siege weapons break blocks (only in wars and raids, always rolled back)
   season-events: false     # advent, Winterfest, frost raids and the rest of the season
+  friends: false           # ask to join a friend's colony (Rowan's menu, /colony ask), rewards for playing together
 
 # ───────────── Debugging ─────────────
 debug:
@@ -112,6 +113,19 @@ tiers:
       colour: "<red>"
       unlocks:
         - "Rule other colonies (comes with empires)"
+
+# ───────────── Playing with friends (features.friends) ─────────────
+# A player without a colony can ask to join one whose members are online: from Elder Rowan's menu, or with
+# /colony ask <colony>. Members with the Members permission get [Let them in] [No thanks]. Once in (or after
+# /colony invite and /colony join), the new member gets a Colony Charter and is taken to the colony once.
+friends:
+  ask-expires-minutes: 5
+  ask-cooldown-seconds: 60
+  teleport-on-join: true
+  # The first time a player spends this many minutes on their colony's land with another member there, they get
+  # these (once per player). Lines as in onboarding.rewards.
+  together-minutes: 10
+  together-rewards: ["money:50", "key:common:1"]
 
 # ───────────── Winter needs (features.winter-needs) ─────────────
 # Settlers need warmth as well as food. A house with a fire inside (a campfire, furnace or smoker) keeps the people

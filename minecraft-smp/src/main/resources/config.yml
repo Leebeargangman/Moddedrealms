@@ -97,6 +97,38 @@ onboarding:
   colony-start: "Splendid! My scouts know just the place. Follow me..."
   colony-manual: "Walk out into the wilds, then use /colony create <name> to found your colony. The menu shows the way."
   battles: "To the Battles, then! Come back to us any time."
+  # "Join a Friend's Colony" (when ColonySMP's features.friends is on)
+  friend-name: "<aqua><bold>Join a Friend's Colony"
+  friend-lore:
+    - "<gray>Play with someone who's already here:"
+    - "<gray>ask their colony to let you in."
+  friend-some: "<aqua>{n} colonies have players online"
+  friend-none: "<dark_gray>Nobody with a colony is online right now"
+  friend-none-lore:
+    - "<gray>Ask your friend to type <white>/colony invite <your name>"
+    - "<gray>or found your own colony."
+  friends-title: "Elder Rowan · Join a friend"
+  friend-asked: "I've sent word. When they let you in, I'll have you taken straight there."
+  # "A friend invited me" (when referrals.enabled is on and the player is in their first hour)
+  invited-name: "<light_purple>A friend invited me"
+  invited-lore:
+    - "<gray>Pick who brought you here."
+    - "<gray>After your first half hour you both get a reward."
+  invited-title: "Who invited you?"
+
+# ---- Bring a friend (/invite): a player's own code, which a new friend types (or picks the player in Elder Rowan's
+# menu) in their first claim-within-minutes of play. When the friend has played minutes-needed minutes, both are
+# paid. One referrer per new player, max-per-day paid referrals per referrer a day, and nothing when both play from
+# the same address (kept only as a salted hash). Messages: referrals.messages.<key> (see Referrals.java for the keys).
+referrals:
+  enabled: false
+  code-length: 5
+  claim-within-minutes: 60
+  minutes-needed: 30
+  max-per-day: 5
+  same-address-check: true
+  newcomer-rewards: ["money:100", "key:common:1"]
+  referrer-rewards: ["money:150", "key:common:1"]
 
 # ---- Daily login rewards (/daily): claim once a day (UTC); come back the next day to keep the streak. Day 7 is the
 # big one, then the week repeats. Reward lines as in quests: money:N, item:MATERIAL:N, key:<crate>:N, xp:N.

@@ -37,6 +37,46 @@ public final class ColonyBridge {
         }
     }
 
+    /** Joining friends' colonies is on in ColonySMP (2.9 and later). */
+    public static boolean friends() {
+        if (!present()) return false;
+        try {
+            return ColonyApi.ready() && ColonyApi.friends();
+        } catch (LinkageError e) {
+            return false;
+        }
+    }
+
+    /** Colonies with members online this player could ask to join. */
+    public static java.util.List<com.colonysmp.onboard.Friends.Joinable> joinable(Player p) {
+        if (!present()) return java.util.List.of();
+        try {
+            return ColonyApi.joinable(p);
+        } catch (LinkageError e) {
+            return java.util.List.of();
+        }
+    }
+
+    /** Null when the colony's members were asked; otherwise why not. */
+    public static String askToJoin(Player p, String colonyId) {
+        if (!present()) return "Colonies aren't running right now.";
+        try {
+            return ColonyApi.askToJoin(p, colonyId);
+        } catch (LinkageError e) {
+            return "Colonies need an update for that.";
+        }
+    }
+
+    /** The player belongs to a colony. */
+    public static boolean hasColony(UUID player) {
+        if (!present()) return false;
+        try {
+            return ColonyApi.ready() && ColonyApi.of(player) != null;
+        } catch (LinkageError e) {
+            return false;
+        }
+    }
+
     public static void funnel(UUID player, String step) {
         if (!present()) return;
         try {

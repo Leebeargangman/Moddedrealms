@@ -321,3 +321,24 @@ winter:
     hall-out: "<red>out of firewood"
     firewood: "<gray>Firewood: <white>{n} <gray>(about {days} days)"
     how: "<dark_gray>A campfire, furnace or smoker in a house warms it"
+
+# ───────────── Playing with friends (features.friends) ─────────────
+# plain text: off, no-colony, already-member, have-one, wait, nobody-to-ask
+friends:
+  off: "Joining friends isn't open yet."
+  no-colony: "There's no colony by that name."
+  already-member: "You're already in {colony}."
+  have-one: "You already belong to a colony."
+  wait: "Wait {seconds}s before asking again."
+  nobody-to-ask: "Nobody who can let you into {colony} is online right now."
+  asked: "<green>Asked {colony} to let you in. <gray>You'll hear back here within {minutes} minutes."
+  asked-member: "<aqua>{player}</aqua> <white>would like to join <aqua>{colony}</aqua>. <click:run_command:'{yes}'><green>[Let them in]</green></click> <click:run_command:'{no}'><red>[No thanks]</red></click>"
+  no-ask: "<red>{player} hasn't asked to join (or the request ran out)."
+  joined-elsewhere: "<yellow>{player} has joined another colony since."
+  joined-members: "<green>{player} joined {colony}. <gray>(let in by {by})"
+  turned-away-member: "<gray>You turned {player} away."
+  turned-away: "<yellow>{colony} can't take you in right now. <gray>Try another colony, or found your own with Elder Rowan."
+  welcome-title: "<aqua>{colony}"
+  welcome-subtitle: "<gray>{player} let you in. Welcome!"
+  welcome: "<green>Welcome to {colony}! <gray>Your Colony Charter opens the colony menu. Help your friends with the tasks on the bar."
+  together: "<gold>★ <white>You and {player} have played in {colony} together for {minutes} minutes! <gray>Reward: <white>{rewards}"

@@ -222,6 +222,16 @@ public final class QuestManager implements Listener {
         if (lines.isEmpty()) return;
         if (!plugin.funnel().firstTime(c.owner, "reward:step-" + step)) return;
         Player to = receiver(c, by);
+        String said = pay(c, to, lines, "First steps: " + title(step));
+        if (!said.isEmpty() && to != null) Text.send(to, Messages.compose("quests.reward", "rewards", Text.esc(said)));
+    }
+
+    /**
+     * Pays reward lines: "treasury:25" and "good:oak_log:16" to the colony, "item:camp_banner" (or any ColonySMP
+     * item) to the player, the rest (money, key, xp, cosmetic...) through ModdedrealmsSMP. Returns what was paid in
+     * a few words ("" if nothing).
+     */
+    public String pay(Colony c, Player to, List<String> lines, String memo) {
         long day = plugin.sim().day(c);
         List<String> forServer = new ArrayList<>();
         List<String> said = new ArrayList<>();
@@ -232,7 +242,7 @@ public final class QuestManager implements Listener {
                 switch (kind) {
                     case "treasury" -> {
                         long n = Long.parseLong(f[1]);
-                        c.treasury.credit(n, TxnType.REWARDS, "First steps: " + title(step), System.currentTimeMillis(), day);
+                        c.treasury.credit(n, TxnType.REWARDS, memo, System.currentTimeMillis(), day);
                         said.add(Text.value(n) + " " + Messages.get("quests.reward-treasury"));
                     }
                     case "good" -> {
@@ -253,7 +263,7 @@ public final class QuestManager implements Listener {
                     default -> forServer.add(line);
                 }
             } catch (RuntimeException ex) {
-                plugin.getLogger().warning("First-steps reward '" + line + "' failed: " + ex.getMessage());
+                plugin.getLogger().warning("Reward '" + line + "' (" + memo + ") failed: " + ex.getMessage());
             }
         }
         ColonyApi.ServerHook hook = ColonyApi.hook();
@@ -262,7 +272,7 @@ public final class QuestManager implements Listener {
             String d = hook.describe(forServer);
             if (d != null && !d.isBlank()) said.add(d);
         }
-        if (!said.isEmpty() && to != null) Text.send(to, Messages.compose("quests.reward", "rewards", Text.esc(String.join(", ", said))));
+        return String.join(", ", said);
     }
 
     private void finale(Colony c) {

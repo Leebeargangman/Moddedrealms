@@ -163,6 +163,7 @@ final class SmpCommand implements TabExecutor {
             case "onboarding" -> {
                 if (!admin) return no(sender);
                 for (String l : plugin.onboarding().stats()) sender.sendMessage(SmpPlugin.mm(l));
+                if (plugin.referrals() != null) sender.sendMessage(SmpPlugin.mm(plugin.referrals().stats()));
             }
             case "colonies" -> {
                 if (!admin) return no(sender);

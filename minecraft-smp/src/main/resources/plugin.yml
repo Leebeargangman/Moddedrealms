@@ -149,6 +149,11 @@ commands:
     usage: /suggest <your idea>
     aliases: [idea, feedback]
     permission: mrsmp.quests
+  invite:
+    description: Bring a friend - your invite code, or enter the code of the friend who invited you.
+    usage: /invite [code]
+    aliases: [refer, referral]
+    permission: mrsmp.quests
   daily:
     description: Claim your daily login reward and keep your streak going.
     aliases: [streak, login]

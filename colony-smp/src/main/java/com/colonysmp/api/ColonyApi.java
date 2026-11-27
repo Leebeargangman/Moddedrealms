@@ -208,6 +208,22 @@ public final class ColonyApi {
     }
 
     /** Records a new-player funnel step (talked_to_rowan, chose_colony, chose_battles...) the first time it happens. */
+    /** Playing with friends is on (features.friends). */
+    public static boolean friends() {
+        return plugin != null && plugin.friends().on();
+    }
+
+    /** Colonies with members online that this player could ask to join (empty if they have one already). */
+    public static List<com.colonysmp.onboard.Friends.Joinable> joinable(Player p) {
+        return plugin == null ? List.of() : plugin.friends().joinable(p);
+    }
+
+    /** Asks a colony's members to let this player in. Null when asked; otherwise why not. */
+    public static String askToJoin(Player p, String colonyId) {
+        if (plugin == null) return "Colonies aren't running.";
+        return plugin.friends().ask(p, plugin.colonies().get(colonyId));
+    }
+
     public static void funnel(UUID player, String step) {
         if (plugin != null) plugin.funnel().record(player, step);
     }

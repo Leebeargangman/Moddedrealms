@@ -183,3 +183,27 @@ chunks); Soldier open after it; 5 cold settlers with no firewood, all warm with 
 block by block (door at the front, beds, hearth with furnace, campfire and chimney). No errors in the server log.
 Not covered: builders putting up a server plan from the Blueprint Book, a WorldGuard region on the test server, the
 look in a real client, and the menu with tiers off.
+
+## Release 4: friends (ColonySMP 2.9.0, SMP 1.16.0)
+
+Switches: ColonySMP `features.friends`, SMP `referrals.enabled`. For a quick test: `friends.together-minutes: 1`,
+`referrals.minutes-needed: 2`, and `referrals.same-address-check: false` (bots all come from one address).
+
+1. Player A founds a camp with Elder Rowan.
+2. Player B (new) right-clicks Rowan: the menu has "A friend invited me" (slot 4) and "Join a Friend's Colony"
+   (slot 13, "1 colonies have players online").
+3. B: "A friend invited me" → A's head. B: "Thanks! A invited you", A: "B joined with your invite!". The option is
+   gone from B's menu after that.
+4. B: "Join a Friend's Colony" → A's colony (tier, settlers, who's online) → asked. A gets "[Let them in] [No thanks]".
+5. A clicks Let them in (or `/colony letin B`): B gets a title, a Colony Charter, and is taken to the camp. Rowan
+   stops calling B.
+6. With both on the colony's land for the set minutes: both "★ You and … have played in … together" with $50 and a
+   key. Once only.
+7. When B has played the set minutes: both get the invite rewards.
+8. `/invite` shows your code; `/invite <code>` of the player you invited is refused ("can't invite each other").
+9. `/mrsmp onboarding`: "… joined a friend", "Referrals on · 1 invited players, 1 paid out".
+
+### Last run: 27 Nov 2026, local Paper 1.21.11, two bot players
+Steps 1–7 and 9 as above: B was taken 618 blocks to A's camp, landing 5 blocks from A; both got the played-together
+reward after a minute and the invite rewards at two minutes. No errors in the server log. Not covered: step 8, the
+same-address refusal (bots share an address), a reward owed to an offline referrer, and Bedrock players.

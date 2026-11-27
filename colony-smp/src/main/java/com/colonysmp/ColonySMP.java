@@ -69,6 +69,7 @@ public final class ColonySMP extends JavaPlugin {
     private com.colonysmp.colony.Tiers tiers;
     private com.colonysmp.colony.WorldGuardCheck worldGuard;
     private com.colonysmp.building.ServerBlueprints serverBlueprints;
+    private com.colonysmp.onboard.Friends friends;
     private NpcManager npcs;
     private SimulationEngine sim;
     private MilitaryManager military;
@@ -141,6 +142,7 @@ public final class ColonySMP extends JavaPlugin {
         sites = new com.colonysmp.onboard.SitePool(this);
         camps = new com.colonysmp.onboard.StarterCamp(this);
         onboarding = new com.colonysmp.onboard.Onboarding(this);
+        friends = new com.colonysmp.onboard.Friends(this);
         civCommand = new com.colonysmp.command.CivCommand(this);
         commands = new ColonyCommand(this);
         economy.configure();
@@ -177,7 +179,7 @@ public final class ColonySMP extends JavaPlugin {
 
         for (Listener l : new Listener[]{items, selection, blueprints, markers, quests, npcs, prison, travelers, wars, townHall, military, raids, requests, happenings, christmas,
                 new CombatListener(this), new ClaimListener(this), new MenuListener(), prompt, civs, new com.colonysmp.world.SettlementProtection(this, civs),
-                funnel, onboarding}) {
+                funnel, onboarding, friends}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         PluginCommand cmd = getCommand("colony");
@@ -229,6 +231,7 @@ public final class ColonySMP extends JavaPlugin {
         Bukkit.getScheduler().runTaskTimer(this, () -> guarded("onboarding", onboarding::tick), 10L, 10L);
         Bukkit.getScheduler().runTaskTimer(this, () -> guarded("camp sites", sites::tick), 200L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, () -> guarded("funnel", funnel::tick), 400L, 400L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> guarded("friends", friends::tick), 1200L, 1200L);
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             if (dirty) save();
         }, 600L, 600L);
@@ -420,6 +423,10 @@ public final class ColonySMP extends JavaPlugin {
 
     public QuestManager quests() {
         return quests;
+    }
+
+    public com.colonysmp.onboard.Friends friends() {
+        return friends;
     }
 
     public com.colonysmp.building.ServerBlueprints serverBlueprints() {
