@@ -2,8 +2,8 @@
 
 Status: **in progress**. Written 25 Nov 2026. Release 1 (Phase 1 + season code, season off) live 25 Nov. Season switched on 27 Nov.
 Release 2 (Phase 2 onboarding: ColonySMP 2.7.0, SMP 1.15.0) live 27 Nov 17:33 CET, with onboarding, starter camps and
-the funnel switched on. Phase 3 (colony core: ColonySMP 2.8.0) built and bot-tested 27 Nov, not deployed.
-Next: deploying Phase 3 after the owner's OK, then the new features in section 15.
+the funnel switched on. Release 3 (Phase 3 colony core: ColonySMP 2.8.0) live 27 Nov 18:02 CET with `features.tiers: true` and
+`features.winter-needs: false` (to be switched on at the 18 Dec launch). Next: the new features in section 15.
 
 ## 1. What is there today
 
@@ -46,6 +46,8 @@ Next: deploying Phase 3 after the owner's OK, then the new features in section 1
 12. **Six new features (owner, 27 Nov), after Phase 3:** play with friends, bring-a-friend rewards, daily challenges,
     bandit camps, a colony gear path and player blueprints (section 15). Phase 3 comes first. These follow before the
     16 Dec freeze where there's time, each behind its own switch; anything not solid by then goes out after launch.
+13. **Phase 3 live early (owner, 27 Nov):** Release 3 went out on 27 Nov with tiers on. Winter needs stay off until
+    the Season 1 launch (18 Dec): switched on any time in December, they'd start at once.
 
 ## 3. Timeline
 
@@ -147,7 +149,7 @@ Everything in the table above, with these choices made while building and testin
 - **Land**: claims grow with tier (config). The existing protection stays and its rules get shown in the menu. It already respects the SMP's no-colony zones (fountain, Meadowbrook) through `ColonyApi`, but it **ignores WorldGuard** today. Added: no founding or claiming over a WorldGuard region (soft-depend, checked only if WorldGuard is installed).
 - **Guards** defend automatically (already there; checked against frost bandits).
 
-### Phase 3 as built (27 Nov, ColonySMP 2.8.0, tested locally, not deployed)
+### Phase 3 as built (27 Nov, ColonySMP 2.8.0, live since 27 Nov 18:02 CET with tiers on, winter off)
 
 Started on 27 Nov, about ten days early. Everything new is behind a switch, and with the switches off a colony
 plays the way it did in 2.7.0, apart from the menu layout.
