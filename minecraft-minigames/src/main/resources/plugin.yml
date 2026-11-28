@@ -1,0 +1,17 @@
+name: ModdedrealmsMinigames
+version: '${project.version}'
+main: net.moddedrealms.minigames.MinigamesPlugin
+api-version: '1.21'
+description: Minigames hub (TNT Run, Murder Mystery) where bots fill empty spots.
+author: Moddedrealms
+commands:
+  mg:
+    description: Minigames. /mg join <tntrun|murder>, /mg leave, /mg stats, /mg top
+    aliases: [play, game, games]
+  hub:
+    description: Back to the minigames hub
+    aliases: [leave, spawn]
+permissions:
+  minigames.admin:
+    description: Minigames admin commands
+    default: op
