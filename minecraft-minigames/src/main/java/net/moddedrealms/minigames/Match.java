@@ -250,6 +250,7 @@ abstract class Match {
                 }
             }
         }
+        if (state == State.WAITING || state == State.COUNTDOWN) lobbyBots();
         for (Participant p : players) if (p.isBot() && !p.gone) p.bot.tickBody();
         if (t % 10 == 0) updateBoards();
     }
@@ -350,6 +351,66 @@ abstract class Match {
         }
         players.clear();
         plugin.manager().release(this);
+    }
+
+    // ------------------------------------------------------------ bots waiting in the lobby
+
+    private final java.util.Map<Participant, double[]> idle = new java.util.HashMap<>(); // {x, z, until}
+
+    /** While waiting, bots do what people do in a lobby: wander a few steps, look at others, jump now and then. */
+    private void lobbyBots() {
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        for (Participant p : players) {
+            if (!p.isBot() || p.gone) continue;
+            org.bukkit.entity.Mannequin m = p.bot.body();
+            if (m == null) continue;
+            Location l = m.getLocation();
+            double[] s = idle.get(p);
+            if (s == null || t >= s[2]) {
+                s = new double[] {Double.NaN, Double.NaN, t + 20 + r.nextInt(70)};
+                if (r.nextDouble() < 0.5) {
+                    for (int i = 0; i < 6; i++) {
+                        double a = r.nextDouble(Math.PI * 2), d = r.nextDouble(1.5, 5);
+                        Location to = l.clone().add(-Math.sin(a) * d, 0, Math.cos(a) * d);
+                        if (lobbyWalkable(l, to)) {
+                            s[0] = to.getX();
+                            s[1] = to.getZ();
+                            break;
+                        }
+                    }
+                }
+                idle.put(p, s);
+                if (Double.isNaN(s[0])) {
+                    // Look at someone nearby, or just somewhere.
+                    Location look = null;
+                    for (Participant o : players) {
+                        Location ol = o == p ? null : o.loc();
+                        if (ol != null && ol.distanceSquared(l) < 100 && r.nextBoolean()) look = ol.add(0, 1.5, 0);
+                    }
+                    s[0] = Double.NaN;
+                    s[1] = look == null ? r.nextDouble(-180, 180)
+                            : Math.toDegrees(Math.atan2(-(look.getX() - l.getX()), look.getZ() - l.getZ()));
+                }
+            }
+            if (!Double.isNaN(s[0])) {
+                if (Math.hypot(s[0] - l.getX(), s[1] - l.getZ()) < 0.4) {
+                    s[0] = Double.NaN;
+                    p.bot.stop();
+                } else {
+                    p.bot.moveToward(s[0], s[1], Bot.WALK);
+                }
+            } else {
+                p.bot.stop();
+                if (!Double.isNaN(s[1])) p.bot.lookYaw((float) s[1], 0);
+            }
+            if (r.nextDouble() < 0.004) p.bot.jump();
+        }
+    }
+
+    /** Can a bot stroll in a straight line from a to b in the lobby? (Games with walls check their own map.) */
+    boolean lobbyWalkable(Location a, Location b) {
+        org.bukkit.block.Block feet = b.getBlock(), below = feet.getRelative(0, -1, 0);
+        return feet.isPassable() && feet.getRelative(0, 1, 0).isPassable() && below.getType().isSolid();
     }
 
     // ------------------------------------------------------------ helpers for games

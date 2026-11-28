@@ -78,6 +78,12 @@ final class Murder extends Match {
     }
 
     @Override
+    boolean lobbyWalkable(Location a, Location b) {
+        double ox = origin.getBlockX(), oz = origin.getBlockZ();
+        return Mansion.straight(a.getX() - ox, a.getZ() - oz, b.getX() - ox, b.getZ() - oz);
+    }
+
+    @Override
     boolean nameTagsVisible() {
         return false;
     }

@@ -110,6 +110,12 @@ final class TntRun extends Match {
         return l;
     }
 
+    @Override
+    boolean lobbyWalkable(Location a, Location b) {
+        double dx = b.getX() - origin.getX() - 0.5, dz = b.getZ() - origin.getZ() - 0.5;
+        return Math.hypot(dx, dz) < RADIUS - 2 && super.lobbyWalkable(a, b);
+    }
+
     Location spectatorSpot() {
         Location l = origin.clone().add(0.5, LAYERS[0] + 8, RADIUS - 2);
         l.setPitch(40);
