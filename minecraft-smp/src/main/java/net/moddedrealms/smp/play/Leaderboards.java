@@ -171,6 +171,8 @@ public final class Leaderboards implements TabExecutor, org.bukkit.event.Listene
             shutdown();
             return;
         }
+        at = aboveOtherText(at);
+        if (display != null && display.isValid() && display.getLocation().distanceSquared(at) > 0.01) display.teleport(at);
         if (display == null || !display.isValid()) {
             // a board left over from a crash
             for (Entity e : at.getWorld().getNearbyEntities(at, 4, 6, 4)) if (e.getPersistentDataContainer().has(tag, PersistentDataType.BYTE)) e.remove();
@@ -192,6 +194,33 @@ public final class Leaderboards implements TabExecutor, org.bukkit.event.Listene
         for (String l : lines(b, 5)) t.append(l).append('\n');
         t.append("<dark_gray>/top ").append(b.key);
         display.text(SmpPlugin.mm(t.toString()));
+    }
+
+    /**
+     * Floating text placed by something else right here (the plaza's "Moddedrealms" sign sits exactly where the
+     * fountain board goes): put the board just above it instead of on top of it. Text grows up from its spot.
+     */
+    private Location aboveOtherText(Location at) {
+        double y = at.getY();
+        for (int pass = 0; pass < 3; pass++) {
+            boolean moved = false;
+            for (Entity e : at.getWorld().getNearbyEntities(at, 1.5, 6, 1.5)) {
+                if (!(e instanceof TextDisplay td) || e.getPersistentDataContainer().has(tag, PersistentDataType.BYTE)) continue;
+                String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(td.text());
+                int lines = plain.split("\n", -1).length;
+                double bottom = td.getLocation().getY();
+                double top = bottom + lines * 0.27 * Math.max(0.1, td.getTransformation().getScale().y()) + 0.15;
+                // our board is about 2 blocks tall: overlap if the ranges meet
+                if (bottom < y + 2.1 && top > y - 0.05 && top + 0.2 > y) {
+                    y = top + 0.2;
+                    moved = true;
+                }
+            }
+            if (!moved) break;
+        }
+        Location out = at.clone();
+        out.setY(y);
+        return out;
     }
 
     // ------------------------------------------------------------------ /top

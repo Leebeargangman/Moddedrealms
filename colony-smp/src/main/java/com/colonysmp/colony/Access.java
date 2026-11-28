@@ -51,6 +51,22 @@ public final class Access {
         Role r = role(p, c);
         Text.send(p, "<red>As " + (r.member ? "a " : "") + r.display.toLowerCase() + (r.member ? " of " : " in ") + Text.esc(c.name)
                 + " you can't do that <gray>(needs: " + perm.description.toLowerCase() + ")</gray>.");
+        if (r.member && r != Role.OWNER) {
+            // Say which role would allow it, and how to get it.
+            Role needed = null;
+            for (Role x : new Role[] {Role.RESIDENT, Role.MANAGER, Role.CO_OWNER}) {
+                if (x.rank() > r.rank() && c.can(x, perm)) {
+                    needed = x;
+                    break;
+                }
+            }
+            String owner = plugin.getServer().getOfflinePlayer(c.owner).getName();
+            if (needed != null) {
+                Text.send(p, "<gray>" + needed.display + "s may. Ask " + (owner == null ? "the owner" : "<white>" + Text.esc(owner) + "</white>")
+                        + " to run <white>/colony promote " + Text.esc(p.getName()) + " " + needed.name().toLowerCase(java.util.Locale.ROOT) + "</white>"
+                        + (r == Role.RESIDENT && needed == Role.MANAGER ? ", or let residents do it: <white>/colony settings perm resident " + perm.name().toLowerCase(java.util.Locale.ROOT) + " on" : "") + ".");
+            }
+        }
         return false;
     }
 
