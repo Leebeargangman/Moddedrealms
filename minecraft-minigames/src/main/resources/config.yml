@@ -1,0 +1,55 @@
+# ModdedrealmsMinigames
+# A hub with TNT Run and Murder Mystery. When there aren't enough real players for a match, bots fill the
+# empty spots. Bots look and play like players, but carry a small grey [BOT] tag in the scoreboard, in
+# join/leave messages and in chat.
+
+# Where players come from and go back to (Velocity server names, sent with the BungeeCord channel).
+network:
+  back-server: "SMP"
+  back-label: "the SMP"
+
+# The world the hub and the arenas are built in (a void world, made on first start).
+world: "minigames"
+
+# Rebuild the hub and arenas on the next start (set back to false by the plugin).
+rebuild: false
+
+bots:
+  enabled: true
+  # A real player waits this long for other real players before bots start joining.
+  fill-after-seconds: 12
+  # Bots join one by one, this many seconds apart (random between the two).
+  join-gap-seconds: [0.6, 2.2]
+  # How skilled bots are: 0 = clumsy, 1 = very good. Each bot gets a random skill in this range.
+  skill: [0.35, 0.85]
+  # Bots sometimes say short things in chat (gg, gl, "it's X!"): chance per moment worth talking about.
+  chat-chance: 0.35
+  # Tag shown after a bot's name in scoreboards, join/leave messages and chat.
+  tag: "[BOT]"
+
+games:
+  tntrun:
+    enabled: true
+    min-players: 2
+    max-players: 10
+    arenas: 3
+    countdown-seconds: 10
+    # Blocks vanish this many ticks after someone steps on them (20 ticks = 1 second).
+    vanish-ticks: 7
+    double-jumps: 2
+  murder:
+    enabled: true
+    min-players: 4
+    max-players: 10
+    arenas: 3
+    countdown-seconds: 10
+    # The murderer gets the knife this many seconds after the start.
+    knife-after-seconds: 10
+    round-seconds: 270
+    gold-for-bow: 10
+    gold-every-seconds: 3
+    max-gold-on-map: 14
+    detective-arrow-seconds: 5
+    knife-throw-cooldown-seconds: 6
+    # How much more likely a real player is to be picked as murderer or detective than a bot.
+    human-role-weight: 2.0
