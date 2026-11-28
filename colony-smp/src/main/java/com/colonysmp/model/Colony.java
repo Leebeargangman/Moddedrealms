@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -130,6 +131,8 @@ public final class Colony {
 
     // runtime only
     public final transient Set<UUID> invites = new HashSet<>();
+    /** The role an invitation (or a let-in) comes with; Resident when not given. */
+    public final transient Map<UUID, Role> inviteRoles = new HashMap<>();
     public transient boolean active;
     public transient long activeSince;
     /** Milliseconds the last background step took (admin performance view). */

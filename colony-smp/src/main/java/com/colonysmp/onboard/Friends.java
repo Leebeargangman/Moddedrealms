@@ -105,6 +105,11 @@ public final class Friends implements org.bukkit.event.Listener {
 
     /** /colony letin <player>: a member with the Members permission accepts. */
     public void letIn(Player by, Colony c, String name) {
+        letIn(by, c, name, Role.RESIDENT);
+    }
+
+    /** The same, with the role they join as (the caller has checked the one letting them in may give it). */
+    public void letIn(Player by, Colony c, String name, Role as) {
         Player asker = name == null ? null : Bukkit.getPlayerExact(name);
         if (asker == null || pending(asker, c) == null) {
             Text.send(by, Messages.get("friends.no-ask", "player", name == null ? "?" : name));
@@ -116,8 +121,9 @@ public final class Friends implements org.bukkit.event.Listener {
             Text.send(by, Messages.get("friends.joined-elsewhere", "player", asker.getName()));
             return;
         }
-        c.members.put(asker.getUniqueId(), Role.RESIDENT);
+        c.members.put(asker.getUniqueId(), as == null || !as.member || as == Role.OWNER ? Role.RESIDENT : as);
         c.invites.remove(asker.getUniqueId());
+        c.inviteRoles.remove(asker.getUniqueId());
         c.log(ColonyEvent.Type.COLONY, plugin.sim().day(c), asker.getName() + " joined the colony (let in by " + by.getName() + ").");
         for (Player m : c.onlineMembers()) {
             if (!m.equals(asker)) Text.send(m, Messages.get("friends.joined-members", "player", asker.getName(), "colony", c.name, "by", by.getName()));

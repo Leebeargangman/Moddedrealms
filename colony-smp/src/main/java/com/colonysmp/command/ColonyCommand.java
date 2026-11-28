@@ -177,7 +177,16 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             }
             case "letin", "turnaway" -> {
                 if (need(p, c)) return;
-                if (sub.equals("letin")) plugin.friends().letIn(p, c, a.length == 0 ? null : a[0]);
+                if (sub.equals("letin")) {
+                    Role as = a.length > 1 ? Role.parse(a[1]) : Role.RESIDENT;
+                    if (as == null || !as.member || as == Role.OWNER) {
+                        Text.send(p, "<red>Let them in as resident, manager or co_owner.");
+                        return;
+                    }
+                    String why = mayGrant(p, c, as);
+                    if (why != null) Text.send(p, "<red>" + why);
+                    else plugin.friends().letIn(p, c, a.length == 0 ? null : a[0], as);
+                }
                 else plugin.friends().turnAway(p, c, a.length == 0 ? null : a[0]);
             }
             case "leave" -> leave(p, c);
@@ -462,7 +471,35 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
     private void invite(Player p, Colony c, String[] a) {
         if (need(p, c) || !plugin.access().check(p, c, Perm.MEMBERS)) return;
         if (a.length == 0) {
-            Text.send(p, "Usage: <white>/colony invite <player>");
+            Text.send(p, "Usage: <white>/colony invite <player> [resident|manager|co_owner]");
+            return;
+        }
+        Role role = Role.RESIDENT;
+        if (a.length > 1) {
+            role = Role.parse(a[1]);
+            if (role == null || !role.member) {
+                Text.send(p, "<red>Members can be Resident, Manager or Co-owner.");
+                return;
+            }
+            if (role == Role.OWNER) {
+                Text.send(p, "<red>You can't invite someone as owner. <gray>Invite them, then hand the colony over with <white>/colony promote " + Text.esc(a[0]) + " owner</white>.");
+                return;
+            }
+            String why = mayGrant(p, c, role);
+            if (why != null) {
+                Text.send(p, "<red>" + why);
+                return;
+            }
+        }
+        OfflinePlayer known = Bukkit.getOfflinePlayerIfCached(a[0]);
+        if (known != null && c.isMember(known.getUniqueId())) {
+            if (a.length > 1 && c.role(known.getUniqueId()) != role) {
+                // "invite them as manager" when they're already in: what's meant is a promotion
+                promote(p, c, new String[] {a[0], a[1]}, true);
+            } else {
+                Text.send(p, Text.esc(known.getName()) + " is already a member <gray>(" + c.role(known.getUniqueId()).display.toLowerCase(Locale.ROOT)
+                        + "). To change what they may do: <white>/colony promote " + Text.esc(known.getName()) + " manager");
+            }
             return;
         }
         Player t = Bukkit.getPlayerExact(a[0]);
@@ -470,14 +507,22 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             Text.send(p, "<red>That player isn't online.");
             return;
         }
-        if (c.isMember(t.getUniqueId())) {
-            Text.send(p, Text.esc(t.getName()) + " is already a member.");
-            return;
-        }
         c.invites.add(t.getUniqueId());
-        Text.send(p, "Invited <white>" + Text.esc(t.getName()) + "</white>.");
-        Text.send(t, Text.esc(p.getName()) + " invited you to <aqua>" + Text.esc(c.name) + "</aqua>. <click:run_command:'/colony join " + Text.esc(c.name)
+        if (role == Role.RESIDENT) c.inviteRoles.remove(t.getUniqueId());
+        else c.inviteRoles.put(t.getUniqueId(), role);
+        String as = role == Role.RESIDENT ? "" : " as " + Text.a(role.display.toLowerCase(Locale.ROOT));
+        Text.send(p, "Invited <white>" + Text.esc(t.getName()) + "</white>" + as + ".");
+        Text.send(t, Text.esc(p.getName()) + " invited you to <aqua>" + Text.esc(c.name) + "</aqua>" + as + ". <click:run_command:'/colony join " + Text.esc(c.name)
                 + "'><green>[Join]</green></click>");
+    }
+
+    /** Why this player may not hand out this role here (null = they may). Below their own rank, and they need Roles. */
+    String mayGrant(Player p, Colony c, Role role) {
+        if (role == Role.RESIDENT || plugin.isBypassing(p)) return null;
+        Role mine = c.role(p.getUniqueId());
+        if (mine == null || !c.can(mine, Perm.ROLES)) return "Only members who may promote (the owner, by default) can hand out roles. Invite them as a resident instead.";
+        if (role.rank() >= mine.rank()) return "You can only hand out roles below your own (" + mine.display.toLowerCase(Locale.ROOT) + ").";
+        return null;
     }
 
     private void join(Player p, String[] a) {
@@ -494,8 +539,11 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
             Text.send(p, "<red>You already belong to as many colonies as you may.");
             return;
         }
-        c.members.put(p.getUniqueId(), Role.RESIDENT);
-        c.log(ColonyEvent.Type.COLONY, plugin.sim().day(c), p.getName() + " joined the colony.");
+        Role as = c.inviteRoles.remove(p.getUniqueId());
+        if (as == null || !as.member || as == Role.OWNER) as = Role.RESIDENT;
+        c.members.put(p.getUniqueId(), as);
+        c.log(ColonyEvent.Type.COLONY, plugin.sim().day(c), p.getName() + " joined the colony" + (as == Role.RESIDENT ? "" : " as " + as.display) + ".");
+        if (as != Role.RESIDENT) Text.send(p, "You joined as " + Text.a("<white>" + as.display.toLowerCase(Locale.ROOT)) + "</white>.");
         for (Player m : c.onlineMembers()) Text.send(m, "<green>" + Text.esc(p.getName()) + " joined " + Text.esc(c.name) + ".");
         plugin.quests().refresh(c);
         plugin.requestSave();
@@ -1727,9 +1775,13 @@ public final class ColonyCommand implements CommandExecutor, TabCompleter {
                 if (args.length == 2) options = List.of("set");
                 if (args.length == 3) options = PoliciesMenu.NAMES;
             }
-            case "promote", "demote", "kick", "invite" -> {
-                for (Player o : Bukkit.getOnlinePlayers()) options.add(o.getName());
-                if (args.length == 3) for (Role r : Role.values()) if (r.member) options.add(r.name().toLowerCase(Locale.ROOT));
+            case "promote", "demote", "kick", "invite", "letin" -> {
+                if (args.length == 2) for (Player o : Bukkit.getOnlinePlayers()) options.add(o.getName());
+                if (args.length == 3 && !args[0].equalsIgnoreCase("kick")) {
+                    for (Role r : Role.values()) {
+                        if (r.member && (r != Role.OWNER || args[0].equalsIgnoreCase("promote"))) options.add(r.name().toLowerCase(Locale.ROOT));
+                    }
+                }
             }
             case "traveller", "traveler" -> options = List.of("recruit", "dismiss");
             case "research" -> {
